@@ -1,0 +1,71 @@
+FileInputFormat.java:54: * not split-up and are processed as a whole by {@link Mapper}s.
+FileInputFormat.java:108:   * so that {@link Mapper}s process entire files.
+InputFormat.java:36: *   which is then assigned to an individual {@link Mapper}.
+InputFormat.java:41: *   the {@link Mapper}.
+InputFormat.java:70:   * <p>Each {@link InputSplit} is then assigned to an individual {@link Mapper}
+InputSplit.java:26: * individual {@link Mapper}. 
+JobClient.java:89:import org.codehaus.jackson.map.ObjectMapper;
+JobClient.java:136: *     job.setMapperClass(MyJob.MyMapper.class);
+JobClient.java:882:          if (reduces == 0 ? jobCopy.getUseNewMapper() : 
+JobClient.java:978:    if (jConf.getUseNewMapper()) {
+JobClient.java:2056:        ObjectMapper mapper = new ObjectMapper();
+JobConf.java:39:import org.apache.hadoop.mapred.lib.IdentityMapper;
+JobConf.java:68: * <p><code>JobConf</code> typically specifies the {@link Mapper}, combiner 
+JobConf.java:91: *     job.setMapperClass(MyJob.MyMapper.class);
+JobConf.java:894:  public boolean getUseNewMapper() {
+JobConf.java:902:  public void setUseNewMapper(boolean flag) {
+JobConf.java:942:   * Get the {@link Mapper} class for the job.
+JobConf.java:944:   * @return the {@link Mapper} class for the job.
+JobConf.java:946:  public Class<? extends Mapper> getMapperClass() {
+JobConf.java:947:    return getClass("mapred.mapper.class", IdentityMapper.class, Mapper.class);
+JobConf.java:951:   * Set the {@link Mapper} class for the job.
+JobConf.java:953:   * @param theClass the {@link Mapper} class for the job.
+JobConf.java:955:  public void setMapperClass(Class<? extends Mapper> theClass) {
+JobConf.java:956:    setClass("mapred.mapper.class", theClass, Mapper.class);
+JobConf.java:972:   * Typically used to exert greater control on {@link Mapper}s.
+JobConf.java:981:   * Get the {@link Partitioner} used to partition {@link Mapper}-outputs 
+JobConf.java:993:   * {@link Mapper}-outputs to be sent to the {@link Reducer}s.
+JobConf.java:1037:   * {@link Mapper} and the {@link Reducer}, leading to better performance.</p>
+Mapper.java:38: * <code>Mapper</code> implementations can access the {@link JobConf} for the 
+Mapper.java:53: * <p>The grouped <code>Mapper</code> outputs are partitioned per 
+Mapper.java:60: * from the <code>Mapper</code> to the <code>Reducer</code>.
+Mapper.java:69: * reduces</a> then the output of the <code>Mapper</code> is directly written
+Mapper.java:74: *     public class MyMapper&lt;K extends WritableComparable, V extends Writable&gt; 
+Mapper.java:75: *     extends MapReduceBase implements Mapper&lt;K, V, K, V&gt; {
+Mapper.java:121: * control on map processing e.g. multi-threaded <code>Mapper</code>s etc.</p>
+Mapper.java:131:public interface Mapper<K1, V1, K2, V2> extends JobConfigurable, Closeable {
+MapReduceBase.java:27: * Base class for {@link Mapper} and {@link Reducer} implementations.
+MapRunnable.java:24: * Expert: Generic interface for {@link Mapper}s.
+MapRunnable.java:29: * @see Mapper
+MapRunner.java:29:  private Mapper<K1, V1, K2, V2> mapper;
+MapRunner.java:34:    this.mapper = ReflectionUtils.newInstance(job.getMapperClass(), job);
+MapRunner.java:36:    this.incrProcCount = SkipBadRecords.getMapperMaxSkipRecords(job)>0 && 
+MapRunner.java:37:      SkipBadRecords.getAutoIncrMapperProcCount(job);
+MapRunner.java:63:  protected Mapper<K1, V1, K2, V2> getMapper() {
+MapTask.java:352:    boolean useNewApi = job.getUseNewMapper();
+MapTask.java:370:      runNewMapper(job, splitMetaInfo, umbilical, reporter);
+MapTask.java:372:      runOldMapper(job, splitMetaInfo, umbilical, reporter);
+MapTask.java:406:  void runOldMapper(final JobConf job,
+MapTask.java:709:  void runNewMapper(final JobConf job,
+MapTask.java:719:    org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE> mapper =
+MapTask.java:720:      (org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE>)
+MapTask.java:721:        ReflectionUtils.newInstance(taskContext.getMapperClass(), job);
+MapTask.java:737:    org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE>.Context 
+MapTask.java:740:      Constructor<org.apache.hadoop.mapreduce.Mapper.Context> contextConstructor =
+MapTask.java:741:        org.apache.hadoop.mapreduce.Mapper.Context.class.getConstructor
+MapTask.java:742:        (new Class[]{org.apache.hadoop.mapreduce.Mapper.class,
+OutputCollector.java:24: * Collects the <code>&lt;key, value&gt;</code> pairs output by {@link Mapper}s
+OutputCollector.java:29: * <code>Mapper</code> or the <code>Reducer</code> i.e. intermediate outputs 
+RecordReader.java:30: * record-oriented view for the {@link Mapper} & {@link Reducer} tasks for 
+Reducer.java:45: *   <p><code>Reducer</code> is input the grouped output of a {@link Mapper}.
+Reducer.java:47: *   relevant partition of the output of all the <code>Mapper</code>s, via HTTP. 
+Reducer.java:55: *   (since different <code>Mapper</code>s may have output the same key) in this
+Reducer.java:159: * @see Mapper
+Reporter.java:29: * <p>{@link Mapper} and {@link Reducer} can use the <code>Reporter</code>
+SkipBadRecords.java:40: * see {@link SkipBadRecords#setMapperMaxSkipRecords(Configuration, long)}</p>
+SkipBadRecords.java:62:   * @see SkipBadRecords#getAutoIncrMapperProcCount(Configuration)
+SkipBadRecords.java:133:  public static boolean getAutoIncrMapperProcCount(Configuration conf) {
+SkipBadRecords.java:150:  public static void setAutoIncrMapperProcCount(Configuration conf, 
+SkipBadRecords.java:246:  public static long getMapperMaxSkipRecords(Configuration conf) {
+SkipBadRecords.java:265:  public static void setMapperMaxSkipRecords(Configuration conf, 
+TaskInProgress.java:148:    this.maxSkipRecords = SkipBadRecords.getMapperMaxSkipRecords(conf);
