@@ -4,6 +4,8 @@ import os
 
 fp = open('SupportedMR', 'r')
 
+generatedIters = [ ]
+
 def typeNameForClassName(type):
     if type == 'ipair':
         return 'UPair'
@@ -30,6 +32,17 @@ for line in fp:
         print cmd
         os.system(cmd)
 
+    if tokens[0] == 'reducer':
+        outputValType = tokens[4]
+        if not outputValType in generatedIters:
+            generatedIters.append(outputValType)
+            iterName = 'HadoopCL'+typeNameForClassName(outputValType)+'ValueIterator'
+            iterFileName = 'mapred/org/apache/hadoop/mapreduce/'+iterName+'.java'
+            if os.path.exists(iterFileName):
+                cmd = 'rm '+iterFileName
+                print cmd
+                os.system(cmd)
+
 arrayTypes = [ 'int', 'long', 'double', 'float' ]
 for t in arrayTypes:
     arrayFileName = 'core/org/apache/hadoop/io/HadoopCLResizable'+t.capitalize()+'Array.java'
@@ -37,3 +50,5 @@ for t in arrayTypes:
         cmd = 'rm '+arrayFileName
         print cmd
         os.system(cmd)
+
+
