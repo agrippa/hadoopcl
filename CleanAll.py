@@ -33,7 +33,7 @@ for line in fp:
         os.system(cmd)
 
     if tokens[0] == 'reducer':
-        outputValType = tokens[4]
+        outputValType = tokens[2]
         if not outputValType in generatedIters:
             generatedIters.append(outputValType)
             iterName = 'HadoopCL'+typeNameForClassName(outputValType)+'ValueIterator'

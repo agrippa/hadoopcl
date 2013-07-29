@@ -272,15 +272,22 @@ def generateKernelDecl(isMapper, keyType, valType, fp):
             acc = acc + keyType+' key, '
 
         if valType == 'pair':
-            acc = acc + 'double[] vals1, double[] vals2'
+            acc = acc + 'HadoopCLPairValueIterator valIter);'
         elif valType == 'ipair':
-            acc = acc + 'int[] valIds, double[] vals1, double[] vals2'
+            acc = acc + 'HadoopCLUPairValueIterator valIter);'
         elif valType == 'svec':
-            acc = acc + 'int[] valLookAsideBuffer, int[] valIndices, double[] valVals'
+            acc = acc + 'HadoopCLSvecValueIterator valIter);'
         else:
-            acc = acc + valType+'[] vals'
-
-        acc = acc + ', int startValueOffset, int stopValueOffset);\n'
+            acc = acc + 'HadoopCL'+valType.capitalize()+'ValueIterator valIter);'
+        #if valType == 'pair':
+        #    acc = acc + 'double[] vals1, double[] vals2'
+        #elif valType == 'ipair':
+        #    acc = acc + 'int[] valIds, double[] vals1, double[] vals2'
+        #elif valType == 'svec':
+        #    acc = acc + 'int[] valLookAsideBuffer, int[] valIndices, double[] valVals'
+        #else:
+        #    acc = acc + valType+'[] vals'
+        #acc = acc + ', int startValueOffset, int stopValueOffset);\n'
         fp.write(acc)
 
 def generateKernelCall(isMapper, keyType, valType, fp):
@@ -325,16 +332,24 @@ def generateKernelCall(isMapper, keyType, valType, fp):
         else:
             acc = acc + 'inputKeys[3], '
 
+        #if valType == 'pair':
+        #    acc = acc + 'inputVals1, inputVals2, '
+        #elif valType == 'ipair':
+        #    acc = acc + 'inputValIds, inputVals1, inputVals2, '
+        #elif valType == 'svec':
+        #    acc = acc + 'inputValLookAsideBuffer, inputValIndices, inputValVals, '
+        #else:
+        #    acc = acc + 'inputVals, '
+        #acc = acc + 'startOffset, stopOffset);\n'
         if valType == 'pair':
-            acc = acc + 'inputVals1, inputVals2, '
+            acc = acc + 'new HadoopCLPairValueIterator(inputVals1, inputVals2, stopOffset-startOffset));\n'
         elif valType == 'ipair':
-            acc = acc + 'inputValIds, inputVals1, inputVals2, '
+            acc = acc + 'new HadoopCLUPairValueIterator(inputValIds, inputVals1, inputVals2, stopOffset-startOffset));\n'
         elif valType == 'svec':
-            acc = acc + 'inputValLookAsideBuffer, inputValIndices, inputValVals, '
+            acc = acc + 'new HadoopCLSvecValueIterator(inputValLookAsideBuffer, inputValIndices, inputValVals, stopOffset-startOffset, 0));\n'
         else:
-            acc = acc + 'inputVals, '
+            acc = acc + 'new HadoopCL'+valType.capitalize()+'ValueIterator(inputVals, stopOffset-startOffset));\n'
 
-        acc = acc + 'startOffset, stopOffset);\n'
         fp.write(acc)
         fp.write('    }\n')
 
@@ -1275,13 +1290,13 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('            }\n')
         kernelfp.write('            reduce('+generateMapArguments('key',nativeInputKeyType)+', ')
         if nativeInputValueType == 'pair':
-            kernelfp.write('(double[])this.bufferedVal1.getArray(), (double[])this.bufferedVal2.getArray(), 0, this.bufferedVal1.size());\n')
+            kernelfp.write('new HadoopCLPairValueIterator((double[])this.bufferedVal1.getArray(), (double[])this.bufferedVal2.getArray(), this.bufferedVal1.size()));\n')
         elif nativeInputValueType == 'ipair':
-            kernelfp.write('(int[])this.bufferedValId.getArray(), (double[])this.bufferedVal1.getArray(), (double[])this.bufferedVal2.getArray(), 0, this.bufferedValId.size());\n')
+            kernelfp.write('new HadoopCLUPairValueIterator((int[])this.bufferedValId.getArray(), (double[])this.bufferedVal1.getArray(), (double[])this.bufferedVal2.getArray(), this.bufferedValId.size()));\n')
         elif nativeInputValueType == 'svec':
-            kernelfp.write('(int[])this.bufferedValLookAside.getArray(), (int[])this.bufferedValIndices.getArray(), (double[])this.bufferedValVals.getArray(), 0, this.bufferedValLookAside.size());\n')
+            kernelfp.write('new HadoopCLSvecValueIterator((int[])this.bufferedValLookAside.getArray(), (int[])this.bufferedValIndices.getArray(), (double[])this.bufferedValVals.getArray(), this.bufferedValLookAside.size(), this.bufferedValIndices.size()));\n')
         else:
-            kernelfp.write('('+nativeInputValueType+'[])this.bufferedVals.getArray(), 0, this.bufferedVals.size());\n')
+            kernelfp.write('new HadoopCL'+nativeInputValueType.capitalize()+'ValueIterator(('+nativeInputValueType+'[])this.bufferedVals.getArray(), this.bufferedVals.size()));\n')
 
     kernelfp.write('            OpenCLDriver.inputsRead++;\n')
     kernelfp.write('        }\n')

@@ -12,7 +12,7 @@ for line in fp:
 
     tokens = line.split()
     if tokens[0] == 'reducer':
-        outputValType = tokens[4]
+        outputValType = tokens[2]
         if not outputValType in generatedIters:
             generatedIters.append(outputValType)
             cmd = 'python AutoGenerateIter.py '+outputValType
