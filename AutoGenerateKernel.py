@@ -252,7 +252,8 @@ def generateKernelDecl(isMapper, keyType, valType, fp):
         elif valType == 'ipair':
             acc = acc + 'int valId, double val1, double val2'
         elif valType == 'svec':
-            acc = acc + 'int[] indices, double[] vals, int start, int end'
+            acc = acc + 'int[] indices, double[] vals, int len'
+            #acc = acc + 'int[] indices, double[] vals, int start, int end'
         else:
             acc = acc + valType+' val'
 
@@ -312,7 +313,8 @@ def generateKernelCall(isMapper, keyType, valType, fp):
         elif valType == 'ipair':
             acc = acc + 'inputValIds[3], inputVals1[3], inputVals2[3]'
         elif valType == 'svec':
-            acc = acc + 'inputValIndices, inputValVals, inputValLookAsideBuffer[3], this.nPairs + this.individualInputValsCount';
+            #acc = acc + 'inputValIndices, inputValVals, inputValLookAsideBuffer[3], this.nPairs + this.individualInputValsCount';
+            acc = acc + 'inputValIndices, inputValVals, inputValLookAsideBuffer[3] + this.nPairs + this.individualInputValsCount';
         else:
             acc = acc + 'inputVals[3]'
 
@@ -1009,7 +1011,7 @@ def generateMapArguments(varName, nativeType):
     elif nativeType == 'ipair':
         return varName+'.getIVal(), '+varName+'.getVal1(), '+varName+'.getVal2()'
     elif nativeType == 'svec':
-        return varName+'.indices(), '+varName+'.vals(), 0, '+varName+'.size()'
+        return varName+'.indices(), '+varName+'.vals(), '+varName+'.size()'
     else:
         return varName+'.get()'
 
