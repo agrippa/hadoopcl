@@ -24,3 +24,4 @@ reducer int svec int int
 mapper int svec int svec
 reducer int svec int svec
 reducer int int int long
+mapper int int int int
