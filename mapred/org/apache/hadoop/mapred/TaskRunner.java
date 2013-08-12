@@ -376,8 +376,8 @@ abstract class TaskRunner extends Thread {
       throws IOException {
     Vector<String> vargs = new Vector<String>(8);
     File jvm =                                  // use same jvm as parent
-      new File(new File("/opt/apps/jdk/1.6", "bin"), "java");
-      //new File(new File(System.getProperty("java.home"), "bin"), "java");
+      // new File(new File("/opt/apps/jdk/1.6", "bin"), "java");
+      new File(new File(System.getProperty("java.home"), "bin"), "java");
 
     vargs.add(jvm.toString());
     vargs.add("-Dopencl.device="+assignedDevice);
