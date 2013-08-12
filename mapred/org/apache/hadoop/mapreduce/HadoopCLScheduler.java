@@ -36,10 +36,15 @@ public abstract class HadoopCLScheduler {
     public HadoopCLScheduler() {
       deviceTypes = new ArrayList<Device.TYPE>();
       List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
+      System.out.println("DIAGNOSTICS: Found "+platforms.size()+" OpenCL platforms");
+      int platformId = 0;
       for(OpenCLPlatform platform : platforms) {
+          System.out.println("DIAGNOSTICS:     Platform "+platformId+" has "+platform.getOpenCLDevices().size()+" devices");
           for(OpenCLDevice device : platform.getOpenCLDevices()) {
+              System.out.println("DIAGNOSTICS:         "+deviceTypeString(device.getType()));
               deviceTypes.add(device.getType());
           }
+          platformId++;
       }
       deviceTypes.add(Device.TYPE.JAVA); // special fake device
 
