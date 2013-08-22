@@ -15,10 +15,11 @@ for line in fp:
         outputValType = tokens[2]
         if not outputValType in generatedIters:
             generatedIters.append(outputValType)
-            cmd = 'python AutoGenerateIter.py '+outputValType
-            print cmd
-            os.system(cmd)
-
+print
+for outputValType in generatedIters:
+    cmd = 'python AutoGenerateIter.py '+outputValType
+    print cmd
+    os.system(cmd)
 print
 arrayTypes = [ 'int', 'long', 'double', 'float' ]
 for t in arrayTypes:

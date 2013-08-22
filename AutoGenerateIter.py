@@ -70,17 +70,23 @@ class ImportVisitor(IterTypeVisitor):
     def processSvec(self):
         return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
                 'import org.apache.hadoop.io.HadoopCLResizableDoubleArray;',
-                'import java.util.HashMap;' ]
+                'import java.util.HashMap;', 'import java.util.List;' ]
 
 class FieldDeclarationVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
-        return [ '    private '+typ+'[] vals;', '    private int len;', '    private int currentIndex;' ]
+        return [ '    private '+typ+'[] vals;', '    private int len;',
+                '    private int currentIndex;' ]
     def processPair(self):
-        return [ '    private double[] vals1;', '    private double[] vals2;', '    int len;', '    private int currentIndex;' ]
+        return [ '    private double[] vals1;', '    private double[] vals2;',
+                '    int len;', '    private int currentIndex;' ]
     def processIPair(self):
-        return [ '    private int[] valIds;', '    private double[] vals1;', '    private double[] vals2;', '    int len;', '    private int currentIndex;' ]
+        return [ '    private int[] valIds;', '    private double[] vals1;',
+                '    private double[] vals2;', '    int len;',
+                '    private int currentIndex;' ]
     def processSvec(self):
-        return [ '    private int[] lookAside;', '    private int[] indices;', '    private double[] vals;', '    private int len;', '    private int auxLen;', '    private int currentIndex;', '    private HashMap<Integer, int[]> indicesCache;', 'private HashMap<Integer, double[]> valsCache;' ]
+        return [ '    private List<HadoopCLResizableIntArray> indices;',
+                '    private List<HadoopCLResizableDoubleArray> vals;',
+                '    private int currentIndex;', '    private int len;' ]
 
 class ConstructorVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -106,11 +112,13 @@ class ConstructorVisitor(IterTypeVisitor):
         return lines
     def processSvec(self):
         lines = [ ]
-        lines.append('    public HadoopCL'+NativeToJavaVisitor().process('svec')+'ValueIterator(int[] setLookAside, int[] setIndices, double[] setVals, int setLen, int setAuxLen) {')
-        lines.append('        this.lookAside = setLookAside; this.indices = setIndices; this.vals = setVals; this.len = setLen; this.auxLen = setAuxLen;')
+        lines.append('    public HadoopCL'+NativeToJavaVisitor().process('svec')+
+                """ValueIterator(List<HadoopCLResizableIntArray> indices,
+                List<HadoopCLResizableDoubleArray> vals) {""")
+        lines.append('        this.indices = indices;')
+        lines.append('        this.vals = vals;')
+        lines.append('        this.len = indices.size();')
         lines.append('        this.currentIndex = 0;')
-        lines.append('        this.indicesCache = new HashMap<Integer, int[]>();')
-        lines.append('        this.valsCache = new HashMap<Integer, double[]>();')
         lines.append('    }')
         return lines
 
@@ -148,27 +156,11 @@ class GetterVisitor(IterTypeVisitor):
     def processSvec(self):
         lines = [ ]
         lines.append('    public int[] getValIndices() {')
-        lines.append('        if(indicesCache.containsKey(this.currentIndex)) {')
-        lines.append('            return indicesCache.get(this.currentIndex);')
-        lines.append('        }')
-        lines.append('        int start = this.lookAside[this.currentIndex];')
-        lines.append('        int end = (this.currentIndex == this.len-1 ? this.auxLen : this.lookAside[this.currentIndex+1]);')
-        lines.append('        int[] indices = new int[end-start];')
-        lines.append('        System.arraycopy(this.indices, start, indices, 0, end-start);')
-        lines.append('        this.indicesCache.put(this.currentIndex, indices);')
-        lines.append('        return indices;')
+        lines.append('        return (int[])this.indices.get(this.currentIndex).getArray();')
         lines.append('    }')
         lines.append('')
         lines.append('    public double[] getValVals() {')
-        lines.append('        if(valsCache.containsKey(this.currentIndex)) {')
-        lines.append('            return valsCache.get(this.currentIndex);')
-        lines.append('        }')
-        lines.append('        int start = this.lookAside[this.currentIndex];')
-        lines.append('        int end = (this.currentIndex == this.len-1 ? this.auxLen : this.lookAside[this.currentIndex+1]);')
-        lines.append('        double[] vals = new double[end-start];')
-        lines.append('        System.arraycopy(this.vals, start, vals, 0, end-start);')
-        lines.append('        this.valsCache.put(this.currentIndex, vals);')
-        lines.append('        return vals;')
+        lines.append('        return (double[])this.vals.get(this.currentIndex).getArray();')
         lines.append('    }')
         return lines
 
@@ -216,9 +208,7 @@ GetterVisitor().write(typ, fp)
 fp.write('\n')
 if typ == 'svec':
     fp.write('    public int vectorLength(int index) {\n')
-    fp.write('        int start = this.lookAside[index];\n')
-    fp.write('        int end = (index == this.len-1 ? this.auxLen : this.lookAside[index+1]);\n')
-    fp.write('        return end-start;\n')
+    fp.write('        return this.indices.get(index).size();\n')
     fp.write('    }\n')
     fp.write('\n')
     fp.write('    public int currentVectorLength() {\n')

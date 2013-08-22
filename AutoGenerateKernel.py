@@ -348,7 +348,8 @@ def generateKernelCall(isMapper, keyType, valType, fp):
         elif valType == 'ipair':
             acc = acc + 'new HadoopCLUPairValueIterator(inputValIds, inputVals1, inputVals2, stopOffset-startOffset));\n'
         elif valType == 'svec':
-            acc = acc + 'new HadoopCLSvecValueIterator(inputValLookAsideBuffer, inputValIndices, inputValVals, stopOffset-startOffset, 0));\n'
+            # acc = acc + 'new HadoopCLSvecValueIterator(inputValLookAsideBuffer, inputValIndices, inputValVals, stopOffset-startOffset, 0));\n'
+            acc = acc + 'new HadoopCLSvecValueIterator(null, null));\n'
         else:
             acc = acc + 'new HadoopCL'+valType.capitalize()+'ValueIterator(inputVals, stopOffset-startOffset));\n'
 
@@ -365,6 +366,7 @@ def writeHeader(fp, isMapper):
     fp.write('import com.amd.aparapi.Kernel;\n')
     fp.write('import org.apache.hadoop.io.*;\n')
     fp.write('import java.util.List;\n')
+    fp.write('import java.util.ArrayList;\n')
     fp.write('import java.util.HashMap;\n')
     if isMapper:
         fp.write('import org.apache.hadoop.mapreduce.Mapper.Context;\n')
@@ -1061,9 +1063,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('    protected HadoopCLResizableDoubleArray bufferedVal1 = null;\n')
             kernelfp.write('    protected HadoopCLResizableDoubleArray bufferedVal2 = null;\n')
         elif nativeInputValueType == 'svec':
-            kernelfp.write('    protected HadoopCLResizableIntArray bufferedValLookAside = null;\n')
-            kernelfp.write('    protected HadoopCLResizableIntArray bufferedValIndices = null;\n')
-            kernelfp.write('    protected HadoopCLResizableDoubleArray bufferedValVals = null;\n')
+            # kernelfp.write('    protected HadoopCLResizableIntArray bufferedValLookAside = null;\n')
+            # kernelfp.write('    protected HadoopCLResizableIntArray bufferedValIndices = null;\n')
+            # kernelfp.write('    protected HadoopCLResizableDoubleArray bufferedValVals = null;\n')
+            pass
         else:
             kernelfp.write('    protected HadoopCLResizable'+nativeInputValueType.capitalize()+'Array bufferedVals = null;\n')
 
@@ -1133,9 +1136,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('\n')
         else:
             kernelfp.write('    protected int inputVectorLength(int vid) {\n')
-            kernelfp.write('       int start = ((int[])this.bufferedValLookAside.getArray())[vid];\n')
-            kernelfp.write('       int end = vid == this.bufferedValLookAside.size()-1 ? this.bufferedValIndices.size() : ((int[])this.bufferedValLookAside.getArray())[vid+1];\n')
-            kernelfp.write('       return end-start;\n')
+            kernelfp.write('       return 0;\n')
+            # kernelfp.write('       int start = ((int[])this.bufferedValLookAside.getArray())[vid];\n')
+            # kernelfp.write('       int end = vid == this.bufferedValLookAside.size()-1 ? this.bufferedValIndices.size() : ((int[])this.bufferedValLookAside.getArray())[vid+1];\n')
+            # kernelfp.write('       return end-start;\n')
             kernelfp.write('    }\n')
 
     if isMapper:
@@ -1243,9 +1247,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('        this.bufferedVal1 = new HadoopCLResizableDoubleArray();\n')
             kernelfp.write('        this.bufferedVal2 = new HadoopCLResizableDoubleArray();\n')
         elif nativeInputValueType == 'svec':
-            kernelfp.write('        this.bufferedValLookAside = new HadoopCLResizableIntArray();\n')
-            kernelfp.write('        this.bufferedValIndices = new HadoopCLResizableIntArray();\n')
-            kernelfp.write('        this.bufferedValVals = new HadoopCLResizableDoubleArray();\n')
+            # kernelfp.write('        this.bufferedValLookAside = new HadoopCLResizableIntArray();\n')
+            # kernelfp.write('        this.bufferedValIndices = new HadoopCLResizableIntArray();\n')
+            # kernelfp.write('        this.bufferedValVals = new HadoopCLResizableDoubleArray();\n')
+            pass
         else:
             kernelfp.write('        this.bufferedVals = new HadoopCLResizable'+nativeInputValueType.capitalize()+'Array();\n')
 
@@ -1267,9 +1272,11 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('            this.bufferedVal1.reset();\n')
             kernelfp.write('            this.bufferedVal2.reset();\n')
         elif nativeInputValueType == 'svec':
-            kernelfp.write('            this.bufferedValLookAside.reset();\n')
-            kernelfp.write('            this.bufferedValIndices.reset();\n')
-            kernelfp.write('            this.bufferedValVals.reset();\n')
+            # kernelfp.write('            this.bufferedValLookAside.reset();\n')
+            # kernelfp.write('            this.bufferedValIndices.reset();\n')
+            # kernelfp.write('            this.bufferedValVals.reset();\n')
+            kernelfp.write('            List<HadoopCLResizableIntArray> accIndices = new ArrayList<HadoopCLResizableIntArray>();\n')
+            kernelfp.write('            List<HadoopCLResizableDoubleArray> accVals = new ArrayList<HadoopCLResizableDoubleArray>();\n')
         else:
             kernelfp.write('            this.bufferedVals.reset();\n')
 
@@ -1282,23 +1289,46 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('                this.bufferedVal1.add(v.getVal1());\n')
             kernelfp.write('                this.bufferedVal2.add(v.getVal2());\n')
         elif nativeInputValueType == 'svec':
-            kernelfp.write('                this.bufferedValLookAside.add(this.bufferedValIndices.size());\n')
+            # kernelfp.write('                this.bufferedValLookAside.add(this.bufferedValIndices.size());\n')
+            kernelfp.write('                HadoopCLResizableIntArray indices = new HadoopCLResizableIntArray();\n')
+            kernelfp.write('                HadoopCLResizableDoubleArray vals = new HadoopCLResizableDoubleArray();\n')
             kernelfp.write('                for(int i = 0; i < v.size(); i++) {\n')
-            kernelfp.write('                    this.bufferedValIndices.add(v.indices()[i]);\n')
-            kernelfp.write('                    this.bufferedValVals.add(v.vals()[i]);\n')
+            kernelfp.write('                    indices.add(v.indices()[i]);\n')
+            kernelfp.write('                    vals.add(v.vals()[i]);\n')
+            # kernelfp.write('                    this.bufferedValIndices.add(v.indices()[i]);\n')
+            # kernelfp.write('                    this.bufferedValVals.add(v.vals()[i]);\n')
             kernelfp.write('                }\n')
+            kernelfp.write('                accIndices.add(indices);\n')
+            kernelfp.write('                accVals.add(vals);\n')
         else:
             kernelfp.write('                this.bufferedVals.add(v.get());\n')
+
         kernelfp.write('            }\n')
         kernelfp.write('            reduce('+generateMapArguments('key',nativeInputKeyType)+', ')
         if nativeInputValueType == 'pair':
-            kernelfp.write('new HadoopCLPairValueIterator((double[])this.bufferedVal1.getArray(), (double[])this.bufferedVal2.getArray(), this.bufferedVal1.size()));\n')
+            kernelfp.write("""new HadoopCLPairValueIterator(
+                           (double[])this.bufferedVal1.getArray(),
+                           (double[])this.bufferedVal2.getArray(),
+                           this.bufferedVal1.size()));\n""")
         elif nativeInputValueType == 'ipair':
-            kernelfp.write('new HadoopCLUPairValueIterator((int[])this.bufferedValId.getArray(), (double[])this.bufferedVal1.getArray(), (double[])this.bufferedVal2.getArray(), this.bufferedValId.size()));\n')
+            kernelfp.write("""new HadoopCLUPairValueIterator(
+                           (int[])this.bufferedValId.getArray(),
+                           (double[])this.bufferedVal1.getArray(),
+                           (double[])this.bufferedVal2.getArray(),
+                           this.bufferedValId.size()));\n""")
         elif nativeInputValueType == 'svec':
-            kernelfp.write('new HadoopCLSvecValueIterator((int[])this.bufferedValLookAside.getArray(), (int[])this.bufferedValIndices.getArray(), (double[])this.bufferedValVals.getArray(), this.bufferedValLookAside.size(), this.bufferedValIndices.size()));\n')
+            kernelfp.write("""new HadoopCLSvecValueIterator(
+                           accIndices, accVals));\n""")
+            # kernelfp.write("""new HadoopCLSvecValueIterator(
+            #                (int[])this.bufferedValLookAside.getArray(),
+            #                (int[])this.bufferedValIndices.getArray(),
+            #                (double[])this.bufferedValVals.getArray(),
+            #                this.bufferedValLookAside.size(),
+            #                this.bufferedValIndices.size()));\n""")
         else:
-            kernelfp.write('new HadoopCL'+nativeInputValueType.capitalize()+'ValueIterator(('+nativeInputValueType+'[])this.bufferedVals.getArray(), this.bufferedVals.size()));\n')
+            kernelfp.write('new HadoopCL'+nativeInputValueType.capitalize()+
+                    'ValueIterator(('+nativeInputValueType+
+                    '[])this.bufferedVals.getArray(), this.bufferedVals.size()));\n')
 
     kernelfp.write('            OpenCLDriver.inputsRead++;\n')
     kernelfp.write('        }\n')
