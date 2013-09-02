@@ -28,6 +28,7 @@ public abstract class HadoopCLMapperBuffer extends HadoopCLBuffer {
         this.capacity = this.clContext.getBufferSize();
         this.isGPU = this.clContext.isGPU();
         this.memIncr = new int[1];
+        this.resetProfile();
     }
 
     public boolean doIntermediateReduce() {

@@ -7,7 +7,7 @@ import com.amd.aparapi.device.Device;
 import com.amd.aparapi.device.Device.TYPE;
 
 public class ProfileContext {
-    private static final boolean PROFILE = false;
+    private static final boolean PROFILE = true;
 
     private long kernelWaitTime = 0;
     private List<Long> kernelWaits = new ArrayList<Long>();
@@ -46,9 +46,6 @@ public class ProfileContext {
         } else {
             this.deviceStr = "UNKNOWN";
         }
-
-
-        //System.out.println("Starting "+this.type+" task on device "+this.clContext.getDeviceId()+", "+this.deviceStr);
     }
 
     public void startOverallTimer() {

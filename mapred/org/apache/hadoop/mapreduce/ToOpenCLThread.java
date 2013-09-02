@@ -11,13 +11,10 @@ public class ToOpenCLThread implements Runnable {
     private static boolean fromHadoop = false;
     private static int nHadoopTasksActive = 0;
 
-    private final ProfileContext profiler;
-
     private final HadoopOpenCLContext clContext;
 
-    public ToOpenCLThread(HadoopCLKernel setKernel, ProfileContext setProfiler,
+    public ToOpenCLThread(HadoopCLKernel setKernel,
             HadoopOpenCLContext setCLContext) {
-        this.profiler = setProfiler;
         this.clContext = setCLContext;
     }
 
@@ -83,8 +80,10 @@ public class ToOpenCLThread implements Runnable {
                     boolean isMapper = work instanceof HadoopCLMapperBuffer;
                     HadoopCLKernel kernel = getKernel(clContext, isMapper);
 
+                    work.getProfile().startKernel();
                     work.fill(kernel);
-                    kernel.launchKernel(profiler);
+                    kernel.launchKernel();
+                    work.getProfile().addKernelAttempt();
 
                     while(!work.completedAll()) {
                         HadoopCLBuffer clone = work.cloneIncomplete();
@@ -92,8 +91,10 @@ public class ToOpenCLThread implements Runnable {
                         work = clone;
                         kernel = getKernel(clContext, isMapper);
                         work.fill(kernel);
-                        kernel.launchKernel(profiler);
+                        kernel.launchKernel();
+                        work.getProfile().addKernelAttempt();
                     }
+                    work.getProfile().stopKernel();
 
                     nHadoopTasksActive++;
                     ToHadoopThread.addWork(work);

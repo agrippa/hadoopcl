@@ -26,7 +26,7 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
     protected abstract void callMap();
     /**********************************/
 
-    public void launchKernel(ProfileContext profiler) throws IOException, InterruptedException {
+    public void launchKernel() throws IOException, InterruptedException {
         int globalSize = (this.nPairs + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
         globalSize *= clContext.getThreadsPerGroup();
 

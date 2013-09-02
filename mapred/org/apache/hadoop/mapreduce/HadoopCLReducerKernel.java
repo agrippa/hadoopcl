@@ -35,8 +35,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
         return 16;
     }
 
-    public void launchKernel(ProfileContext profiler) throws IOException, InterruptedException {
-
+    public void launchKernel() throws IOException, InterruptedException {
         int globalSize = (this.nKeys + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
         globalSize *= clContext.getThreadsPerGroup();
 

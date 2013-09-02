@@ -186,6 +186,8 @@ def generateWriteSig(outputKeyType, outputValType, fp):
 
 def generateWriteMethod(fp, nativeOutputKeyType, nativeOutputValueType):
     generateWriteSig(nativeOutputKeyType, nativeOutputValueType, fp)
+    fp.write('        this.javaProfile.stopKernel();\n')
+    fp.write('        this.javaProfile.startWrite();\n')
     if nativeOutputKeyType == 'pair':
         fp.write('        keyObj.set(key1, key2);\n')
     elif nativeOutputKeyType == 'ipair':
@@ -206,6 +208,8 @@ def generateWriteMethod(fp, nativeOutputKeyType, nativeOutputValueType):
     else:
         fp.write('        valObj.set(val);\n')
     fp.write('        try { clContext.getContext().write(keyObj, valObj); } catch(Exception ex) { throw new RuntimeException(ex); }\n')
+    fp.write('        this.javaProfile.stopWrite();\n')
+    fp.write('        this.javaProfile.startKernel();\n')
     fp.write('        return true;\n')
     fp.write('    }\n')
     fp.write('\n')
@@ -620,6 +624,7 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
     fp.write('    @Override\n')
     fp.write('    public void init(HadoopOpenCLContext clContext) {\n')
     fp.write('        baseInit(clContext);\n')
+    fp.write('        this.setStrided(false);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -714,6 +719,7 @@ def writeTransferBufferedValues(fp, isMapper):
 def writeResetMethod(fp, isMapper, nativeInputValueType):
     fp.write('    @Override\n')
     fp.write('    public void reset() {\n')
+    fp.write('        this.resetProfile();\n')
     if isMapper:
         fp.write('        this.nPairs = 0;\n')
         if nativeInputValueType == 'svec':
@@ -1236,8 +1242,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     generateKernelCall(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
     kernelfp.write('    @Override\n')
-    kernelfp.write('    public void javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException {\n')
+    kernelfp.write('    public HadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException {\n')
     kernelfp.write('        Context ctx = (Context)context;\n')
+    kernelfp.write('        this.javaProfile = new HadoopCLAccumulatedProfile();\n')
+    kernelfp.write('        this.javaProfile.startOverall();\n')
     if not isMapper:
         if nativeInputValueType == 'pair':
             kernelfp.write('        this.bufferedVal1 = new HadoopCLResizableDoubleArray();\n')
@@ -1255,12 +1263,16 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('        this.bufferedVals = new HadoopCLResizable'+nativeInputValueType.capitalize()+'Array();\n')
 
     kernelfp.write('        while(ctx.nextKeyValue()) {\n')
+    kernelfp.write('            this.javaProfile.startRead();\n')
     if isMapper:
         kernelfp.write('            '+hadoopInputKeyType +'Writable key = ('+hadoopInputKeyType+'Writable)ctx.getCurrentKey();\n')
         kernelfp.write('            '+hadoopInputValueType +'Writable val = ('+hadoopInputValueType+'Writable)ctx.getCurrentValue();\n')
         if nativeInputValueType == 'svec':
             kernelfp.write('            this.currentInputVectorLength = val.size();\n')
+        kernelfp.write('            this.javaProfile.stopRead();\n')
+        kernelfp.write('            this.javaProfile.startKernel();\n')
         kernelfp.write('            map('+generateMapArguments('key', nativeInputKeyType)+', '+generateMapArguments('val', nativeInputValueType)+');\n')
+        kernelfp.write('            this.javaProfile.stopKernel();\n')
     else:
         kernelfp.write('            '+hadoopInputKeyType +'Writable key = ('+hadoopInputKeyType+'Writable)ctx.getCurrentKey();\n')
         kernelfp.write('            Iterable<'+hadoopInputValueType+'Writable> values = (Iterable<'+hadoopInputValueType+'Writable>)ctx.getValues();\n')
@@ -1304,6 +1316,8 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('                this.bufferedVals.add(v.get());\n')
 
         kernelfp.write('            }\n')
+        kernelfp.write('            this.javaProfile.stopRead();\n')
+        kernelfp.write('            this.javaProfile.startKernel();\n')
         kernelfp.write('            reduce('+generateMapArguments('key',nativeInputKeyType)+', ')
         if nativeInputValueType == 'pair':
             kernelfp.write("""new HadoopCLPairValueIterator(
@@ -1329,9 +1343,12 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('new HadoopCL'+nativeInputValueType.capitalize()+
                     'ValueIterator(('+nativeInputValueType+
                     '[])this.bufferedVals.getArray(), this.bufferedVals.size()));\n')
+        kernelfp.write('            this.javaProfile.stopKernel();\n')
 
     kernelfp.write('            OpenCLDriver.inputsRead++;\n')
     kernelfp.write('        }\n')
+    kernelfp.write('        this.javaProfile.stopOverall();\n')
+    kernelfp.write('        return this.javaProfile;\n')
     kernelfp.write('    }\n')
 
     bufferfp.write('}\n\n')

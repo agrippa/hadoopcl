@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.List;
 import com.amd.aparapi.Kernel;
 import com.amd.aparapi.Range;
 import java.io.IOException;
@@ -9,6 +10,7 @@ public abstract class HadoopCLBuffer {
     protected HadoopOpenCLContext clContext;
 	protected boolean keep;
     protected int[] memIncr;
+    protected Profile prof;
 
     public abstract int nContents();
     public abstract void init(int pairsPerInput, HadoopOpenCLContext clContext);
@@ -29,5 +31,93 @@ public abstract class HadoopCLBuffer {
 	public boolean keep() {
 		return this.keep;
 	}
+
+    public void resetProfile() {
+        this.prof = new Profile();
+    }
+
+    public Profile getProfile() {
+        return this.prof;
+    }
+
+    public static class Profile {
+        private long startRead;
+        private long stopRead;
+        private long startKernel;
+        private long stopKernel;
+        private long startWrite;
+        private long stopWrite;
+        private int nKernelAttempts;
+
+        public void addKernelAttempt() {
+            this.nKernelAttempts++;
+        }
+
+        public void startRead() {
+            this.startRead = System.currentTimeMillis();
+        }
+
+        public void stopRead() {
+            this.stopRead = System.currentTimeMillis();
+        }
+        
+        public void startKernel() {
+            this.startKernel = System.currentTimeMillis();
+        }
+
+        public void stopKernel() {
+            this.stopKernel = System.currentTimeMillis();
+        }
+
+        public void startWrite() {
+            this.startWrite = System.currentTimeMillis();
+        }
+
+        public void stopWrite() {
+            this.stopWrite = System.currentTimeMillis();
+        }
+
+        public long readTime() {
+            return this.stopRead - this.startRead;
+        }
+
+        public long kernelTime() {
+            return this.stopKernel - this.startKernel;
+        }
+
+        public long writeTime() {
+            return this.stopWrite - this.startWrite;
+        }
+
+        public int nKernelAttempts() {
+            return this.nKernelAttempts;
+        }
+
+        public static String listToString(List<Profile> profiles) {
+            StringBuffer sb = new StringBuffer();
+            if (profiles != null && profiles.size() > 0) {
+                long accumRead = 0;
+                long accumKernel = 0;
+                long accumWrite = 0;
+                int accumAttempts = 0;
+                for(HadoopCLBuffer.Profile p : profiles) {
+                    accumRead += p.readTime();
+                    accumKernel += p.kernelTime();
+                    accumWrite += p.writeTime();
+                    accumAttempts += p.nKernelAttempts();
+                }
+                sb.append(", readTime=");
+                sb.append(accumRead);
+                sb.append(" ms, kernelTime=");
+                sb.append(accumKernel);
+                sb.append(" ms, writeTime=");
+                sb.append(accumWrite);
+                sb.append(" ms, kernelAttempts=");
+                sb.append(accumAttempts);
+            }
+            return sb.toString();
+
+        }
+    }
 
 }

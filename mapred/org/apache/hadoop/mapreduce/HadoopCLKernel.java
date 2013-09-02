@@ -12,7 +12,7 @@ import org.apache.hadoop.io.HadoopCLResizableDoubleArray;
 
 public abstract class HadoopCLKernel extends Kernel {
     protected HadoopOpenCLContext clContext;
-    //protected TaskInputOutputContext context;
+    protected HadoopCLAccumulatedProfile javaProfile;
     protected double[] globalsVal;
     protected int[] globalsInd;
     protected int[] globalIndices;
@@ -22,10 +22,10 @@ public abstract class HadoopCLKernel extends Kernel {
     private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
 
     public abstract Class getBufferClass();
-    public abstract void launchKernel(ProfileContext profiler) throws IOException, InterruptedException;
+    public abstract void launchKernel() throws IOException, InterruptedException;
     public abstract void init(HadoopOpenCLContext clContext);
     protected abstract int getOutputPairsPerInput();
-    public abstract void javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
+    public abstract HadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
 
     public abstract void deviceStrength(DeviceStrength str);
     public abstract Device.TYPE[] validDevices();

@@ -50,6 +50,7 @@ public abstract class HadoopCLReducerBuffer extends HadoopCLBuffer {
         this.isGPU = this.clContext.isGPU();
         this.maxInputValsPerInputKey = 0;
         this.memIncr = new int[1];
+        this.resetProfile();
     }
 
     public int getInputValPerInputKey() {

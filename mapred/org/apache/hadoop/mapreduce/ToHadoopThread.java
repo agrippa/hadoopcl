@@ -58,7 +58,9 @@ public class ToHadoopThread implements Runnable {
                 if(work == null) {
                     break;
                 } else {
+                    work.getProfile().startWrite();
                     HadoopCLReducerBuffer buffer = work.putOutputsIntoHadoop(clContext.getContext(), this.doIntermediateReduction);
+                    work.getProfile().stopWrite();
                     ToOpenCLThread.addWorkFromHadoop(buffer);
 
                     if(work.keep()) {
