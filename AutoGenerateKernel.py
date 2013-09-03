@@ -645,13 +645,9 @@ def writeAddValueMethod(fp, hadoopInputValueType, nativeInputValueType):
             fp.write('        this.inputVals2[this.nPairs] = actual.getVal2();\n')
         elif nativeInputValueType == 'svec':
             fp.write('        this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;\n')
-            fp.write('        if (this.enableStriding) {\n')
-            fp.write('            this.bufferValuesBeforeStriding.add(actual);\n')
-            fp.write('        } else {\n')
-            fp.write('            for(int i = 0; i < actual.size(); i++) {\n')
-            fp.write('                this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];\n')
-            fp.write('                this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];\n')
-            fp.write('            }\n')
+            fp.write('        for(int i = 0; i < actual.size(); i++) {\n')
+            fp.write('            this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];\n')
+            fp.write('            this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];\n')
             fp.write('        }\n')
             fp.write('        this.individualInputValsCount += actual.size();\n')
         else:
@@ -745,7 +741,7 @@ def writeIsFullMethod(fp, isMapper, nativeInputValueType):
         if nativeInputValueType == 'svec':
             fp.write('        SparseVectorWritable curr = (SparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('        if (this.enableStriding) {\n')
-            fp.write('            int requiredValueCapacity = requiredCapacity(this.bufferValuesBeforeStriding, curr);\n')
+            fp.write('            int requiredValueCapacity = requiredCapacity(this.inputValLookAsideBuffer, this.nPairs, this.individualInputValsCount, curr.size());\n')
             fp.write('            return this.nPairs == this.capacity() || requiredValueCapacity > this.inputValIndices.length;\n')
             fp.write('        } else {\n')
             fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
@@ -1015,19 +1011,19 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
 
     if nativeInputValType == 'svec' and isMapper:
         fp.write('        if (this.enableStriding) {\n')
-        fp.write('            int valueIndex = 0;\n')
-        fp.write('            int nBufferedValues = this.bufferValuesBeforeStriding.size();\n')
-        fp.write('            for (SparseVectorWritable v : this.bufferValuesBeforeStriding) {\n')
-        fp.write('                int length = v.size();\n')
-        fp.write('                int[] indices = v.indices();\n')
-        fp.write('                double[] vals = v.vals();\n')
+        fp.write('            int[] newInputValIndices = new int[this.inputValIndices.length];\n')
+        fp.write('            double[] newInputValVals = new double[this.inputValVals.length];\n')
+        fp.write('            for (int valueIndex = 0; valueIndex < this.nPairs; valueIndex++) {\n')
+        fp.write('                int base = this.inputValLookAsideBuffer[valueIndex];\n')
+        fp.write('                int top = (valueIndex == this.nPairs - 1 ? this.individualInputValsCount : this.inputValLookAsideBuffer[valueIndex+1]);\n')
+        fp.write('                int length = top - base;\n')
         fp.write('                for (int i = 0; i < length; i++) {\n')
-        fp.write('                    this.inputValIndices[valueIndex + (i * nBufferedValues)] = indices[i];\n')
-        fp.write('                    this.inputValVals[valueIndex + (i * nBufferedValues)] = vals[i];\n')
+        fp.write('                    newInputValIndices[valueIndex + (i * this.nPairs)] = this.inputValIndices[base + i];\n')
+        fp.write('                    newInputValVals[valueIndex + (i * this.nPairs)] = this.inputValVals[base + i];\n')
         fp.write('                }\n')
-        fp.write('                valueIndex++;\n')
         fp.write('            }\n')
-        fp.write('            this.bufferValuesBeforeStriding.clear();\n')
+        fp.write('            this.inputValIndices = newInputValIndices;\n')
+        fp.write('            this.inputValVals = newInputValVals;\n')
         fp.write('        }\n')
 
     if not isMapper:
@@ -1135,9 +1131,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int[] memAuxIntIncr;\n')
         kernelfp.write('    protected int[] memAuxDoubleIncr;\n')
         kernelfp.write('    protected int outputAuxLength;\n')
-        if isMapper: # unused if not enabled striding
-            bufferfp.write('   protected List<SparseVectorWritable> bufferValuesBeforeStriding =\n')
-            bufferfp.write('      new ArrayList<SparseVectorWritable>();\n')
 
     kernelfp.write('\n')
     bufferfp.write('\n')

@@ -42,6 +42,24 @@ public abstract class HadoopCLBuffer {
         return this.prof;
     }
 
+    protected int requiredCapacity(int[] lookAside, int numAccumValues,
+            int numAccumElements, int newLength) {
+        int maxLength = 0;
+        for (int index = 0; index < numAccumValues; index++) {
+            int top = (index == numAccumValues - 1 ? numAccumElements : lookAside[index + 1]);
+            int base = lookAside[index];
+            int length = top - base;
+
+            if (index + length > maxLength) {
+                maxLength = index + length;
+            }
+        }
+        if (lookAside.length + newLength > maxLength) {
+            maxLength = lookAside.length + newLength;
+        }
+        return maxLength;
+    }
+
     protected int requiredCapacity(List<SparseVectorWritable> vectors,
             SparseVectorWritable newVector) {
         List<SparseVectorWritable> tmpList = new ArrayList<SparseVectorWritable>(vectors.size() + 1);
