@@ -512,7 +512,6 @@ def writeOriginalInitMethod(fp, nativeInputKeyType, nativeInputValueType, native
             fp.write('        outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];\n')
             fp.write('        memAuxIntIncr = new int[1];\n')
             fp.write('        memAuxDoubleIncr = new int[1];\n')
-            #fp.write('        memAuxIncr = new int[1];\n')
     else:
         fp.write('        if(outputsPerInput == -1) {\n')
         generateKeyValInit('outputKey', nativeOutputKeyType, fp, 'this.clContext.getBufferSize() * inputValPerInputKey', True, True, False)
@@ -624,7 +623,10 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
     fp.write('    @Override\n')
     fp.write('    public void init(HadoopOpenCLContext clContext) {\n')
     fp.write('        baseInit(clContext);\n')
-    fp.write('        this.setStrided(false);\n')
+    if isMapper and nativeInputValueType == 'svec':
+        fp.write('        this.setStrided(this.clContext.runningOnGPU());\n')
+    else:
+        fp.write('        this.setStrided(false);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -643,9 +645,13 @@ def writeAddValueMethod(fp, hadoopInputValueType, nativeInputValueType):
             fp.write('        this.inputVals2[this.nPairs] = actual.getVal2();\n')
         elif nativeInputValueType == 'svec':
             fp.write('        this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;\n')
-            fp.write('        for(int i = 0; i < actual.size(); i++) {\n')
-            fp.write('            this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];\n')
-            fp.write('            this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];\n')
+            fp.write('        if (this.enableStriding) {\n')
+            fp.write('            this.bufferValuesBeforeStriding.add(actual);\n')
+            fp.write('        } else {\n')
+            fp.write('            for(int i = 0; i < actual.size(); i++) {\n')
+            fp.write('                this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];\n')
+            fp.write('                this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];\n')
+            fp.write('            }\n')
             fp.write('        }\n')
             fp.write('        this.individualInputValsCount += actual.size();\n')
         else:
@@ -738,7 +744,12 @@ def writeIsFullMethod(fp, isMapper, nativeInputValueType):
     if isMapper:
         if nativeInputValueType == 'svec':
             fp.write('        SparseVectorWritable curr = (SparseVectorWritable)((Context)context).getCurrentValue();\n')
-            fp.write('        return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('        if (this.enableStriding) {\n')
+            fp.write('            int requiredValueCapacity = requiredCapacity(this.bufferValuesBeforeStriding, curr);\n')
+            fp.write('            return this.nPairs == this.capacity() || requiredValueCapacity > this.inputValIndices.length;\n')
+            fp.write('        } else {\n')
+            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('        }\n')
         else:
             fp.write('        return this.nPairs == this.capacity();\n')
     else:
@@ -982,6 +993,24 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     fp.write('    @Override\n')
     fp.write('    public void fill(HadoopCLKernel generalKernel) {\n')
     fp.write('        '+kernelClass+' kernel = ('+kernelClass+')generalKernel;\n')
+
+    if nativeInputValType == 'svec' and isMapper:
+        fp.write('        if (this.enableStriding) {\n')
+        fp.write('            int valueIndex = 0;\n')
+        fp.write('            int nBufferedValues = this.bufferValuesBeforeStriding.size();\n')
+        fp.write('            for (SparseVectorWritable v : this.bufferValuesBeforeStriding) {\n')
+        fp.write('                int length = v.size();\n')
+        fp.write('                int[] indices = v.indices();\n')
+        fp.write('                double[] vals = v.vals();\n')
+        fp.write('                for (int i = 0; i < length; i++) {\n')
+        fp.write('                    this.inputValIndices[valueIndex + (i * nBufferedValues)] = indices[i];\n')
+        fp.write('                    this.inputValVals[valueIndex + (i * nBufferedValues)] = vals[i];\n')
+        fp.write('                }\n')
+        fp.write('                valueIndex++;\n')
+        fp.write('            }\n')
+        fp.write('            this.bufferValuesBeforeStriding.clear();\n')
+        fp.write('        }\n')
+
     if not isMapper:
         fp.write('        if(this.outputsPerInput == -1 && (this.outputKeys == null || this.outputKeys.length < this.nKeys * this.maxInputValsPerInputKey)) {\n')
         generateKeyValInit('outputKey', nativeOutputKeyType, fp, 'this.nKeys * this.maxInputValsPerInputKey', True, False, False)
@@ -1084,11 +1113,14 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
         bufferfp.write('    protected int[] memAuxIntIncr;\n')
         bufferfp.write('    protected int[] memAuxDoubleIncr;\n')
-        #bufferfp.write('    protected int[] memAuxIncr;\n')
         kernelfp.write('    protected int[] memAuxIntIncr;\n')
         kernelfp.write('    protected int[] memAuxDoubleIncr;\n')
-        #kernelfp.write('    protected int[] memAuxIncr;\n')
         kernelfp.write('    protected int outputAuxLength;\n')
+        if isMapper: # unused if not enabled striding
+            bufferfp.write('   protected List<SparseVectorWritable> bufferValuesBeforeStriding =\n')
+            bufferfp.write('      new ArrayList<SparseVectorWritable>();\n')
+
+    kernelfp.write('\n')
     bufferfp.write('\n')
 
     generateKeyValDecl('inputKey', nativeInputKeyType, kernelfp, True)

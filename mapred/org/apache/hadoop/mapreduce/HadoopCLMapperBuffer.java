@@ -16,6 +16,7 @@ public abstract class HadoopCLMapperBuffer extends HadoopCLBuffer {
     protected int[] nWrites;
     private int capacity;
     protected int isGPU;
+    protected boolean enableStriding;
 	
 	public abstract HashMap getKeyCounts();
 	public abstract void populate(Object genericReducerKeys, Object genericReducerValues, 
@@ -29,6 +30,7 @@ public abstract class HadoopCLMapperBuffer extends HadoopCLBuffer {
         this.isGPU = this.clContext.isGPU();
         this.memIncr = new int[1];
         this.resetProfile();
+        this.enableStriding = this.clContext.runningOnGPU();
     }
 
     public boolean doIntermediateReduce() {

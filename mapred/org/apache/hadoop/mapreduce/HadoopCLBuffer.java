@@ -1,10 +1,12 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.ArrayList;
 import java.util.List;
 import com.amd.aparapi.Kernel;
 import com.amd.aparapi.Range;
 import java.io.IOException;
 import java.lang.InterruptedException;
+import org.apache.hadoop.io.SparseVectorWritable;
 
 public abstract class HadoopCLBuffer {
     protected HadoopOpenCLContext clContext;
@@ -38,6 +40,27 @@ public abstract class HadoopCLBuffer {
 
     public Profile getProfile() {
         return this.prof;
+    }
+
+    protected int requiredCapacity(List<SparseVectorWritable> vectors,
+            SparseVectorWritable newVector) {
+        List<SparseVectorWritable> tmpList = new ArrayList<SparseVectorWritable>(vectors.size() + 1);
+        tmpList.addAll(vectors);
+        tmpList.add(newVector);
+        return requiredCapacity(tmpList);
+    }
+
+    protected int requiredCapacity(List<SparseVectorWritable> vectors) {
+        int maxLength = 0;
+        int index = 0;
+
+        for(SparseVectorWritable v : vectors) {
+            if (index + v.size() > maxLength) {
+                maxLength = index + v.size();
+            }
+            index++;
+        }
+        return maxLength;
     }
 
     public static class Profile {

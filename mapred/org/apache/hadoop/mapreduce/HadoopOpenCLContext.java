@@ -259,4 +259,14 @@ public class HadoopOpenCLContext {
     public TaskInputOutputContext getContext() {
         return this.hadoopContext;
     }
+
+    public boolean runningOnGPU() {
+        return this.device != null &&
+            this.device.getType() == Device.TYPE.GPU;
+    }
+
+    public boolean runningOnCPU() {
+        return this.device != null &&
+            this.device.getType() == Device.TYPE.CPU;
+    }
 }
