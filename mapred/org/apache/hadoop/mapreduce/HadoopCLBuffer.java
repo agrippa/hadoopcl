@@ -89,9 +89,14 @@ public abstract class HadoopCLBuffer {
         private long startWrite;
         private long stopWrite;
         private int nKernelAttempts;
+        private int nItemsProcessed;
 
         public void addKernelAttempt() {
             this.nKernelAttempts++;
+        }
+
+        public void addItemProcessed() {
+            this.nItemsProcessed++;
         }
 
         public void startRead() {
@@ -134,6 +139,10 @@ public abstract class HadoopCLBuffer {
             return this.nKernelAttempts;
         }
 
+        public int nItemsProcessed() {
+            return this.nItemsProcessed;
+        }
+
         public static String listToString(List<Profile> profiles) {
             StringBuffer sb = new StringBuffer();
             if (profiles != null && profiles.size() > 0) {
@@ -141,11 +150,13 @@ public abstract class HadoopCLBuffer {
                 long accumKernel = 0;
                 long accumWrite = 0;
                 int accumAttempts = 0;
+                int nItemsProcessed = 0;
                 for(HadoopCLBuffer.Profile p : profiles) {
                     accumRead += p.readTime();
                     accumKernel += p.kernelTime();
                     accumWrite += p.writeTime();
                     accumAttempts += p.nKernelAttempts();
+                    nItemsProcessed += p.nItemsProcessed();
                 }
                 sb.append(", readTime=");
                 sb.append(accumRead);
@@ -155,6 +166,8 @@ public abstract class HadoopCLBuffer {
                 sb.append(accumWrite);
                 sb.append(" ms, kernelAttempts=");
                 sb.append(accumAttempts);
+                sb.append(", itemsProcessed=");
+                sb.append(nItemsProcessed);
             }
             return sb.toString();
 

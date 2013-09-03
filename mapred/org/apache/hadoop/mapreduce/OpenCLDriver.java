@@ -134,7 +134,7 @@ public class OpenCLDriver {
         long start = System.currentTimeMillis();
         HadoopCLAccumulatedProfile javaProfile = javaRun();
         long stop = System.currentTimeMillis();
-        System.err.println(profilesToString(javaProfile));
+        System.out.println(profilesToString(javaProfile));
         OpenCLDriver.processingFinish = System.currentTimeMillis();
         return;
     }
@@ -199,6 +199,7 @@ public class OpenCLDriver {
 
         buffer.addKeyAndValue(this.context);
         OpenCLDriver.inputsRead++;
+        buffer.getProfile().addItemProcessed();
     }
 
     if(buffer.hasWork()) {
@@ -216,7 +217,5 @@ public class OpenCLDriver {
 
     long stop = System.currentTimeMillis();
     System.out.println(profilesToString(stop-start, profiles));
-    // System.err.println(profiler.toString(OpenCLDriver.inputsRead));
   }
-
 }
