@@ -44,6 +44,7 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
 
     @Override
     public void run(Context context) throws IOException, InterruptedException {
+        System.err.println("DIAGNOSTICS: Entering OpenCLReducer.run");
         setup(context);
         
         String keyClass = context.getMapOutputKeyClassString();

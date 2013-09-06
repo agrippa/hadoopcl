@@ -53,10 +53,12 @@ public class OpenCLDriver {
   private final Configuration conf;
 
   public OpenCLDriver(String type, TaskInputOutputContext context, Class kernelClass) {
+      System.err.println("DIAGNOSTICS Checkpoint AAA");
     this.clContext = new HadoopOpenCLContext(type, context);
     this.context = context;
     this.kernelClass = kernelClass;
     this.conf = context.getConfiguration();
+      System.err.println("DIAGNOSTICS Checkpoint BBB");
   }
 
   public static void hadoopclLog(Configuration conf, String str) throws IOException {
@@ -126,11 +128,13 @@ public class OpenCLDriver {
    */
   public void run() throws IOException, InterruptedException {
 
+    System.err.println("DIAGNOSTICS: OpenCLDriver for "+this.clContext.typeName());
     OpenCLDriver.processingFinish = -1;
     OpenCLDriver.processingStart = System.currentTimeMillis();
     OpenCLDriver.inputsRead = 0;
 
     if(this.clContext.getDevice() == null) {
+        System.err.println("DIAGNOSTICS: Entering java stage in "+this.clContext.typeName());
         long start = System.currentTimeMillis();
         HadoopCLAccumulatedProfile javaProfile = javaRun();
         long stop = System.currentTimeMillis();
@@ -174,7 +178,9 @@ public class OpenCLDriver {
     buffer.getProfile().startRead();
 
     while (this.context.nextKeyValue()) {
+        System.err.println("DIAGNOSTICS: Buffering input");
         if(buffer.isFull(this.context)) {
+            System.err.println("DIAGNOSTICS: PRocessing full buffer");
             profiles.add(buffer.getProfile());
             HadoopCLBuffer newBuffer;
             try {
@@ -201,9 +207,11 @@ public class OpenCLDriver {
         OpenCLDriver.inputsRead++;
         buffer.getProfile().addItemProcessed();
     }
+    System.err.println("DIAGNOSTICS: Exiting buffering loop");
+    buffer.getProfile().stopRead();
 
     if(buffer.hasWork()) {
-        buffer.getProfile().stopRead();
+        System.err.println("DIAGNOSTICS: Processing leftover work");
         profiles.add(buffer.getProfile());
         ToOpenCLThread.addWorkFromMain(buffer);
     }
@@ -217,5 +225,6 @@ public class OpenCLDriver {
 
     long stop = System.currentTimeMillis();
     System.out.println(profilesToString(stop-start, profiles));
+    System.out.println("DIAGNOSTICS: OpenCLDriver exiting");
   }
 }
