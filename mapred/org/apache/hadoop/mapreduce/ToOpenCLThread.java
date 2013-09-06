@@ -71,7 +71,6 @@ public class ToOpenCLThread implements Runnable {
             boolean mainDone = false;
             while(true) {
                 HadoopCLBuffer work = getWork();
-                System.err.println("DIAGNOSTICS: Got buffer "+work);
 
                 if(work == null) {
                     if(fromMain) {
@@ -82,11 +81,8 @@ public class ToOpenCLThread implements Runnable {
                     HadoopCLKernel kernel = getKernel(clContext, isMapper);
 
                     work.getProfile().startKernel();
-                    System.err.println("DIAGNOSTICS: Before filling kernel");
                     work.fill(kernel);
-                    System.err.println("DIAGNOSTICS: After filling kernel");
                     kernel.launchKernel();
-                    System.err.println("DIAGNOSTICS: After launching kernel");
                     work.getProfile().addKernelAttempt();
 
                     while(!work.completedAll()) {

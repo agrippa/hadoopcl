@@ -227,7 +227,6 @@ public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
     }
     long stop = System.currentTimeMillis();
     System.err.println("DIAGNOSTICS: "+count+" keys processed, Mapper Total time "+(stop-start));
-    
     cleanup(context);
   }
 }

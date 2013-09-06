@@ -353,7 +353,6 @@ public class MapTask extends Task {
     reporter.startCommunicationThread();
     boolean useNewApi = job.getUseNewMapper();
     initialize(job, getJobID(), reporter, useNewApi);
-    System.err.println("DIAGNOSTICS: Hello from MapTask.run jobCleanup="+jobCleanup+" jobSetup="+jobSetup+" taskCleanup="+taskCleanup);
 
     // check if it is a cleanupJobTask
     if (jobCleanup) {
@@ -369,7 +368,6 @@ public class MapTask extends Task {
       return;
     }
 
-    System.err.println("DIAGNOSTICS: useNewApi="+useNewApi);
     if (useNewApi) {
       runNewMapper(job, splitMetaInfo, umbilical, reporter);
     } else {
@@ -780,13 +778,9 @@ public class MapTask extends Task {
                                                      input, output, committer,
                                                      reporter, split);
 
-      System.err.println("DIAGNOSTICS: CHECKPOINT A");
       input.initialize(split, mapperContext);
-      System.err.println("DIAGNOSTICS: CHECKPOINT B "+mapper.getClass().toString());
       mapper.run(mapperContext);
-      System.err.println("DIAGNOSTICS: CHECKPOINT C");
       input.close();
-      System.err.println("DIAGNOSTICS: CHECKPOINT D");
       output.close(mapperContext);
     } catch (NoSuchMethodException e) {
       throw new IOException("Can't find Context constructor", e);
