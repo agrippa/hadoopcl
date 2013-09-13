@@ -1,7 +1,7 @@
 import os
 import sys
 
-supportedTypes = [ 'int', 'float', 'double', 'long', 'pair', 'ipair', 'svec' ];
+supportedTypes = [ 'int', 'float', 'double', 'long', 'pair', 'ipair', 'svec', 'ivec' ];
 
 class IterTypeVisitor:
     def write(self, typ, fp):
@@ -15,6 +15,8 @@ class IterTypeVisitor:
             return self.processPair()
         elif typ == 'svec':
             return self.processSvec()
+        elif typ == 'ivec':
+            return self.processIvec()
         else:
             try:
                 return self.processPrimitive(typ)
@@ -48,6 +50,8 @@ class IterTypeVisitor:
         raise NotImplementedError("Unimplemented ipair processor")
     def processSvec(self):
         raise NotImplementedError("Unimplemented svec processor")
+    def processIvec(self):
+        raise NotImplementedError("Unimplemented ivec processor")
 
 class NativeToJavaVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -58,6 +62,8 @@ class NativeToJavaVisitor(IterTypeVisitor):
         return 'UPair'
     def processSvec(self):
         return 'Svec'
+    def processIvec(self):
+        return 'Ivec'
 
 class ImportVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -71,22 +77,28 @@ class ImportVisitor(IterTypeVisitor):
         return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
                 'import org.apache.hadoop.io.HadoopCLResizableDoubleArray;',
                 'import java.util.HashMap;', 'import java.util.List;' ]
+    def processIvec(self):
+        return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
+                'import java.util.HashMap;', 'import java.util.List;' ]
 
 class FieldDeclarationVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
         return [ '    private '+typ+'[] vals;', '    private int len;',
-                '    private int currentIndex;' ]
+                 '    private int currentIndex;' ]
     def processPair(self):
         return [ '    private double[] vals1;', '    private double[] vals2;',
-                '    int len;', '    private int currentIndex;' ]
+                 '    int len;', '    private int currentIndex;' ]
     def processIPair(self):
         return [ '    private int[] valIds;', '    private double[] vals1;',
-                '    private double[] vals2;', '    int len;',
-                '    private int currentIndex;' ]
+                 '    private double[] vals2;', '    int len;',
+                 '    private int currentIndex;' ]
     def processSvec(self):
         return [ '    private List<HadoopCLResizableIntArray> indices;',
-                '    private List<HadoopCLResizableDoubleArray> vals;',
-                '    private int currentIndex;', '    private int len;' ]
+                 '    private List<HadoopCLResizableDoubleArray> vals;',
+                 '    private int currentIndex;', '    private int len;' ]
+    def processIvec(self):
+        return [ '    private List<HadoopCLResizableIntArray> vals;',
+                 '    private int currentIndex;', '    private int len;' ]
 
 class ConstructorVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -121,6 +133,16 @@ class ConstructorVisitor(IterTypeVisitor):
         lines.append('        this.currentIndex = 0;')
         lines.append('    }')
         return lines
+    def processIvec(self):
+        lines = [ ]
+        lines.append('    public HadoopCL'+NativeToJavaVisitor().process('ivec')+
+                """ValueIterator(List<HadoopCLResizableIntArray> vals) {""")
+        lines.append('        this.vals = vals;')
+        lines.append('        this.len = vals.size();')
+        lines.append('        this.currentIndex = 0;')
+        lines.append('    }')
+        return lines
+
 
 class GetterVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -161,6 +183,12 @@ class GetterVisitor(IterTypeVisitor):
         lines.append('')
         lines.append('    public double[] getValVals() {')
         lines.append('        return (double[])this.vals.get(this.currentIndex).getArray();')
+        lines.append('    }')
+        return lines
+    def processIvec(self):
+        lines = [ ]
+        lines.append('    public int[] getArray() {')
+        lines.append('        return (int[])this.vals.get(this.currentIndex).getArray();')
         lines.append('    }')
         return lines
 
@@ -206,7 +234,7 @@ fp.write('    }\n')
 fp.write('\n')
 GetterVisitor().write(typ, fp)
 fp.write('\n')
-if typ == 'svec':
+if typ == 'svec' or typ == 'ivec':
     fp.write('    public int vectorLength(int index) {\n')
     fp.write('        return this.indices.get(index).size();\n')
     fp.write('    }\n')

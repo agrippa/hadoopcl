@@ -63,6 +63,7 @@ public class OpenCLMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN
       supportedValues.add("org.apache.hadoop.io.PairWritable");
       supportedValues.add("org.apache.hadoop.io.UniquePairWritable");
       supportedValues.add("org.apache.hadoop.io.SparseVectorWritable");
+      supportedValues.add("org.apache.hadoop.io.IntegerVectorWritable");
   }
 
   /**
@@ -72,9 +73,7 @@ public class OpenCLMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN
    * @throws IOException
    */
   public void run(Context context) throws IOException, InterruptedException {
-      System.err.println("CHECKPOINT AA");
     setup(context);
-      System.err.println("CHECKPOINT BB");
 
     String keyClass = context.getKeyClass();
     String valueClass = context.getValueClass();
@@ -86,22 +85,16 @@ public class OpenCLMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN
     if(!supportedValues.contains(valueClass)) {
         throw new RuntimeException("Unsupported value type \'"+valueClass+"\'");
     }
-      System.err.println("CHECKPOINT DD");
 
     OpenCLDriver driver = null;
     try {
         driver = new OpenCLDriver("mapper", context,  context.getOCLMapperClass());
     } catch(java.lang.ClassNotFoundException ce) {
-        System.err.println("ERROR CHECKPOINT");
         ce.printStackTrace();
         throw new RuntimeException("Failed to load mapper kernel class");
     }
 
-    System.err.println("CHECKPOINT EE");
-
     driver.run();
-
-    System.err.println("CHECKPOINT FF");
 
     cleanup(context);
   }
