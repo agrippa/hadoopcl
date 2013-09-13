@@ -610,7 +610,7 @@ class IvecVisitor(NativeTypeVisitor):
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
         if isMapper and not isInput and not isKey:
-            buf.append('outputLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
+            buf.append('outputLengthBuffer = new int['+size+'];')
             buf.append('memAuxIncr = new int[1];')
         return buf
     def getKeyValSetup(self, basename, isInput, isKey):
@@ -987,9 +987,9 @@ def writeInitFromMapperBufferMethod(fp, nativeInputKeyType, nativeInputValueType
     fp.write('\n')
     fp.write('        mapperBuffer.populate(this.inputKeys, this.inputVals, this.keyIndex);\n')
     fp.write('\n')
-    fp.write('        if(this.outputsPerInput == -1) {\n')
-    fp.write('            this.outputKeys = new '+nativeOutputKeyType+'[this.nVals];\n')
-    fp.write('            this.outputVals = new '+nativeOutputValueType+'[this.nVals];\n')
+    fp.write('        if(this.outputsPerInput < 0) {\n')
+    fp.write('            this.outputKeys = new '+nativeOutputKeyType+'[this.nVals * 5];\n')
+    fp.write('            this.outputVals = new '+nativeOutputValueType+'[this.nVals * 5];\n')
     fp.write('        } else {\n')
     fp.write('            this.outputKeys = new '+nativeOutputKeyType+'[this.nKeys * this.outputsPerInput];\n')
     fp.write('            this.outputVals = new '+nativeOutputValueType+'[this.nKeys * this.outputsPerInput];\n')
@@ -1021,14 +1021,23 @@ def writeOriginalInitMethod(fp, nativeInputKeyType, nativeInputValueType, native
                 False, True, isMapper, False), 2, fp)
 
     if isMapper:
+        fp.write('        if (this.outputsPerInput < 0) {\n')
+        writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
+            'this.clContext.getBufferSize() * 5', False, False,
+                isMapper, True), 3, fp)
+        writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
+            'this.clContext.getBufferSize() * 5', False, False,
+                isMapper, False), 3, fp)
+        fp.write('        } else {\n')
         writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
             'this.clContext.getBufferSize() * outputsPerInput', False, False,
-                isMapper, True), 2, fp)
+                isMapper, True), 3, fp)
         writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
             'this.clContext.getBufferSize() * outputsPerInput', False, False,
-                isMapper, False), 2, fp)
+                isMapper, False), 3, fp)
+        fp.write('        }\n')
     else:
-        fp.write('        if(outputsPerInput == -1) {\n')
+        fp.write('        if(outputsPerInput < 0) {\n')
         writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
             'this.clContext.getBufferSize() * inputValPerInputKey', True, False,
                 isMapper, True), 3, fp)
@@ -1072,7 +1081,7 @@ def writeSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType
     elif nativeOutputValueType == 'ivec':
         fp.write(', int[] setMemAuxIncr')
 
-    fp.write(', int[] setMemIncr) {\n')
+    fp.write(', int[] setMemIncr, int setOutputsPerInput) {\n')
 
 def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
@@ -1095,6 +1104,7 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
     fp.write('\n')
     fp.write('        this.memIncr = setMemIncr;\n')
     fp.write('        this.memIncr[0] = 0;\n')
+    fp.write('        this.outputsPerInput = setOutputsPerInput;\n')
     fp.write('\n')
 
     writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
@@ -1416,7 +1426,7 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     fp.write('        '+kernelClass+' kernel = ('+kernelClass+')generalKernel;\n')
 
     if not isMapper:
-        fp.write('        if(this.outputsPerInput == -1 && (this.outputKeys == null || this.outputKeys.length < this.nKeys * this.maxInputValsPerInputKey)) {\n')
+        fp.write('        if(this.outputsPerInput < 0 && (this.outputKeys == null || this.outputKeys.length < this.nKeys * this.maxInputValsPerInputKey)) {\n')
         writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
             'this.nKeys * this.maxInputValsPerInputKey', False, False, isMapper, True),
             3, fp)
@@ -1450,7 +1460,7 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     elif nativeOutputValType == 'ivec':
         fp.write(', this.memAuxIncr')
 
-    fp.write(', this.memIncr);\n')
+    fp.write(', this.memIncr, this.outputsPerInput);\n')
     fp.write('    }\n')
     fp.write('\n')
 

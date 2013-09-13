@@ -37,7 +37,6 @@ public abstract class HadoopCLMapperBuffer extends HadoopCLBuffer {
         return false;
     }
 
-
     public int capacity() {
         return capacity;
     }
