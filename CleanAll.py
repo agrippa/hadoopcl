@@ -23,12 +23,12 @@ for line in fp:
     bufferFileName = 'mapred/org/apache/hadoop/mapreduce/'+bufferName+'.java'
 
     if os.path.exists(kernelFileName):
-        cmd = 'rm '+kernelFileName
+        cmd = 'svn rm --force '+kernelFileName
         print cmd
         os.system(cmd)
 
     if os.path.exists(bufferFileName):
-        cmd = 'rm '+bufferFileName
+        cmd = 'svn rm --force '+bufferFileName
         print cmd
         os.system(cmd)
 
@@ -39,7 +39,7 @@ for line in fp:
             iterName = 'HadoopCL'+typeNameForClassName(outputValType)+'ValueIterator'
             iterFileName = 'mapred/org/apache/hadoop/mapreduce/'+iterName+'.java'
             if os.path.exists(iterFileName):
-                cmd = 'rm '+iterFileName
+                cmd = 'svn rm --force '+iterFileName
                 print cmd
                 os.system(cmd)
 
@@ -47,7 +47,7 @@ arrayTypes = [ 'int', 'long', 'double', 'float' ]
 for t in arrayTypes:
     arrayFileName = 'core/org/apache/hadoop/io/HadoopCLResizable'+t.capitalize()+'Array.java'
     if os.path.exists(arrayFileName):
-        cmd = 'rm '+arrayFileName
+        cmd = 'svn rm --force '+arrayFileName
         print cmd
         os.system(cmd)
 
