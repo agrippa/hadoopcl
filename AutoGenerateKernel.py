@@ -954,72 +954,7 @@ def writeKeyCountsMethod(fp, nativeOutputKeyType, nativeOutputValueType, hadoopO
         fp.write('        return keyCounts;\n')
     fp.write('    }\n')
 
-def writeInitFromMapperBufferMethod(fp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType, hadoopInputKeyType, hadoopInputValueType):
-    fp.write('\n')
-    fp.write('    @Override\n')
-    fp.write('    public void init(HadoopCLMapperBuffer mapperBuffer) {\n')
-    fp.write('        this.keep = false;\n')
-    fp.write('        this.tempBuffer1 = null;\n')
-    fp.write('        this.clContext = mapperBuffer.clContext;\n')
-    fp.write('        this.isGPU = this.clContext.isGPU();\n')
-    fp.write('        this.maxInputValsPerInputKey = 0;\n')
-    fp.write('\n')
-    fp.write('        HashMap<'+hadoopInputKeyType+'Writable, HadoopCLMutableInteger> keyCounts = (HashMap<'+hadoopInputKeyType+'Writable, HadoopCLMutableInteger>)mapperBuffer.getKeyCounts();\n')
-    fp.write('\n')
-    fp.write('        this.nKeys = keyCounts.keySet().size();\n')
-    fp.write('        this.inputKeys = new '+nativeInputKeyType+'[this.nKeys];\n')
-    fp.write('        this.keyIndex = new int[this.nKeys];\n')
-    fp.write('        this.nWrites = new int[this.nKeys];\n')
-    fp.write('        this.outputsPerInput = this.clContext.getReducerKernel().getOutputPairsPerInput();\n')
-    fp.write('        this.keyCapacity = this.nKeys;\n')
-    fp.write('\n')
-    fp.write('        int nTotalValues = 0;\n')
-    fp.write('        int index = 0;\n')
-    fp.write('        for('+hadoopInputKeyType+'Writable key : keyCounts.keySet()) {\n')
-    fp.write('            this.keyIndex[index] = nTotalValues;\n')
-    fp.write('            this.inputKeys[index] = key.get();\n')
-    fp.write('            nTotalValues = nTotalValues + keyCounts.get(key).get();\n')
-    fp.write('            index = index + 1;\n')
-    fp.write('        }\n')
-    fp.write('        this.inputVals = new '+nativeInputValueType+'[nTotalValues];\n')
-    fp.write('        this.nVals = nTotalValues;\n')
-    fp.write('        this.valCapacity = nTotalValues;\n')
-    fp.write('\n')
-    fp.write('        mapperBuffer.populate(this.inputKeys, this.inputVals, this.keyIndex);\n')
-    fp.write('\n')
-    fp.write('        if(this.outputsPerInput < 0) {\n')
-    fp.write('            this.outputKeys = new '+nativeOutputKeyType+'[this.nVals * 5];\n')
-    fp.write('            this.outputVals = new '+nativeOutputValueType+'[this.nVals * 5];\n')
-    fp.write('        } else {\n')
-    fp.write('            this.outputKeys = new '+nativeOutputKeyType+'[this.nKeys * this.outputsPerInput];\n')
-    fp.write('            this.outputVals = new '+nativeOutputValueType+'[this.nKeys * this.outputsPerInput];\n')
-    fp.write('        }\n')
-    fp.write('    }\n')
-
-def writeOriginalInitMethod(fp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
-    fp.write('\n')
-    fp.write('    @Override\n')
-    fp.write('    public void init(int outputsPerInput, HadoopOpenCLContext clContext) {\n')
-    fp.write('        baseInit(clContext);\n')
-    fp.write('        this.keep = true;\n')
-    fp.write('        this.outputsPerInput = outputsPerInput;\n')
-    fp.write('\n')
-    if not isMapper:
-        fp.write('        int inputValPerInputKey = this.getInputValPerInputKey();\n')
-        writeln(visitor(nativeInputValueType).getOriginalInitMethod(), 2, fp)
-        fp.write('\n')
-
-    writeln(visitor(nativeInputKeyType).getKeyValInit('inputKey',
-        'this.clContext.getBufferSize()', False, True, isMapper, True), 2, fp)
-
-    if isMapper:
-        writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
-            'this.clContext.getBufferSize()', False, True, isMapper, False), 2, fp)
-    else:
-        writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
-            'this.clContext.getBufferSize() * inputValPerInputKey',
-                False, True, isMapper, False), 2, fp)
-
+def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType):
     if isMapper:
         fp.write('        if (this.outputsPerInput < 0) {\n')
         writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
@@ -1054,6 +989,69 @@ def writeOriginalInitMethod(fp, nativeInputKeyType, nativeInputValueType, native
                 isMapper, False), 3, fp)
 
         fp.write('        }\n')
+
+
+def writeInitFromMapperBufferMethod(fp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType, hadoopInputKeyType, hadoopInputValueType):
+    fp.write('\n')
+    fp.write('    @Override\n')
+    fp.write('    public void init(HadoopCLMapperBuffer mapperBuffer) {\n')
+    fp.write('        this.keep = false;\n')
+    fp.write('        this.tempBuffer1 = null;\n')
+    fp.write('        this.clContext = mapperBuffer.clContext;\n')
+    fp.write('        this.isGPU = this.clContext.isGPU();\n')
+    fp.write('        this.maxInputValsPerInputKey = 0;\n')
+    fp.write('\n')
+    fp.write('        HashMap<'+hadoopInputKeyType+'Writable, HadoopCLMutableInteger> keyCounts = (HashMap<'+hadoopInputKeyType+'Writable, HadoopCLMutableInteger>)mapperBuffer.getKeyCounts();\n')
+    fp.write('\n')
+    fp.write('        this.nKeys = keyCounts.keySet().size();\n')
+    fp.write('        this.inputKeys = new '+nativeInputKeyType+'[this.nKeys];\n')
+    fp.write('        this.keyIndex = new int[this.nKeys];\n')
+    fp.write('        this.nWrites = new int[this.nKeys];\n')
+    fp.write('        this.outputsPerInput = this.clContext.getReducerKernel().getOutputPairsPerInput();\n')
+    fp.write('        this.keyCapacity = this.nKeys;\n')
+    fp.write('\n')
+    fp.write('        int nTotalValues = 0;\n')
+    fp.write('        int index = 0;\n')
+    fp.write('        for('+hadoopInputKeyType+'Writable key : keyCounts.keySet()) {\n')
+    fp.write('            this.keyIndex[index] = nTotalValues;\n')
+    fp.write('            this.inputKeys[index] = key.get();\n')
+    fp.write('            nTotalValues = nTotalValues + keyCounts.get(key).get();\n')
+    fp.write('            index = index + 1;\n')
+    fp.write('        }\n')
+    fp.write('        this.inputVals = new '+nativeInputValueType+'[nTotalValues];\n')
+    fp.write('        this.nVals = nTotalValues;\n')
+    fp.write('        this.valCapacity = nTotalValues;\n')
+    fp.write('\n')
+    fp.write('        mapperBuffer.populate(this.inputKeys, this.inputVals, this.keyIndex);\n')
+    fp.write('\n')
+    writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType)
+    fp.write('    }\n')
+
+def writeOriginalInitMethod(fp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
+    fp.write('\n')
+    fp.write('    @Override\n')
+    fp.write('    public void init(int outputsPerInput, HadoopOpenCLContext clContext) {\n')
+    fp.write('        baseInit(clContext);\n')
+    fp.write('        this.keep = true;\n')
+    fp.write('        this.outputsPerInput = outputsPerInput;\n')
+    fp.write('\n')
+    if not isMapper:
+        fp.write('        int inputValPerInputKey = this.getInputValPerInputKey();\n')
+        writeln(visitor(nativeInputValueType).getOriginalInitMethod(), 2, fp)
+        fp.write('\n')
+
+    writeln(visitor(nativeInputKeyType).getKeyValInit('inputKey',
+        'this.clContext.getBufferSize()', False, True, isMapper, True), 2, fp)
+
+    if isMapper:
+        writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
+            'this.clContext.getBufferSize()', False, True, isMapper, False), 2, fp)
+    else:
+        writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
+            'this.clContext.getBufferSize() * inputValPerInputKey',
+                False, True, isMapper, False), 2, fp)
+
+    writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType)
 
     fp.write('    }\n')
     fp.write('\n')
