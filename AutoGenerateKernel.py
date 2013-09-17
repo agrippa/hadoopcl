@@ -1506,21 +1506,25 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        bufferfp.write('    protected int[] memAuxIntIncr;\n')
-        bufferfp.write('    protected int[] memAuxDoubleIncr;\n')
-        kernelfp.write('    protected int[] memAuxIntIncr;\n')
-        kernelfp.write('    protected int[] memAuxDoubleIncr;\n')
-        kernelfp.write('    protected int outputAuxLength;\n')
         bufferfp.write('    private final int nVectorsToBuffer = 200;\n')
     elif nativeInputValueType == 'ivec':
         bufferfp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
+        bufferfp.write('    private final int nVectorsToBuffer = 200;\n')
+
+    if nativeOutputValueType == 'svec':
+        bufferfp.write('    protected int[] memAuxIntIncr;\n')
+        bufferfp.write('    protected int[] memAuxDoubleIncr;\n')
+        kernelfp.write('    protected int[] memAuxIntIncr;\n')
+        kernelfp.write('    protected int[] memAuxDoubleIncr;\n')
+        kernelfp.write('    protected int outputAuxLength;\n')
+    elif nativeOutputValueType == 'ivec':
         bufferfp.write('    protected int[] memAuxIncr;\n')
         kernelfp.write('    protected int[] memAuxIncr;\n')
         kernelfp.write('    protected int outputAuxLength;\n')
-        bufferfp.write('    private final int nVectorsToBuffer = 200;\n')
+
 
     kernelfp.write('\n')
     bufferfp.write('\n')
