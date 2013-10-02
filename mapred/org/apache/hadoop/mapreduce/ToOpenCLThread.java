@@ -51,8 +51,10 @@ public class ToOpenCLThread implements Runnable {
                 BufferManager.BufferTypeAlloc<HadoopCLOutputBuffer> newOutputBufferContainer = this.written.alloc();
 
                 HadoopCLOutputBuffer newOutputBuffer = newOutputBufferContainer.obj();
-                newOutputBuffer.initBeforeKernel(kernel.getOutputPairsPerInput(),
-                        this.clContext);
+                if (newOutputBufferContainer.isFresh()) {
+                    newOutputBuffer.initBeforeKernel(kernel.getOutputPairsPerInput(),
+                            this.clContext);
+                }
                 kernel.fill(work, newOutputBuffer);
                 kernel.launchKernel();
                 work.getProfile().addKernelAttempt();
@@ -65,8 +67,10 @@ public class ToOpenCLThread implements Runnable {
 
                 while(!completedAll) {
                     newOutputBufferContainer = this.written.alloc();
-                    newOutputBuffer.initBeforeKernel(kernel.getOutputPairsPerInput(),
-                        this.clContext);
+                    if (newOutputBufferContainer.isFresh()) {
+                        newOutputBuffer.initBeforeKernel(kernel.getOutputPairsPerInput(),
+                            this.clContext);
+                    }
                     kernel.fill(work, newOutputBuffer);
                     kernel.launchKernel();
                     work.getProfile().addKernelAttempt();

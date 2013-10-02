@@ -42,8 +42,10 @@ public class BufferManager<BufferType extends HadoopCLBuffer> {
             } catch(IllegalAccessException iae) {
                 throw new RuntimeException(iae);
             }
-            synchronized(globalSpace) {
-                this.globalSpace.add(result);
+            if (OpenCLDriver.profileMemory) {
+                synchronized(globalSpace) {
+                    this.globalSpace.add(result);
+                }
             }
             this.nAllocated++;
             isFresh = true;

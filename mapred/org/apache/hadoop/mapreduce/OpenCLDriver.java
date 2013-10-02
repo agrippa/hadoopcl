@@ -109,9 +109,11 @@ public class OpenCLDriver {
 
   private String getDetailedSpaceStats(final List<HadoopCLBuffer> globalSpace) {
       StringBuffer sb = new StringBuffer();
+      long sum = 0;
       synchronized(globalSpace) {
           for(HadoopCLBuffer b : globalSpace) {
               long space = b.space();
+              sum += space;
               if (b instanceof HadoopCLInputBuffer) {
                   sb.append("[ input "+space+" "+(b.inUse() ? "used" : "free")+" ] ");
               } else if (b instanceof HadoopCLOutputBuffer) {
@@ -121,6 +123,7 @@ public class OpenCLDriver {
               }
           }
       }
+      sb.append("Total = "+sum+" bytes");
       return sb.toString();
   }
 
