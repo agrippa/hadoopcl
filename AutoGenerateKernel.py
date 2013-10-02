@@ -1139,6 +1139,7 @@ def writeOriginalInputInitMethod(fp, nativeInputKeyType, nativeInputValueType):
             'this.clContext.getBufferSize() * inputValPerInputKey',
                 False, True, isMapper, False), 2, fp)
 
+    fp.write('        this.initialized = true;\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -1150,9 +1151,8 @@ def writeInitBeforeKernelMethod(fp, isMapper, nativeOutputKeyType, nativeOutputV
     fp.write('        this.outputsPerInput = outputsPerInput;\n')
     fp.write('        this.memIncr = new int[1]; this.memIncr[0] = 0;\n')
     fp.write('\n')
-
     writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType)
-
+    fp.write('        this.initialized = true;\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -1420,6 +1420,8 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         fp.write('            int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
         fp.write('            int doubleStartOffset = this.outputValDoubleLookAsideBuffer[i];\n')
         fp.write('            int length = this.outputValLengthBuffer[i];\n')
+        fp.write('            indices.ensureCapacity(length);\n')
+        fp.write('            vals.ensureCapacity(length);\n')
         fp.write('            indices.reset();\n')
         fp.write('            vals.reset();\n')
         fp.write('            for(int j = 0; j < length; j++) {\n')
@@ -1648,13 +1650,13 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 1024;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 2048;\n')
     elif nativeInputValueType == 'ivec':
         input_fp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 1024;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 2048;\n')
 
     if nativeOutputValueType == 'svec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')

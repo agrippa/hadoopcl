@@ -14,6 +14,7 @@ public abstract class HadoopCLBuffer {
     protected int isGPU;
     public int[] nWrites;
     private boolean inUse;
+    protected boolean initialized = false;
 
     // public abstract Class getKernelClass();
     // public abstract void init(int pairsPerInput, HadoopOpenCLContext clContext);
@@ -47,6 +48,7 @@ public abstract class HadoopCLBuffer {
     }
 
     public boolean inUse() { return this.inUse; }
+    public boolean initialized() { return this.initialized; }
 
     protected int requiredCapacity(int[] lookAside, int numAccumValues,
             int numAccumElements, int newLength) {

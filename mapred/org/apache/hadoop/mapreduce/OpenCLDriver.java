@@ -112,6 +112,7 @@ public class OpenCLDriver {
       long sum = 0;
       synchronized(globalSpace) {
           for(HadoopCLBuffer b : globalSpace) {
+              if (!b.initialized()) continue;
               long space = b.space();
               sum += space;
               if (b instanceof HadoopCLInputBuffer) {
