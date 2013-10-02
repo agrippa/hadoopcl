@@ -7,4 +7,5 @@ public interface HadoopCLResizableArray {
     public void copyTo(HadoopCLResizableArray other);
     public Object getArray();
     public void ensureCapacity(int size);
+    public long space();
 }

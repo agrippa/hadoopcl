@@ -1,59 +1,32 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.List;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 import java.util.LinkedList;
 
 public class ToOpenCLThread implements Runnable {
-    private static Object lock = new Object();
-    public static LinkedList<HadoopCLBuffer> toRunFromMain = null;
-    public static LinkedList<HadoopCLBuffer> toRunFromHadoop = null;
-    private static boolean fromMain = false;
-    private static boolean fromHadoop = false;
-    private static int nHadoopTasksActive = 0;
+    public static HadoopCLLimitedQueue<HadoopCLInputBuffer> toRun = null;
+    private final BufferManager<HadoopCLInputBuffer> processed;
+    private final BufferManager<HadoopCLOutputBuffer> written;
+    private int countBuffers = 0;
 
     private final HadoopOpenCLContext clContext;
 
     public ToOpenCLThread(HadoopCLKernel setKernel,
+            BufferManager<HadoopCLInputBuffer> processed,
+            BufferManager<HadoopCLOutputBuffer> written,
             HadoopOpenCLContext setCLContext) {
         this.clContext = setCLContext;
+        this.processed = processed;
+        this.written = written;
     }
 
-    public static void addWorkFromMain(HadoopCLBuffer toAdd) {
-        synchronized(lock) {
-            toRunFromMain.add(toAdd);
-            lock.notify();
-        }
+    public static void addWorkFromMain(HadoopCLInputBuffer toAdd) {
+        toRun.add(toAdd);
     }
 
-    public static void addWorkFromHadoop(HadoopCLBuffer toAdd) {
-        synchronized(lock) {
-            toRunFromHadoop.add(toAdd);
-            lock.notify();
-        }
-    }
-
-    public static HadoopCLBuffer getWork() throws InterruptedException {
-        HadoopCLBuffer work = null;
-        fromMain = false;
-        fromHadoop = false;
-        synchronized(lock) {
-            while(true) {
-                if(!toRunFromMain.isEmpty()) {
-                    work = toRunFromMain.poll();
-                    fromMain = true;
-                    break;
-                }
-
-                if(!toRunFromHadoop.isEmpty()) {
-                    nHadoopTasksActive--;
-                    work = toRunFromHadoop.poll();
-                    fromHadoop = true;
-                    break;
-                }
-                lock.wait();
-            }
-
-        }
+    public static HadoopCLInputBuffer getWork() throws InterruptedException {
+        HadoopCLInputBuffer work = toRun.blockingGet();
         return work;
     }
 
@@ -68,41 +41,50 @@ public class ToOpenCLThread implements Runnable {
     @Override
     public void run()  {
         try {
-            boolean mainDone = false;
-            while(true) {
-                HadoopCLBuffer work = getWork();
+            HadoopCLInputBuffer work = getWork();
+            while (work != null) {
 
-                if(work == null) {
-                    if(fromMain) {
-                        mainDone = true;
-                    }
-                } else {
-                    boolean isMapper = work instanceof HadoopCLMapperBuffer;
-                    HadoopCLKernel kernel = getKernel(clContext, isMapper);
+                boolean isMapper = work instanceof HadoopCLInputMapperBuffer;
+                HadoopCLKernel kernel = getKernel(this.clContext, isMapper);
 
-                    work.getProfile().startKernel();
-                    work.fill(kernel);
+                work.getProfile().startKernel();
+                BufferManager.BufferTypeAlloc<HadoopCLOutputBuffer> newOutputBufferContainer = this.written.alloc();
+
+                HadoopCLOutputBuffer newOutputBuffer = newOutputBufferContainer.obj();
+                newOutputBuffer.initBeforeKernel(kernel.getOutputPairsPerInput(),
+                        this.clContext);
+                kernel.fill(work, newOutputBuffer);
+                kernel.launchKernel();
+                work.getProfile().addKernelAttempt();
+                boolean completedAll = work.completedAll();
+                if (!completedAll) {
+                    work.resetForAnotherAttempt();
+                }
+                newOutputBuffer.copyOverFromInput(work);
+                ToHadoopThread.addWork(newOutputBuffer);
+
+                while(!completedAll) {
+                    newOutputBufferContainer = this.written.alloc();
+                    newOutputBuffer.initBeforeKernel(kernel.getOutputPairsPerInput(),
+                        this.clContext);
+                    kernel.fill(work, newOutputBuffer);
                     kernel.launchKernel();
                     work.getProfile().addKernelAttempt();
-
-                    while(!work.completedAll()) {
-                        HadoopCLBuffer clone = work.cloneIncomplete();
-                        ToHadoopThread.addWork(work);
-                        work = clone;
-                        kernel = getKernel(clContext, isMapper);
-                        work.fill(kernel);
-                        kernel.launchKernel();
-                        work.getProfile().addKernelAttempt();
+                    completedAll = work.completedAll();
+                    if (!completedAll) {
+                        work.resetForAnotherAttempt();
                     }
-                    work.getProfile().stopKernel();
 
-                    nHadoopTasksActive++;
-                    ToHadoopThread.addWork(work);
+                    newOutputBuffer.copyOverFromInput(work);
+                    ToHadoopThread.addWork(newOutputBuffer);
                 }
 
-                if(mainDone && nHadoopTasksActive == 0) {
-                    break;
-                }
+                this.written.free(newOutputBuffer);
+
+                work.getProfile().stopKernel();
+                processed.free(work);
+
+                work = getWork();
             }
             ToHadoopThread.addWork(null);
         } catch(Exception e) {

@@ -16,7 +16,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
     protected int deviceID;
     protected int isGPU;
     protected int[] input_keyIndex;
-    protected int[] output_nWrites;
+    protected int[] nWrites;
     protected int nKeys;
     protected int nVals;
 
@@ -63,7 +63,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
 
         for(int iter = start; iter < end; iter += increment) {
 
-            output_nWrites[iter] = 0;
+            nWrites[iter] = 0;
             int startOffset = input_keyIndex[iter];
             int stopOffset = nVals;
             if(iter < this.nKeys-1) {

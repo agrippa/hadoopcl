@@ -22,11 +22,16 @@ public abstract class HadoopCLKernel extends Kernel {
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
     private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
 
-    public abstract Class getBufferClass();
+    // public abstract Class getBufferClass();
+    public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
+    public abstract Class<? extends HadoopCLOutputBuffer> getOutputBufferClass();
     public abstract void launchKernel() throws IOException, InterruptedException;
     public abstract void init(HadoopOpenCLContext clContext);
-    protected abstract int getOutputPairsPerInput();
+    public abstract int getOutputPairsPerInput();
     public abstract HadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
+    public abstract void fill(HadoopCLInputBuffer inputBuffer,
+            HadoopCLOutputBuffer outputBuffer);
+
 
     public abstract void deviceStrength(DeviceStrength str);
     public abstract Device.TYPE[] validDevices();
@@ -67,4 +72,5 @@ public abstract class HadoopCLKernel extends Kernel {
     public boolean doIntermediateReduction() {
         return false;
     }
+    public abstract boolean equalInputOutputTypes();
 }

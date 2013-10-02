@@ -13,7 +13,7 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
 
     protected int deviceID;
     protected int isGPU;
-    protected int[] output_nWrites;
+    protected int[] nWrites;
     protected int nPairs;
 
     public void baseInit(HadoopOpenCLContext clContext) {
@@ -52,7 +52,7 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
         }
 
         for(int iter = start; iter < end; iter = iter + increment) {
-            output_nWrites[iter] = 0;
+            nWrites[iter] = 0;
             callMap();
         }
     }

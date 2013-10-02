@@ -1,22 +1,7 @@
-/** * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.hadoop.mapreduce;
 
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.HashSet;
 import java.io.*;
 import java.util.Arrays;
@@ -44,6 +29,10 @@ import com.amd.aparapi.internal.opencl.OpenCLPlatform;
 import com.amd.aparapi.device.OpenCLDevice;
 
 public class OpenCLDriver {
+  public static final int nInputBuffers = 5;
+  public static final int nOutputBuffers = 5;
+  public static final boolean profileMemory = true;
+
   public static long inputsRead = -1L;
   public static long processingStart = -1L;
   public static long processingFinish = -1L;
@@ -118,6 +107,23 @@ public class OpenCLDriver {
       return sb.toString();
   }
 
+  private String getDetailedSpaceStats(final List<HadoopCLBuffer> globalSpace) {
+      StringBuffer sb = new StringBuffer();
+      synchronized(globalSpace) {
+          for(HadoopCLBuffer b : globalSpace) {
+              long space = b.space();
+              if (b instanceof HadoopCLInputBuffer) {
+                  sb.append("[ input "+space+" "+(b.inUse() ? "used" : "free")+" ] ");
+              } else if (b instanceof HadoopCLOutputBuffer) {
+                  sb.append("[ output "+space+" "+(b.inUse() ? "used" : "free")+" ] ");
+              } else {
+                  throw new RuntimeException("Invalid buffer type detected: "+b.getClass().toString());
+              }
+          }
+      }
+      return sb.toString();
+  }
+
   /**
    * Expert users can override this method for more complete control over the
    * execution of the Mapper.
@@ -142,7 +148,15 @@ public class OpenCLDriver {
     long start = System.currentTimeMillis();
 
     HadoopCLKernel kernel = null;
-    HadoopCLBuffer buffer = null;
+    HadoopCLInputBuffer buffer = null;
+    final List<HadoopCLBuffer> globalSpace;
+    if (OpenCLDriver.profileMemory) {
+        globalSpace = new LinkedList<HadoopCLBuffer>();
+    } else {
+        globalSpace = null;
+    }
+    BufferManager<HadoopCLInputBuffer> inputManager;
+    BufferManager<HadoopCLOutputBuffer> outputManager;
 
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
@@ -150,21 +164,26 @@ public class OpenCLDriver {
         kernel.setGlobals(this.clContext.getGlobalsInd(), this.clContext.getGlobalsVal(),
                 this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
 
-        buffer = (HadoopCLBuffer)kernel.getBufferClass().newInstance();
+        inputManager = new BufferManager<HadoopCLInputBuffer>("inputs", nInputBuffers,
+            kernel.getInputBufferClass(), globalSpace);
+        outputManager = new BufferManager<HadoopCLOutputBuffer>("outputs", nOutputBuffers,
+            kernel.getOutputBufferClass(), globalSpace);
+
+        BufferManager.BufferTypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+        buffer = newBufferContainer.obj();
         buffer.init(kernel.getOutputPairsPerInput(), clContext);
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
+    int countBuffers = 1;
 
-    ToOpenCLThread.toRunFromMain = new LinkedList<HadoopCLBuffer>();
-    ToOpenCLThread.toRunFromHadoop = new LinkedList<HadoopCLBuffer>();
-    ToHadoopThread.toWrite = new LinkedList<HadoopCLBuffer>();
-    ToHadoopThread.written = new LinkedList<HadoopCLBuffer>();
+    ToOpenCLThread.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
+    ToHadoopThread.toWrite = new HadoopCLLimitedQueue<HadoopCLOutputBuffer>();
 
-    ToHadoopThread th0 = new ToHadoopThread(this.clContext, kernel);
+    ToHadoopThread th0 = new ToHadoopThread(this.clContext, outputManager, kernel);
     Thread hadoopThread = new Thread(th0);
 
-    ToOpenCLThread runner = new ToOpenCLThread(kernel, clContext);
+    ToOpenCLThread runner = new ToOpenCLThread(kernel, inputManager, outputManager, clContext);
     Thread openclThread = new Thread(runner);
 
     openclThread.start();
@@ -174,22 +193,26 @@ public class OpenCLDriver {
     buffer.getProfile().startRead();
 
     while (this.context.nextKeyValue()) {
-        if(buffer.isFull(this.context)) {
+        if (buffer.isFull(this.context)) {
             profiles.add(buffer.getProfile());
-            HadoopCLBuffer newBuffer;
-            try {
-                synchronized(ToHadoopThread.written) {
-                    newBuffer = ToHadoopThread.written.poll();
-                }
-                if(newBuffer == null) {
-                    newBuffer = (HadoopCLBuffer)kernel.getBufferClass().newInstance();
-                    newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
-                } else {
-                    newBuffer.reset();
-                }
-            } catch(Exception ex) {
-                throw new RuntimeException(ex);
+
+            System.gc();
+            if (OpenCLDriver.profileMemory) {
+                System.err.println(getDetailedSpaceStats(globalSpace));
             }
+            // printDetailedSpaceUsage(inputManager, outputManager, th0, runner, buffer);
+            // long spaceEstimate = estimateSpace(inputManager,
+            //     outputManager, th0, runner, buffer);
+            // System.err.println("DIAGNOSTICS: OpenCLDriver estimating space usage of "+spaceEstimate+" bytes");
+            BufferManager.BufferTypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+            HadoopCLInputBuffer newBuffer = newBufferContainer.obj();
+
+            if (newBufferContainer.isFresh()) {
+                newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
+            } else {
+                newBuffer.reset();
+            }
+
             buffer.transferBufferedValues(newBuffer);
             buffer.getProfile().stopRead();
             ToOpenCLThread.addWorkFromMain(buffer);

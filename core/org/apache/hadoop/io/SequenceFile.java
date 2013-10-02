@@ -1915,7 +1915,7 @@ public class SequenceFile {
       } else {
         //Reset syncSeen
         syncSeen = false;
-        
+       
         if (noBufferedKeys == 0) {
           try {
             readBlock();
@@ -1923,7 +1923,7 @@ public class SequenceFile {
             return false;
           }
         }
-        
+       
         int keyLength = WritableUtils.readVInt(keyLenIn);
         
         // Sanity check

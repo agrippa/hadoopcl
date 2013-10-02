@@ -55,12 +55,18 @@ public class DataOutputBuffer extends DataOutputStream {
     
     public void write(DataInput in, int len) throws IOException {
       int newcount = count + len;
+      // System.err.println("DIAGNOSTICS: Inside internal write, newcount="+newcount+", buf.length="+buf.length);
       if (newcount > buf.length) {
+        // System.err.println("DIAGNOSTICS: Resizing to "+Math.max(buf.length << 1, newcount));
         byte newbuf[] = new byte[Math.max(buf.length << 1, newcount)];
+        // System.err.println("DIAGNOSTICS: Resized to "+newbuf.length);
         System.arraycopy(buf, 0, newbuf, 0, count);
+        // System.err.println("DIAGNOSTICS: Done copying");
         buf = newbuf;
       }
+      // System.err.println("DIAGNOSTICS: Reading count="+count+" len="+len+" in="+in.getClass().toString());
       in.readFully(buf, count, len);
+      // System.err.println("DIAGNOSTICS: Done with readFully");
       count = newcount;
     }
   }
@@ -98,6 +104,7 @@ public class DataOutputBuffer extends DataOutputStream {
 
   /** Writes bytes from a DataInput directly into the buffer. */
   public void write(DataInput in, int length) throws IOException {
+    // System.err.println("DIAGNOSTICS: Inside external write");
     buffer.write(in, length);
   }
 

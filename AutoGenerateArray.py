@@ -3,6 +3,19 @@ import sys
 
 validTypes = [ 'int', 'long', 'double', 'float' ]
 
+def typeToSize(t):
+    if t == 'int':
+        return 4
+    elif t == 'long':
+        return 8
+    elif t == 'double':
+        return 8
+    elif t == 'float':
+        return 4
+    else:
+        print('Getting size for invalid type "'+t+'"')
+        sys.exit(1)
+
 if len(sys.argv) != 2:
     print 'usage: python AutoGenerateArray.py type'
     sys.exit()
@@ -79,15 +92,18 @@ fp.write('    }\n')
 fp.write('\n')
 fp.write('    public void ensureCapacity(int size) {\n')
 fp.write('        if(buffer.length < size) {\n')
-fp.write('            int n = buffer.length * 2;\n')
-fp.write('            while(n < size) {\n')
-fp.write('                n = n * 2;\n')
-fp.write('            }\n')
+fp.write('            int n = buffer.length << 1;\n')
+fp.write('            n = (n > size ? n : size);\n')
 fp.write('            '+type+'[] tmp = new '+type+'[n];\n')
 fp.write('            System.arraycopy(buffer, 0, tmp, 0, buffer.length);\n')
 fp.write('            buffer = tmp;\n')
 fp.write('        }\n')
 fp.write('    }\n')
+fp.write('\n')
+fp.write('    public long space() {\n')
+fp.write('        return this.buffer.length * '+str(typeToSize(type))+';\n')
+fp.write('    }\n')
+fp.write('\n')
 fp.write('}\n')
 
 fp.close()
