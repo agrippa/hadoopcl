@@ -187,6 +187,16 @@ public class SparseVectorWritable implements WritableComparable {
         return str.toString();
     }
 
+    public SparseVectorWritable cloneSparse() {
+        int[] newIndices = new int[this.size()];
+        double[] newVals = new double[this.size()];
+        for (int i = 0; i < this.size(); i++) {
+            newIndices[i] = this.indices()[i];
+            newVals[i] = this.vals()[i];
+        }
+        return new SparseVectorWritable(newIndices, newVals);
+    }
+
     public static class Comparator extends WritableComparator {
         public Comparator() {
             super(SparseVectorWritable.class);

@@ -34,7 +34,6 @@ public class BufferManager<BufferType extends HadoopCLBuffer> {
         BufferType result;
         boolean isFresh;
         if (this.nAllocated < this.maxAllocated) {
-            System.err.println("DIAGNOSTICS: Creating new "+this.name+" buffer with "+this.nAllocated+"/"+this.maxAllocated);
             try {
                 result = toInstantiate.newInstance();
             } catch(InstantiationException ie) {

@@ -50,6 +50,8 @@ public class ToOpenCLThread implements Runnable {
                 work.getProfile().startKernel();
                 BufferManager.BufferTypeAlloc<HadoopCLOutputBuffer> newOutputBufferContainer = this.written.alloc();
 
+                // Clear # writes for each input pair to be -1
+                work.clearNWrites();
                 HadoopCLOutputBuffer newOutputBuffer = newOutputBufferContainer.obj();
                 if (newOutputBufferContainer.isFresh()) {
                     newOutputBuffer.initBeforeKernel(kernel.getOutputPairsPerInput(),
@@ -82,8 +84,6 @@ public class ToOpenCLThread implements Runnable {
                     newOutputBuffer.copyOverFromInput(work);
                     ToHadoopThread.addWork(newOutputBuffer);
                 }
-
-                this.written.free(newOutputBuffer);
 
                 work.getProfile().stopKernel();
                 processed.free(work);

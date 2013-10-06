@@ -62,14 +62,15 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
         }
 
         for(int iter = start; iter < end; iter += increment) {
-
-            nWrites[iter] = 0;
-            int startOffset = input_keyIndex[iter];
-            int stopOffset = nVals;
-            if(iter < this.nKeys-1) {
-                stopOffset = input_keyIndex[iter+1];
+            if (nWrites[iter] == -1) {
+                nWrites[iter] = 0;
+                int startOffset = input_keyIndex[iter];
+                int stopOffset = nVals;
+                if(iter < this.nKeys-1) {
+                    stopOffset = input_keyIndex[iter+1];
+                }
+                callReduce(startOffset, stopOffset);
             }
-            callReduce(startOffset, stopOffset);
         }
 
     }

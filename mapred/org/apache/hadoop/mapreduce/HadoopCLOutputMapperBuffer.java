@@ -12,15 +12,10 @@ import java.util.HashMap;
 public abstract class HadoopCLOutputMapperBuffer extends HadoopCLOutputBuffer {
     public int nPairs;
 
-	// public abstract HashMap getKeyCounts();
-	// public abstract void populate(Object genericReducerKeys,
-    //         Object genericReducerValues, int[] keyIndex);
-
     public void baseInit(HadoopOpenCLContext clContext) {
         this.clContext = clContext;
         this.isGPU = this.clContext.isGPU();
         this.memIncr = new int[1];
-        this.resetProfile();
         this.nWrites = new int[this.clContext.getBufferSize()];
     }
 

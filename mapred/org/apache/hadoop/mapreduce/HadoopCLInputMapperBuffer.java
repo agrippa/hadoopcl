@@ -33,7 +33,7 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
     }
 
     public boolean completedAll() {
-        for(int i = 0; i < nWrites.length; i++) {
+        for(int i = 0; i < this.nPairs; i++) {
             if(nWrites[i] == -1) return false;
         }
         return true;

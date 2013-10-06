@@ -52,8 +52,10 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
         }
 
         for(int iter = start; iter < end; iter = iter + increment) {
-            nWrites[iter] = 0;
-            callMap();
+            if (nWrites[iter] == -1) {
+                nWrites[iter] = 0;
+                callMap();
+            }
         }
     }
 }

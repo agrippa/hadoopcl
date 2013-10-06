@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.ArrayList;
 import java.util.List;
 import com.amd.aparapi.Kernel;
@@ -15,6 +16,8 @@ public abstract class HadoopCLBuffer {
     public int[] nWrites;
     private boolean inUse;
     protected boolean initialized = false;
+    public final int id = HadoopCLBuffer.idIncr.getAndIncrement();
+    protected final static AtomicInteger idIncr = new AtomicInteger(0);
 
     // public abstract Class getKernelClass();
     // public abstract void init(int pairsPerInput, HadoopOpenCLContext clContext);
@@ -35,6 +38,12 @@ public abstract class HadoopCLBuffer {
         return 4 * nWrites.length;
     }
 
+    public void clearNWrites() {
+        for (int i = 0; i < this.nWrites.length; i++) {
+            this.nWrites[i] = -1;
+        }
+    }
+
     public void resetProfile() {
         this.prof = new Profile();
     }
@@ -44,6 +53,9 @@ public abstract class HadoopCLBuffer {
     }
 
     public void setInUse(boolean inUse) {
+        if (this.inUse == inUse) {
+            throw new RuntimeException("Setting buffer in use to "+inUse+" but already set to that");
+        }
         this.inUse = inUse;
     }
 
