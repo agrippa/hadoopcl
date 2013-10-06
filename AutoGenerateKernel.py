@@ -1650,13 +1650,13 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 2048;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 10240;\n')
     elif nativeInputValueType == 'ivec':
         input_fp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 2048;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 10240;\n')
 
     if nativeOutputValueType == 'svec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')
