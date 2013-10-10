@@ -16,8 +16,9 @@ public abstract class HadoopCLBuffer {
     public int[] nWrites;
     private boolean inUse;
     protected boolean initialized = false;
-    public final int id = HadoopCLBuffer.idIncr.getAndIncrement();
+
     protected final static AtomicInteger idIncr = new AtomicInteger(0);
+    public final int id = HadoopCLBuffer.idIncr.getAndIncrement();
 
     // public abstract Class getKernelClass();
     // public abstract void init(int pairsPerInput, HadoopOpenCLContext clContext);
@@ -192,6 +193,20 @@ public abstract class HadoopCLBuffer {
             return sb.toString();
 
         }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof HadoopCLBuffer) {
+            HadoopCLBuffer other = (HadoopCLBuffer)obj;
+            return this.id == other.id;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.id;
     }
 
 }

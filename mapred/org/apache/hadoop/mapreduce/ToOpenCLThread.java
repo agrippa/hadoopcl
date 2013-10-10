@@ -59,6 +59,8 @@ public class ToOpenCLThread implements Runnable {
                 }
                 kernel.fill(work, newOutputBuffer);
                 kernel.launchKernel();
+                System.err.println("Kernel is complete? "+kernel.isComplete());
+                kernel.waitFor();
                 work.getProfile().addKernelAttempt();
                 boolean completedAll = work.completedAll();
                 if (!completedAll) {
@@ -75,6 +77,8 @@ public class ToOpenCLThread implements Runnable {
                     }
                     kernel.fill(work, newOutputBuffer);
                     kernel.launchKernel();
+                    System.err.println("Kernel is complete? "+kernel.isComplete());
+                    kernel.waitFor();
                     work.getProfile().addKernelAttempt();
                     completedAll = work.completedAll();
                     if (!completedAll) {

@@ -45,6 +45,7 @@ public class BufferManager<BufferType extends HadoopCLBuffer> {
                 synchronized(globalSpace) {
                     this.globalSpace.add(result);
                 }
+                System.err.println("Allocating "+name+" "+(this.nAllocated+1)+"/"+this.maxAllocated);
             }
             this.nAllocated++;
             isFresh = true;

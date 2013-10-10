@@ -6,11 +6,15 @@ import com.amd.aparapi.Range;
 import java.io.IOException;
 import java.lang.InterruptedException;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.io.HadoopCLResizableIntArray;
 import org.apache.hadoop.io.HadoopCLResizableDoubleArray;
 
 public abstract class HadoopCLKernel extends Kernel {
+    protected final static AtomicInteger idIncr = new AtomicInteger(0);
+    public final int id = HadoopCLKernel.idIncr.getAndIncrement();
+
     protected HadoopOpenCLContext clContext;
     protected HadoopCLAccumulatedProfile javaProfile;
     protected double[] globalsVal;
@@ -73,4 +77,18 @@ public abstract class HadoopCLKernel extends Kernel {
         return false;
     }
     public abstract boolean equalInputOutputTypes();
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof HadoopCLKernel) {
+            HadoopCLKernel other = (HadoopCLKernel)obj;
+            return this.id == other.id;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.id;
+    }
 }
