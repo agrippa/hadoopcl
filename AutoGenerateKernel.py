@@ -1300,7 +1300,6 @@ def writeTransferBufferedValues(fp, isMapper):
 def writeResetMethod(fp, isMapper, nativeInputValueType):
     fp.write('    @Override\n')
     fp.write('    public void reset() {\n')
-    fp.write('        this.resetProfile();\n')
     if isMapper:
         fp.write('        this.nPairs = 0;\n')
         if nativeInputValueType == 'svec':
@@ -1650,13 +1649,13 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 8192;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 4096;\n')
     elif nativeInputValueType == 'ivec':
         input_fp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 8192;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 4096;\n')
 
     if nativeOutputValueType == 'svec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')

@@ -45,7 +45,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
         this.valCapacity = this.clContext.getBufferSize() * valuesPerKeyGuess;
         this.isGPU = this.clContext.isGPU();
         this.maxInputValsPerInputKey = 0;
-        this.resetProfile();
     }
 
     public int getInputValPerInputKey() {

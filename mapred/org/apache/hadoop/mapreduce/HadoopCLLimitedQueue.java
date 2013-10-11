@@ -25,6 +25,10 @@ public class HadoopCLLimitedQueue<BufferType extends HadoopCLBuffer> {
         }
     }
 
+    public boolean isEmpty() {
+        return queue.isEmpty();
+    }
+
     public synchronized BufferTypeContainer<BufferType> nonBlockingGet() {
         BufferTypeContainer<BufferType> result = null;
         if (!queue.isEmpty()) {

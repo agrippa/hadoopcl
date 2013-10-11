@@ -10,6 +10,11 @@ public class BufferManager<BufferType extends HadoopCLBuffer> {
     private final Class<? extends BufferType> toInstantiate;
     private final String name;
     private final List<HadoopCLBuffer> globalSpace;
+    private long timeWaiting = 0;
+
+    public long timeWaiting() {
+        return this.timeWaiting;
+    }
 
     public BufferManager(String name, int setMax,
             Class<? extends BufferType> toInstantiate, List<HadoopCLBuffer> globalSpace) {
@@ -19,6 +24,34 @@ public class BufferManager<BufferType extends HadoopCLBuffer> {
         this.toInstantiate = toInstantiate;
         this.name = name;
         this.globalSpace = globalSpace;
+    }
+
+    public synchronized BufferTypeAlloc<BufferType> nonBlockingAlloc() {
+        if (!free.isEmpty()) {
+            BufferType nb = free.poll();
+            nb.setInUse(true);
+            return new BufferTypeAlloc<BufferType>(nb, false);
+        } else if (this.nAllocated < this.maxAllocated) {
+            BufferType result;
+            try {
+                result = toInstantiate.newInstance();
+            } catch(InstantiationException ie) {
+                throw new RuntimeException(ie);
+            } catch(IllegalAccessException iae) {
+                throw new RuntimeException(iae);
+            }
+            if (OpenCLDriver.profileMemory) {
+                synchronized(globalSpace) {
+                    this.globalSpace.add(result);
+                }
+                System.err.println("Allocating "+name+" "+(this.nAllocated+1)+"/"+this.maxAllocated);
+            }
+            this.nAllocated++;
+            result.setInUse(true);
+            return new BufferTypeAlloc<BufferType>(result, true);
+        } else {
+            return null;
+        }
     }
 
     public synchronized BufferTypeAlloc<BufferType> alloc() {
@@ -60,6 +93,7 @@ public class BufferManager<BufferType extends HadoopCLBuffer> {
             }
             result = free.poll();
             long stop = System.currentTimeMillis();
+            timeWaiting += (stop-start);
             isFresh = false;
         }
         result.setInUse(true);

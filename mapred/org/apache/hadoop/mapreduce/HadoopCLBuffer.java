@@ -105,16 +105,11 @@ public abstract class HadoopCLBuffer {
     public static class Profile {
         private long startRead;
         private long stopRead;
-        private long startKernel;
-        private long stopKernel;
-        private long startWrite;
-        private long stopWrite;
-        private int nKernelAttempts;
+        private final List<Long> kernelStarts = new ArrayList<Long>();
+        private final List<Long> kernelStops = new ArrayList<Long>();
+        private final List<Long> writeStarts = new ArrayList<Long>();
+        private final List<Long> writeStops = new ArrayList<Long>();
         private int nItemsProcessed;
-
-        public void addKernelAttempt() {
-            this.nKernelAttempts++;
-        }
 
         public void addItemProcessed() {
             this.nItemsProcessed++;
@@ -129,35 +124,43 @@ public abstract class HadoopCLBuffer {
         }
         
         public void startKernel() {
-            this.startKernel = System.currentTimeMillis();
+            this.kernelStarts.add(System.currentTimeMillis());
         }
 
         public void stopKernel() {
-            this.stopKernel = System.currentTimeMillis();
+            this.kernelStops.add(System.currentTimeMillis());
         }
 
         public void startWrite() {
-            this.startWrite = System.currentTimeMillis();
+            this.writeStarts.add(System.currentTimeMillis());
         }
 
         public void stopWrite() {
-            this.stopWrite = System.currentTimeMillis();
+            this.writeStops.add(System.currentTimeMillis());
         }
 
         public long readTime() {
             return this.stopRead - this.startRead;
         }
 
+        public int nKernelAttempts() {
+            return this.kernelStarts.size();
+        }
+
         public long kernelTime() {
-            return this.stopKernel - this.startKernel;
+            long sum = 0;
+            for (int i = 0; i < this.kernelStarts.size(); i++) {
+                sum = sum + (this.kernelStops.get(i) - this.kernelStarts.get(i));
+            }
+            return sum;
         }
 
         public long writeTime() {
-            return this.stopWrite - this.startWrite;
-        }
-
-        public int nKernelAttempts() {
-            return this.nKernelAttempts;
+            long sum = 0;
+            for (int i = 0; i < this.writeStarts.size(); i++) {
+                sum = sum + (this.writeStops.get(i) - this.writeStarts.get(i));
+            }
+            return sum;
         }
 
         public int nItemsProcessed() {
@@ -179,6 +182,8 @@ public abstract class HadoopCLBuffer {
                     accumAttempts += p.nKernelAttempts();
                     nItemsProcessed += p.nItemsProcessed();
                 }
+                sb.append(", nBuffers=");
+                sb.append(profiles.size());
                 sb.append(", readTime=");
                 sb.append(accumRead);
                 sb.append(" ms, kernelTime=");

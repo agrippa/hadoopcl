@@ -29,7 +29,7 @@ public abstract class HadoopCLKernel extends Kernel {
     // public abstract Class getBufferClass();
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
     public abstract Class<? extends HadoopCLOutputBuffer> getOutputBufferClass();
-    public abstract void launchKernel() throws IOException, InterruptedException;
+    public abstract boolean launchKernel() throws IOException, InterruptedException;
     public abstract void init(HadoopOpenCLContext clContext);
     public abstract int getOutputPairsPerInput();
     public abstract HadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
