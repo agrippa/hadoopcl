@@ -5,6 +5,8 @@ import java.io.*;
 public class SparseVectorWritable implements WritableComparable {
     private int[] indices;
     private double[] vals;
+    private int overrideIndicesOffset;
+    private int overrideValsOffset;
     private int overrideLength;
     private HadoopCLResizableIntArray indicesRes;
     private HadoopCLResizableDoubleArray valsRes;
@@ -15,6 +17,8 @@ public class SparseVectorWritable implements WritableComparable {
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
     }
 
     public SparseVectorWritable(int[] indices, double[] vals) {
@@ -23,6 +27,8 @@ public class SparseVectorWritable implements WritableComparable {
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
     }
 
     public SparseVectorWritable(HadoopCLResizableIntArray indices, HadoopCLResizableDoubleArray vals) {
@@ -31,6 +37,8 @@ public class SparseVectorWritable implements WritableComparable {
         this.indices = null;
         this.vals = null;
         this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
     }
 
     public void set(int[] indices, double[] vals) {
@@ -39,6 +47,8 @@ public class SparseVectorWritable implements WritableComparable {
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
     }
 
     public void set(int[] indices, double[] vals, int len) {
@@ -47,6 +57,8 @@ public class SparseVectorWritable implements WritableComparable {
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = len;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
     }
 
     public void set(HadoopCLResizableIntArray setIndices, 
@@ -56,6 +68,19 @@ public class SparseVectorWritable implements WritableComparable {
         this.indices = null;
         this.vals = null;
         this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
+    }
+
+    public void set(int[] indices, int indicesOffset,
+            double[] vals, int valsOffset, int len) {
+        this.indices = indices;
+        this.vals = vals;
+        this.indicesRes = null;
+        this.valsRes = null;
+        this.overrideLength = len;
+        this.overrideIndicesOffset = indicesOffset;
+        this.overrideValsOffset = valsOffset;
     }
 
     public int[] indices() {
@@ -81,6 +106,8 @@ public class SparseVectorWritable implements WritableComparable {
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
 
         for (int i = 0; i < len; i++) {
             this.indices[i] = in.readInt();
@@ -88,31 +115,41 @@ public class SparseVectorWritable implements WritableComparable {
         }
     }
 
+    private int indicesOffset() {
+        return this.overrideIndicesOffset == -1 ? 0 : this.overrideIndicesOffset;
+    }
+
+    private int valsOffset() {
+        return this.overrideValsOffset == -1 ? 0 : this.overrideValsOffset;
+    }
+
     public void write(DataOutput out) throws IOException {
         out.writeInt(this.size());
+        int indicesOffset = indicesOffset();
+        int valsOffset = valsOffset();
         if(this.indices != null) {
             for(int i = 0; i < this.size(); i++) {
-                out.writeInt(this.indices[i]);
-                out.writeDouble(this.vals[i]);
+                out.writeInt(this.indices[indicesOffset + i]);
+                out.writeDouble(this.vals[valsOffset + i]);
             }
         } else {
             int[] privateIndices = (int[])this.indicesRes.getArray();
             double[] privateVals = (double[])this.valsRes.getArray();
 
             for(int i = 0; i < this.size(); i++) {
-                out.writeInt(privateIndices[i]);
-                out.writeDouble(privateVals[i]);
+                out.writeInt(privateIndices[indicesOffset + i]);
+                out.writeDouble(privateVals[valsOffset + i]);
             }
         }
     }
 
     private boolean elementEqual(SparseVectorWritable other, int index) {
 
-        int thisIndex = this.indices()[index];
-        double thisVal = this.vals()[index];
+        int thisIndex = this.indices()[this.indicesOffset() + index];
+        double thisVal = this.vals()[this.valsOffset() + index];
 
-        int otherIndex = other.indices()[index];
-        double otherVal = other.vals()[index];
+        int otherIndex = other.indices()[other.indicesOffset() + index];
+        double otherVal = other.vals()[other.valsOffset() + index];
 
         return otherIndex == thisIndex && otherVal == thisVal;
     }
@@ -138,7 +175,8 @@ public class SparseVectorWritable implements WritableComparable {
 
     private double distFromOrigin() {
         double sum = 0.0;
-        for(int i = 0; i < this.size(); i++) {
+        int valsOffset = this.valsOffset();
+        for(int i = valsOffset; i < valsOffset + this.size(); i++) {
             sum = sum + (this.vals()[i] * this.vals()[i]);
         }
         return Math.sqrt(sum);
@@ -161,10 +199,13 @@ public class SparseVectorWritable implements WritableComparable {
         StringBuffer str = new StringBuffer();
         str.append("{ ");
         int length = (this.size() < n ? this.size() : n);
+        int indicesOffset = indicesOffset();
+        int valsOffset = valsOffset();
+
         for(int i = 0; i < length; i++) {
-            str.append(this.indices()[i]);
+            str.append(this.indices()[indicesOffset + i]);
             str.append(":");
-            str.append(this.vals()[i]);
+            str.append(this.vals()[valsOffset + i]);
             str.append(" ");
         }
         if(length < this.size()) {
@@ -177,10 +218,13 @@ public class SparseVectorWritable implements WritableComparable {
     public String toString() {
         StringBuffer str = new StringBuffer();
         str.append("{ ");
+        int indicesOffset = indicesOffset();
+        int valsOffset = valsOffset();
+
         for(int i = 0; i < this.size(); i++) {
-            str.append(this.indices()[i]);
+            str.append(this.indices()[indicesOffset + i]);
             str.append(":");
-            str.append(this.vals()[i]);
+            str.append(this.vals()[valsOffset + i]);
             str.append(" ");
         }
         str.append("}");
@@ -190,9 +234,13 @@ public class SparseVectorWritable implements WritableComparable {
     public SparseVectorWritable cloneSparse() {
         int[] newIndices = new int[this.size()];
         double[] newVals = new double[this.size()];
+
+        int indicesOffset = indicesOffset();
+        int valsOffset = valsOffset();
+
         for (int i = 0; i < this.size(); i++) {
-            newIndices[i] = this.indices()[i];
-            newVals[i] = this.vals()[i];
+            newIndices[i] = this.indices()[indicesOffset + i];
+            newVals[i] = this.vals()[valsOffset + i];
         }
         return new SparseVectorWritable(newIndices, newVals);
     }

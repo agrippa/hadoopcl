@@ -88,7 +88,7 @@ public class OpenCLMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN
 
     OpenCLDriver driver = null;
     try {
-        driver = new OpenCLDriver("mapper", context,  context.getOCLMapperClass());
+        driver = new OpenCLDriver("mapper", context,  context.getOCLMapperClass(), context.spillLock());
     } catch(java.lang.ClassNotFoundException ce) {
         ce.printStackTrace();
         throw new RuntimeException("Failed to load mapper kernel class");

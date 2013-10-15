@@ -80,6 +80,8 @@ public class FilterOutputFormat <K,V> extends OutputFormat<K, V> {
 
   public static class FilterRecordWriter<K,V> extends RecordWriter<K,V> {
 
+    public void setUsingOpenCL(boolean val) { }
+
     protected RecordWriter<K,V> rawWriter = null;
 
     public FilterRecordWriter() {

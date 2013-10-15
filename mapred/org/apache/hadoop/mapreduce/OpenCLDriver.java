@@ -1,6 +1,7 @@
 package org.apache.hadoop.mapreduce;
 
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.HashSet;
 import java.io.*;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Queue;
 import java.util.LinkedList;
+import java.security.Permission;
 
 import org.apache.hadoop.mapreduce.OpenCLDriver;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
@@ -29,8 +31,9 @@ import com.amd.aparapi.internal.opencl.OpenCLPlatform;
 import com.amd.aparapi.device.OpenCLDevice;
 
 public class OpenCLDriver {
-  public static final int nInputBuffers = 2;
-  public static final int nOutputBuffers = 5;
+  public static final int nKernels = 1;
+  public static final int nInputBuffers = 10;
+  public static final int nOutputBuffers = 10;
   public static final boolean profileMemory = false;
 
   public static long inputsRead = -1L;
@@ -40,12 +43,16 @@ public class OpenCLDriver {
   private final Class kernelClass;
   private final HadoopOpenCLContext clContext;
   private final Configuration conf;
+  private final ReentrantLock spillLock;
 
-  public OpenCLDriver(String type, TaskInputOutputContext context, Class kernelClass) {
+  public OpenCLDriver(String type, TaskInputOutputContext context, Class kernelClass,
+          ReentrantLock spillLock) {
     this.clContext = new HadoopOpenCLContext(type, context);
     this.context = context;
     this.kernelClass = kernelClass;
     this.conf = context.getConfiguration();
+    this.spillLock = spillLock;
+    context.setUsingOpenCL(this.clContext.getDevice() != null);
   }
 
   public static void hadoopclLog(Configuration conf, String str) throws IOException {
@@ -94,7 +101,8 @@ public class OpenCLDriver {
   }
 
   private String profilesToString(long overallTime,
-          List<HadoopCLBuffer.Profile> profiles, long inputTimeWaiting, long outputTimeWaiting) {
+          List<HadoopCLBuffer.Profile> profiles, long inputTimeWaiting,
+          long outputTimeWaiting, long kernelTimeWaiting) {
       StringBuffer sb = new StringBuffer();
       sb.append("DIAGNOSTICS: ");
       sb.append(this.clContext.typeName());
@@ -106,6 +114,8 @@ public class OpenCLDriver {
       sb.append(inputTimeWaiting);
       sb.append(" ms, output buffer lag=");
       sb.append(outputTimeWaiting);
+      sb.append(" ms, kernel lag=");
+      sb.append(kernelTimeWaiting);
       sb.append(" ms");
       sb.append(HadoopCLBuffer.Profile.listToString(profiles));
       return sb.toString();
@@ -139,7 +149,7 @@ public class OpenCLDriver {
    * @throws IOException
    */
   public void run() throws IOException, InterruptedException {
-    System.err.println("Entering OpenCLDriver");
+    // System.err.println(System.currentTimeMillis()+" Entering OpenCLDriver");
 
     OpenCLDriver.processingFinish = -1;
     OpenCLDriver.processingStart = System.currentTimeMillis();
@@ -166,6 +176,7 @@ public class OpenCLDriver {
     }
     BufferManager<HadoopCLInputBuffer> inputManager;
     BufferManager<HadoopCLOutputBuffer> outputManager;
+    KernelManager kernelManager;
 
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
@@ -177,18 +188,19 @@ public class OpenCLDriver {
             kernel.getInputBufferClass(), globalSpace);
         outputManager = new BufferManager<HadoopCLOutputBuffer>("outputs", nOutputBuffers,
             kernel.getOutputBufferClass(), globalSpace);
+        kernelManager = new KernelManager("kernels", nKernels,
+                kernelClass, this.clContext);
 
-        BufferManager.BufferTypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+        BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
         buffer = newBufferContainer.obj();
         buffer.init(kernel.getOutputPairsPerInput(), clContext);
         buffer.resetProfile();
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
-    int countBuffers = 1;
 
     BufferRunner runner = new BufferRunner(kernelClass, inputManager, outputManager,
-            clContext);
+            kernelManager, clContext, this.spillLock);
     Thread thread = new Thread(runner);
     thread.start();
     // ToOpenCLThread.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
@@ -204,6 +216,7 @@ public class OpenCLDriver {
     // hadoopThread.start();
 
     buffer.getProfile().startRead();
+    // System.err.println("Main starting buffering into "+buffer.id);
 
     while (this.context.nextKeyValue()) {
         if (buffer.isFull(this.context)) {
@@ -216,20 +229,39 @@ public class OpenCLDriver {
             // long spaceEstimate = estimateSpace(inputManager,
             //     outputManager, th0, runner, buffer);
             // System.err.println("DIAGNOSTICS: OpenCLDriver estimating space usage of "+spaceEstimate+" bytes");
-            BufferManager.BufferTypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
-            HadoopCLInputBuffer newBuffer = newBufferContainer.obj();
 
-            if (newBufferContainer.isFresh()) {
-                newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
+            if (this.clContext.isMapper()) {
+                // No mappers have a filled in transferBufferedValues,
+                // so we don't need to hold two input buffers at once
+                // and can release the current one immediately before
+                // requesting a new one.
+                buffer.getProfile().stopRead();
+                runner.addWork(buffer);
+
+                BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+                buffer = newBufferContainer.obj();
+                // System.err.println("Main starting buffering into "+buffer.id);
+                if (newBufferContainer.isFresh()) {
+                    buffer.init(kernel.getOutputPairsPerInput(), clContext);
+                } else {
+                    buffer.reset();
+                }
             } else {
-                newBuffer.reset();
-            }
+                BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+                HadoopCLInputBuffer newBuffer = newBufferContainer.obj();
 
-            buffer.transferBufferedValues(newBuffer);
-            buffer.getProfile().stopRead();
-            // ToOpenCLThread.addWorkFromMain(buffer);
-            runner.addWork(buffer);
-            buffer = newBuffer;
+                if (newBufferContainer.isFresh()) {
+                    newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
+                } else {
+                    newBuffer.reset();
+                }
+
+                buffer.transferBufferedValues(newBuffer);
+                buffer.getProfile().stopRead();
+                // ToOpenCLThread.addWorkFromMain(buffer);
+                runner.addWork(buffer);
+                buffer = newBuffer;
+            }
             buffer.resetProfile();
             buffer.getProfile().startRead();
         }
@@ -255,6 +287,25 @@ public class OpenCLDriver {
     OpenCLDriver.processingFinish = System.currentTimeMillis();
 
     long stop = System.currentTimeMillis();
-    System.out.println(profilesToString(stop-start, runner.profiles(), inputManager.timeWaiting(), outputManager.timeWaiting()));
+    System.out.println(profilesToString(stop-start, runner.profiles(), inputManager.timeWaiting(), outputManager.timeWaiting(), kernelManager.timeWaiting()));
+    // System.err.println(System.currentTimeMillis()+" Leaving OpenCLDriver");
   }
+
+  /*
+  public static class NoExit extends SecurityManager {
+      @Override
+      public void checkPermission(Permission perm) {
+      }
+      @Override
+      public void checkPermission(Permission perm, Object context) {
+      }
+      @Override
+      public void checkExit(int status) {
+          System.err.println("Printing stack from exit "+status);
+          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+              System.out.println("  "+ste);
+          }
+      }
+  }
+  */
 }

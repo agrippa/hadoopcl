@@ -50,6 +50,9 @@ public abstract class HadoopCLBuffer {
     }
 
     public Profile getProfile() {
+        if (this.prof == null) {
+            throw new RuntimeException("Null profile");
+        }
         return this.prof;
     }
 

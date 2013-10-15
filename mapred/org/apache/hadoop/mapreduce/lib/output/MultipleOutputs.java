@@ -290,6 +290,8 @@ public class MultipleOutputs<KEYOUT, VALUEOUT> {
     private String counterName;
     private TaskInputOutputContext context;
 
+    public void setUsingOpenCL(boolean val) { }
+
     public RecordWriterWithCounter(RecordWriter writer, String counterName,
                                    TaskInputOutputContext context) {
       this.writer = writer;

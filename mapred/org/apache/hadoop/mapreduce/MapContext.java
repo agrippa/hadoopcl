@@ -24,6 +24,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader.BinaryKeyValues;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
 import org.apache.hadoop.mapred.MapTask;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * The context that is given to the {@link Mapper}.
@@ -36,16 +37,23 @@ public class MapContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   extends TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
   private RecordReader<KEYIN,VALUEIN> reader;
   private InputSplit split;
+  private ReentrantLock spillLock;
+
+  public ReentrantLock spillLock() {
+      return this.spillLock;
+  }
 
   public MapContext(Configuration conf, TaskAttemptID taskid,
                     RecordReader<KEYIN,VALUEIN> reader,
                     RecordWriter<KEYOUT,VALUEOUT> writer,
                     OutputCommitter committer,
                     StatusReporter reporter,
-                    InputSplit split) {
+                    InputSplit split,
+                    ReentrantLock spillLock) {
     super(conf, taskid, writer, committer, reporter);
     this.reader = reader;
     this.split = split;
+    this.spillLock = spillLock;
   }
 
   /**

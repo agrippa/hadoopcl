@@ -40,6 +40,7 @@ import org.apache.hadoop.util.*;
 public class TextOutputFormat<K, V> extends FileOutputFormat<K, V> {
   protected static class LineRecordWriter<K, V>
     extends RecordWriter<K, V> {
+    public void setUsingOpenCL(boolean val) { }
     private static final String utf8 = "UTF-8";
     private static final byte[] newline;
     static {

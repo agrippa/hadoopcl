@@ -144,6 +144,7 @@ public class SequenceFileAsBinaryOutputFormat
       getSequenceFileOutputValueClass(context)); 
 
     return new RecordWriter<BytesWritable, BytesWritable>() {
+      public void setUsingOpenCL(boolean val) { }
       private WritableValueBytes wvaluebytes = new WritableValueBytes();
 
       public void write(BytesWritable bkey, BytesWritable bvalue)

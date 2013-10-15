@@ -67,6 +67,7 @@ public class SequenceFileOutputFormat <K,V> extends FileOutputFormat<K, V> {
                                 context);
 
     return new RecordWriter<K, V>() {
+        public void setUsingOpenCL(boolean val) { }
 
         public void write(K key, V value)
           throws IOException {

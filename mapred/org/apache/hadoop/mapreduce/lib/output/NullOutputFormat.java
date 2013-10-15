@@ -36,6 +36,7 @@ public class NullOutputFormat<K, V> extends OutputFormat<K, V> {
         public void write(K key, V value) { }
         public void close(TaskAttemptContext context) { }
         public void writeChunk(byte[] arr, int len) { }
+        public void setUsingOpenCL(boolean val) { }
       };
   }
   

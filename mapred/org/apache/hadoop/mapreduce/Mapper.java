@@ -21,6 +21,7 @@ package org.apache.hadoop.mapreduce;
 import java.io.IOException;
 import java.util.Arrays;
 
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -108,8 +109,9 @@ public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
                    OutputCommitter committer,
                    StatusReporter reporter,
                    InputSplit split, int[] outputKeys, 
-                   float[] outputVals) throws IOException, InterruptedException {
-      super(conf, taskid, reader, writer, committer, reporter, split);
+                   float[] outputVals,
+                   ReentrantLock spillLock) throws IOException, InterruptedException {
+      super(conf, taskid, reader, writer, committer, reporter, split, spillLock);
       this.outputKeys = outputKeys;
       this.outputVals = outputVals;
     }
@@ -119,8 +121,9 @@ public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
                    RecordWriter<KEYOUT,VALUEOUT> writer,
                    OutputCommitter committer,
                    StatusReporter reporter,
-                   InputSplit split) throws IOException, InterruptedException {
-      super(conf, taskid, reader, writer, committer, reporter, split);
+                   InputSplit split, ReentrantLock spillLock) 
+            throws IOException, InterruptedException {
+      super(conf, taskid, reader, writer, committer, reporter, split, spillLock);
       this.outputKeys = null;
       this.outputVals = null;
     }

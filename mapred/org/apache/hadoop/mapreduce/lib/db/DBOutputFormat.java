@@ -67,6 +67,8 @@ extends OutputFormat<K,V> {
   public class DBRecordWriter 
       extends RecordWriter<K, V> {
 
+    public void setUsingOpenCL(boolean val) { }
+
     private Connection connection;
     private PreparedStatement statement;
 

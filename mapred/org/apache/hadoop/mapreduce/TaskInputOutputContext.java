@@ -37,6 +37,10 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   private StatusReporter reporter;
   private OutputCommitter committer;
 
+  public void setUsingOpenCL(boolean val) {
+      output.setUsingOpenCL(val);
+  }
+
   public TaskInputOutputContext(Configuration conf, TaskAttemptID taskid,
                                 RecordWriter<KEYOUT,VALUEOUT> output,
                                 OutputCommitter committer,

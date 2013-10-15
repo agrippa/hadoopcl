@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.FileSystem;
  * @see OutputFormat
  */
 public abstract class RecordWriter<K, V> {
+  public abstract void setUsingOpenCL(boolean val);
   /** 
    * Writes a key/value pair.
    *

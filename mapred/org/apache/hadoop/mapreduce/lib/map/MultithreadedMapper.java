@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.map;
 
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Counter;
@@ -203,6 +204,8 @@ public class MultithreadedMapper<K1, V1, K2, V2>
   
   private class SubMapRecordWriter extends RecordWriter<K2,V2> {
 
+    public void setUsingOpenCL(boolean val) { }
+
     @Override
     public void close(TaskAttemptContext context) throws IOException,
                                                  InterruptedException {
@@ -251,7 +254,8 @@ public class MultithreadedMapper<K1, V1, K2, V2>
     private Context subcontext;
     private Throwable throwable;
 
-    MapRunner(Context context) throws IOException, InterruptedException {
+    MapRunner(Context context) 
+        throws IOException, InterruptedException {
       mapper = ReflectionUtils.newInstance(mapClass, 
                                            context.getConfiguration());
       subcontext = new Context(outer.getConfiguration(), 
@@ -260,7 +264,7 @@ public class MultithreadedMapper<K1, V1, K2, V2>
                             new SubMapRecordWriter(), 
                             context.getOutputCommitter(),
                             new SubMapStatusReporter(),
-                            outer.getInputSplit());
+                            outer.getInputSplit(), context.spillLock());
     }
 
     public Throwable getThrowable() {

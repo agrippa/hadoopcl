@@ -3,119 +3,68 @@ package org.apache.hadoop.mapreduce;
 import java.util.List;
 import java.util.LinkedList;
 
-public class BufferManager<BufferType extends HadoopCLBuffer> {
-    private final int maxAllocated;
-    private int nAllocated;
-    private final LinkedList<BufferType> free;
-    private final Class<? extends BufferType> toInstantiate;
-    private final String name;
+public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManager<BufferType> {
     private final List<HadoopCLBuffer> globalSpace;
-    private long timeWaiting = 0;
-
-    public long timeWaiting() {
-        return this.timeWaiting;
-    }
 
     public BufferManager(String name, int setMax,
             Class<? extends BufferType> toInstantiate, List<HadoopCLBuffer> globalSpace) {
-        this.nAllocated = 0;
-        this.maxAllocated = setMax;
-        this.free = new LinkedList<BufferType>();
-        this.toInstantiate = toInstantiate;
-        this.name = name;
+        super(name, setMax, toInstantiate);
         this.globalSpace = globalSpace;
     }
 
-    public synchronized BufferTypeAlloc<BufferType> nonBlockingAlloc() {
-        if (!free.isEmpty()) {
-            BufferType nb = free.poll();
-            nb.setInUse(true);
-            return new BufferTypeAlloc<BufferType>(nb, false);
-        } else if (this.nAllocated < this.maxAllocated) {
-            BufferType result;
-            try {
-                result = toInstantiate.newInstance();
-            } catch(InstantiationException ie) {
-                throw new RuntimeException(ie);
-            } catch(IllegalAccessException iae) {
-                throw new RuntimeException(iae);
+    public TypeAlloc<BufferType> nonBlockingAlloc() {
+        TypeAlloc<BufferType> result = this.nonBlockingAllocHelper();
+        if (result != null) {
+            if (result.obj() != null) {
+                result.obj().setInUse(true);
             }
-            if (OpenCLDriver.profileMemory) {
-                synchronized(globalSpace) {
-                    this.globalSpace.add(result);
+            if (result.isFresh()) {
+                System.err.println("Allocating "+this.name+" buffer "+result.obj().id);
+                if (OpenCLDriver.profileMemory) {
+                    synchronized(globalSpace) {
+                        this.globalSpace.add(result.obj());
+                    }
                 }
-                System.err.println("Allocating "+name+" "+(this.nAllocated+1)+"/"+this.maxAllocated);
             }
-            this.nAllocated++;
-            result.setInUse(true);
-            return new BufferTypeAlloc<BufferType>(result, true);
-        } else {
-            return null;
         }
+        return result;
     }
 
-    public synchronized BufferTypeAlloc<BufferType> alloc() {
-        // First, we always try to re-use an old buffer
-        if (!free.isEmpty()) {
-            BufferType nb = free.poll();
-            nb.setInUse(true);
-            return new BufferTypeAlloc<BufferType>(nb, false);
-        }
-
-        // Now, if we can allocate a new object we do so
-        // Otherwise, we wait for an object to be freed
-        BufferType result;
-        boolean isFresh;
-        if (this.nAllocated < this.maxAllocated) {
-            try {
-                result = toInstantiate.newInstance();
-            } catch(InstantiationException ie) {
-                throw new RuntimeException(ie);
-            } catch(IllegalAccessException iae) {
-                throw new RuntimeException(iae);
-            }
+    public TypeAlloc<BufferType> alloc() {
+        TypeAlloc<BufferType> result = this.allocHelper();
+        result.obj().setInUse(true);
+        if (result.isFresh()) {
+            System.err.println("Allocating "+this.name+" buffer "+result.obj().id);
             if (OpenCLDriver.profileMemory) {
                 synchronized(globalSpace) {
-                    this.globalSpace.add(result);
-                }
-                System.err.println("Allocating "+name+" "+(this.nAllocated+1)+"/"+this.maxAllocated);
-            }
-            this.nAllocated++;
-            isFresh = true;
-        } else {
-            long start = System.currentTimeMillis();
-            while (free.isEmpty()) {
-                try {
-                    this.wait();
-                } catch(InterruptedException ie) {
-                    throw new RuntimeException(ie);
+                    this.globalSpace.add(result.obj());
                 }
             }
-            result = free.poll();
-            long stop = System.currentTimeMillis();
-            timeWaiting += (stop-start);
-            isFresh = false;
         }
-        result.setInUse(true);
-        return new BufferTypeAlloc<BufferType>(result, isFresh);
+        return result;
     }
 
-    public synchronized void free(BufferType b) {
+    public void free(BufferType b) {
         b.setInUse(false);
-        free.add(b);
-        this.notify();
+        this.freeHelper(b);
     }
 
-    public static class BufferTypeAlloc<InnerBufferType> {
-        private final boolean isFresh;
-        private final InnerBufferType obj;
-
-        public BufferTypeAlloc(InnerBufferType obj, boolean isFresh) {
-            this.obj = obj;
-            this.isFresh = isFresh;
+    private synchronized String str() {
+        StringBuffer sb = new StringBuffer();
+        sb.append("[ ");
+        for (BufferType b : this.free) {
+            sb.append(b.id);
+            sb.append(" ");
         }
+        sb.append("], ");
+        sb.append(this.nAllocated);
+        sb.append("/");
+        sb.append(this.maxAllocated);
+        return sb.toString();
+    }
 
-        public boolean isFresh() { return this.isFresh; }
-        public InnerBufferType obj() { return this.obj; }
+    @Override
+    public String toString() {
+        return this.str();
     }
 }

@@ -4,43 +4,47 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.HashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.Map;
 
 public class BufferRunner implements Runnable {
+    private static final boolean enableLogs = false;
     private final List<HadoopCLBuffer.Profile> profiles;
     private final BufferManager<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
+    private final KernelManager freeKernels; // exclusive
 
     private final HadoopCLLimitedQueue<HadoopCLInputBuffer> toRun;
-    private final HadoopCLLimitedQueue<HadoopCLInputBuffer> toRunPrivate; // exclusive
-    private final LinkedList<HadoopCLOutputBuffer> toWrite; // exclusive
+    private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
+    private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
+
+    private final ReentrantLock spillLock;
 
     // exclusive
     private final HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair> running;
 
-    private final LinkedList<HadoopCLKernel> savedKernelObjects;
-
     private final Class kernelClass;
     private final HadoopOpenCLContext clContext;
-
-    private int nKernelInstances = 0;
 
     public BufferRunner(Class kernelClass,
             BufferManager<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
-            HadoopOpenCLContext clContext) {
+            KernelManager freeKernels,
+            HadoopOpenCLContext clContext, ReentrantLock spillLock) {
         this.kernelClass = kernelClass;
         this.freeInputBuffers = freeInputBuffers;
         this.freeOutputBuffers = freeOutputBuffers;
+        this.freeKernels = freeKernels;
 
         this.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
-        this.toRunPrivate = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
-        this.toWrite = new LinkedList<HadoopCLOutputBuffer>();
+        this.toRunPrivate = new LinkedList<HadoopCLInputBuffer>();
+        this.toWrite = new LinkedList<OutputBufferSoFar>();
 
         this.running = new HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair>();
-        this.savedKernelObjects = new LinkedList<HadoopCLKernel>();
 
         this.clContext = clContext;
         this.profiles = new LinkedList<HadoopCLBuffer.Profile>();
+        this.spillLock = spillLock;
     }
 
     public List<HadoopCLBuffer.Profile> profiles() {
@@ -49,27 +53,15 @@ public class BufferRunner implements Runnable {
 
     public void addWork(HadoopCLInputBuffer input) {
         // possible if getting DONE signal from main
-        if (input != null) input.clearNWrites();
+        if (input != null) {
+            input.clearNWrites();
+        }
         this.toRun.add(input);
     }
 
     private HadoopCLKernel newKernelInstance() {
-        HadoopCLKernel kernel = null;
-        if (!savedKernelObjects.isEmpty()) {
-            kernel = savedKernelObjects.poll();
-        } else {
-            try {
-                kernel = (HadoopCLKernel)this.kernelClass.newInstance();
-                kernel.init(this.clContext);
-                kernel.setGlobals(this.clContext.getGlobalsInd(),
-                        this.clContext.getGlobalsVal(),
-                        this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
-            } catch(Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            nKernelInstances++;
-        }
-        return kernel;
+        AllocManager.TypeAlloc<HadoopCLKernel> result = freeKernels.nonBlockingAlloc();
+        return (result == null ? null : result.obj());
     }
 
     private List<HadoopCLKernel> getCompleteKernels() {
@@ -94,56 +86,137 @@ public class BufferRunner implements Runnable {
         if (success) {
             inputBuffer.getProfile().startKernel();
             running.put(kernel, new HadoopCLInputOutputBufferPair(inputBuffer, outputBuffer));
-            System.err.println("  Successfully started with "+nKernelInstances+" kernel instances");
-        } else {
-            System.err.println("  Failed starting kernel due to OpenCL error");
         }
         return success;
+    }
+
+    private void log(String s) {
+        System.err.println(System.currentTimeMillis()+" "+s);
+    }
+
+    private OutputBufferSoFar handleOutputBuffer(OutputBufferSoFar soFar) {
+        try {
+            soFar.buffer().getProfile().startWrite();
+            int newProgress = soFar.buffer().putOutputsIntoHadoop(
+                    this.clContext.getContext(), this.spillLock, soFar.soFar());
+            soFar.buffer().getProfile().stopWrite();
+            if (newProgress == -1) {
+                if (enableLogs) {
+                    log("    Done writing "+soFar.buffer().id+", releasing");
+                }
+                this.freeOutputBuffers.free(soFar.buffer());
+                return null;
+            } else {
+                if (enableLogs) {
+                    log("    Unable to complete output buffer, putting "+soFar.buffer().id+" back in toWrite");
+                }
+                soFar.setSoFar(newProgress);
+                return soFar;
+            }
+        } catch(Exception ex) {
+            throw new RuntimeException(ex);
+        }
+
     }
 
     @Override
     public void run() {
         boolean mainDone = false;
+        if (enableLogs) {
+            log("Entering BufferRunner");
+        }
 
+        /*
+         * I removed the condition !toWrite.isEmpty() because I'd rather
+         * exit the loop and then just loop on toWrite after setting
+         * usingOpencl to false (this should be more efficient so we're
+         * not just constantly throwing exceptions
+         */
         while (!mainDone || !running.isEmpty() ||
-                !toRunPrivate.isEmpty() || !toWrite.isEmpty()) {
+                !toRunPrivate.isEmpty()) {
 
             BufferTypeContainer<HadoopCLInputBuffer> inputBufferContainer = 
                 toRun.nonBlockingGet();
-            if (inputBufferContainer == null) {
-                // try again for any retry input buffers
-                inputBufferContainer = toRunPrivate.nonBlockingGet();
-            }
-
             // Special test for DONE signal from main thread
             if (inputBufferContainer != null && inputBufferContainer.get() == null) {
+                if (enableLogs) {
+                    log("   Got DONE signal from main");
+                }
                 mainDone = true;
                 continue;
             }
 
-            if (inputBufferContainer != null) {
+            HadoopCLInputBuffer inputBuffer = null; 
+            if (inputBufferContainer == null) {
+                // try again for any retry input buffers
+                if (!toRunPrivate.isEmpty()) {
+                    inputBuffer = toRunPrivate.poll();
+                }
+                if (inputBuffer != null && enableLogs) {
+                    log("  Got input buffer "+inputBuffer.id+" from retry list");
+                }
+            } else {
+                inputBuffer = inputBufferContainer.get();
+                if (enableLogs) {
+                    log("  Got input buffer "+inputBuffer.id+" from main");
+                }
+            }
+
+
+            if (inputBuffer != null) {
                 // Have a kernel from main to run
-                HadoopCLKernel k = newKernelInstance();
-                BufferManager.BufferTypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
-                    freeOutputBuffers.nonBlockingAlloc();
-                if (outputBufferContainer != null) {
-                    if (outputBufferContainer.obj() == null) System.err.println("A> Got null output buffer");
+                HadoopCLKernel k = null;
+                BufferManager.TypeAlloc<HadoopCLOutputBuffer> outputBufferContainer = null;
+                if ((k = newKernelInstance()) != null &&
+                        (outputBufferContainer = freeOutputBuffers.nonBlockingAlloc()) != null) {
+
+                    HadoopCLOutputBuffer outputBuffer = outputBufferContainer.obj();
+                    if (enableLogs) {
+                        log("    Allocated output buffer "+outputBuffer.id+", kernel "+k.id+" for processing of input buffer "+inputBuffer.id);
+                    }
                     if (outputBufferContainer.isFresh()) {
-                        outputBufferContainer.obj().initBeforeKernel(
+                        if (enableLogs) {
+                            log("      Initializing fresh output buffer "+outputBuffer.id);
+                        }
+                        outputBuffer.initBeforeKernel(
                                 k.getOutputPairsPerInput(), this.clContext);
                     }
-                    if (!startKernel(k, inputBufferContainer.get(), outputBufferContainer.obj())) {
-                        toRunPrivate.add(inputBufferContainer.get());
-                        freeOutputBuffers.free(outputBufferContainer.obj());
-                        savedKernelObjects.add(k);
+                    if (!startKernel(k, inputBuffer, outputBuffer)) {
+                        if (enableLogs) {
+                            log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing output "+outputBuffer.id+", kernel "+k.id);
+                        }
+                        toRunPrivate.add(inputBuffer);
+                        freeOutputBuffers.free(outputBuffer);
+                        freeKernels.free(k);
+                    } else {
+                        if (enableLogs) {
+                            log("    Successfully started kernel on "+inputBuffer.id+" -> "+outputBuffer.id);
+                        }
+                    }
+                    if (enableLogs) {
+                        log("    Continuing to next iteration");
                     }
                     continue; // one operation per iteration
                 } else {
-                    toRunPrivate.add(inputBufferContainer.get());
-                    savedKernelObjects.add(k);
+                    if (enableLogs) {
+                        log("    Failed to allocate "+(k == null ? "kernel" : "output buffer")+", marking "+inputBuffer.id+" for retry");
+                    }
+                    toRunPrivate.add(inputBuffer);
+                    if (outputBufferContainer != null) {
+                        if (outputBufferContainer.isFresh()) {
+                            // k must be non-null here because it is allocated first in an AND statement
+                            outputBufferContainer.obj().initBeforeKernel(k.getOutputPairsPerInput(), this.clContext);
+                        }
+                        freeOutputBuffers.free(outputBufferContainer.obj());
+                    }
+                    if (k != null) freeKernels.free(k);
                 }
-            } 
+            }
+
             List<HadoopCLKernel> completed = getCompleteKernels();
+            if (completed.size() > 0 && enableLogs) {
+                log("  Detected "+completed.size()+" completed kernels, out of "+running.size()+" running");
+            }
             if (!completed.isEmpty()) {
                 // Try to either re-run incomplete kernels, or just
                 // set the output buffers up for dumping
@@ -154,64 +227,157 @@ public class BufferRunner implements Runnable {
                     HadoopCLOutputBuffer output = pair.outputBuffer();
 
                     int errCode = k.waitFor();
-                    // System.err.println("errCode="+errCode);
+                    if (input == null) {
+                        throw new RuntimeException("input is null?");
+                    }
                     input.getProfile().stopKernel();
 
-                    // if (errCode != 0) {
-                    //     System.err.println("  Kernel failed during execution with error code = "+errCode);
-                    //     toRunPrivate.add(input);
-                    //     freeOutputBuffers.free(output);
-                    //     savedKernelObjects.add(k);
-                    // } else {
-                        output.copyOverFromInput(input);
-                        toWrite.add(output);
-                        if (input.completedAll()) {
-                            profiles.add(input.getProfile());
-                            freeInputBuffers.free(input);
-                            savedKernelObjects.add(k);
-                        } else {
-                            BufferManager.BufferTypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
-                                freeOutputBuffers.nonBlockingAlloc();
-                            if (outputBufferContainer != null) {
-                                if (outputBufferContainer.obj() == null) System.err.println("B> Got null output buffer");
-                                if (outputBufferContainer.isFresh()) {
-                                    outputBufferContainer.obj().initBeforeKernel(k.getOutputPairsPerInput(),
-                                            this.clContext);
-                                }
-                                if (!startKernel(k, input, outputBufferContainer.obj())) {
-                                    toRunPrivate.add(input);
-                                    freeOutputBuffers.free(outputBufferContainer.obj());
-                                    savedKernelObjects.add(k);
-                                    // Continue if we've just created work early in
-                                    //   the pipeline.
-                                    // In this case, we've created work because we
-                                    //   failed to launch a kernel.
-                                    // This usually happens because we're out of GPU
-                                    //   memory, so continuing may not be the right
-                                    //   thing here.
-                                    doContinue = true; // only continue if we've just created work early in the pipeline
-                                }
-                            } else {
-                                toRunPrivate.add(input);
-                                savedKernelObjects.add(k);
-                            }
+                    output.copyOverFromInput(input);
+                    if (enableLogs) {
+                        log("    Adding "+output.id+" to output buffers to write");
+                    }
+                    toWrite.add(new OutputBufferSoFar(output, 0));
+                    boolean completedAll = input.completedAll();
+                    if (input.completedAll()) {
+                        if (enableLogs) {
+                            log("    Input buffer "+input.id+" completed all work, releasing it and kernel "+k.id);
                         }
-                    // }
+                        profiles.add(input.getProfile());
+                        freeInputBuffers.free(input);
+                        freeKernels.free(k);
+                    } else {
+                        if (enableLogs) {
+                            log("    Input buffer "+input.id+" has not finished all work");
+                        }
+                        BufferManager.TypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
+                            freeOutputBuffers.nonBlockingAlloc();
+                        if (outputBufferContainer != null) {
+                            HadoopCLOutputBuffer outputBuffer = outputBufferContainer.obj();
+                            if (enableLogs) {
+                                log("      Successfully allocated output buffer "+outputBuffer.id+" for input "+input.id);
+                            }
+                            if (outputBufferContainer.isFresh()) {
+                                outputBuffer.initBeforeKernel(k.getOutputPairsPerInput(),
+                                        this.clContext);
+                            }
+                            if (!startKernel(k, input, outputBuffer)) {
+                                if (enableLogs) {
+                                    log("      Failed to start kernel "+k.id+" on "+input.id+" -> "+outputBuffer.id);
+                                }
+                                toRunPrivate.add(input);
+                                freeOutputBuffers.free(outputBuffer);
+                                freeKernels.free(k);
+                                // Continue if we've just created work early in
+                                //   the pipeline.
+                                // In this case, we've created work because we
+                                //   failed to launch a kernel.
+                                // This usually happens because we're out of GPU
+                                //   memory, so continuing may not be the right
+                                //   thing here.
+                                doContinue = true; // only continue if we've just created work early in the pipeline
+                            } else {
+                                if (enableLogs) {
+                                    log("      Successfully launched kernel "+k.id+" on "+input.id+" -> "+outputBuffer.id);
+                                }
+                            }
+                        } else {
+                            if (enableLogs) {
+                                log("      Failed allocating an output buffer for "+input.id+", releasing input "+input.id+" and kernel "+k.id);
+                            }
+                            toRunPrivate.add(input);
+                            freeKernels.free(k);
+                        }
+                    }
                 }
-                if (doContinue) continue;
+                // if (doContinue) 
+                {
+                    if (enableLogs) {
+                        log("    Continuing to next iteration");
+                    }
+                    continue;
+                }
             }
 
-            HadoopCLOutputBuffer outputBuffer = toWrite.poll();
-            if (outputBuffer != null) {
-                try {
-                    outputBuffer.getProfile().startWrite();
-                    outputBuffer.putOutputsIntoHadoop(clContext.getContext());
-                    outputBuffer.getProfile().stopWrite();
-                } catch(Exception ex) {
-                    throw new RuntimeException(ex);
+            OutputBufferSoFar soFar = toWrite.poll();
+            if (soFar != null) {
+                if (enableLogs) {
+                    log("    Got output buffer "+soFar.buffer().id+" to write");
                 }
-                this.freeOutputBuffers.free(outputBuffer);
+                OutputBufferSoFar cont = handleOutputBuffer(soFar);
+                if (cont != null) {
+                    this.toWrite.add(cont);
+                }
             }
         }
+
+        if (!toWrite.isEmpty()) {
+            // Little bit of work left, just finish off the remaining output
+            // buffers
+            
+            // We're still using OpenCL, but we only have
+            // output buffers left to process so we might as
+            // well block
+            this.clContext.getContext().setUsingOpenCL(false);
+            while (!toWrite.isEmpty()) {
+                OutputBufferSoFar soFar = toWrite.poll();
+                do {
+                    soFar = handleOutputBuffer(soFar);
+                } while(soFar != null);
+            }
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuffer sb = new StringBuffer();
+        sb.append("BufferRunner:\n");
+        sb.append("  freeInputs: ");
+        sb.append(this.freeInputBuffers.toString());
+        sb.append("\n");
+        sb.append("  freeOutputs: ");
+        sb.append(this.freeOutputBuffers.toString());
+        sb.append("\n");
+        sb.append("  toRun: ");
+        sb.append(this.toRun.toString());
+        sb.append("\n");
+        sb.append("  toRunPrivate: [ ");
+        for (HadoopCLInputBuffer b : this.toRunPrivate) {
+            sb.append(b.id);
+            sb.append(" ");
+        }
+        sb.append("]\n");
+        sb.append("  toWrite: [ ");
+        for (OutputBufferSoFar b : this.toWrite) {
+            sb.append(b.buffer().id);
+            sb.append(" ");
+        }
+        sb.append("]\n");
+        sb.append("  freeKernels: ");
+        sb.append(this.freeKernels.toString());
+        sb.append("\n");
+        sb.append("  running: [ ");
+        for (Map.Entry<HadoopCLKernel, HadoopCLInputOutputBufferPair> entry : running.entrySet()) {
+            sb.append(entry.getValue().inputBuffer().id);
+            sb.append("->");
+            sb.append(entry.getKey().id);
+            sb.append("->");
+            sb.append(entry.getValue().outputBuffer().id);
+            sb.append(" ");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    class OutputBufferSoFar {
+        private int soFar;
+        private final HadoopCLOutputBuffer buffer;
+
+        public OutputBufferSoFar(HadoopCLOutputBuffer buffer, int setSoFar) {
+            this.buffer = buffer;
+            this.soFar = setSoFar;
+        }
+        public HadoopCLOutputBuffer buffer() { return this.buffer; }
+        public int soFar() { return this.soFar; }
+        public void setSoFar(int set) { this.soFar = set; }
     }
 }

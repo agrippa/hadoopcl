@@ -609,6 +609,8 @@ public class MapTask extends Task {
   private class NewDirectOutputCollector<K,V>
   extends org.apache.hadoop.mapreduce.RecordWriter<K,V> {
     private final org.apache.hadoop.mapreduce.RecordWriter out;
+        
+    public void setUsingOpenCL(boolean val) { }
 
     private final TaskReporter reporter;
 
@@ -677,6 +679,16 @@ public class MapTask extends Task {
     private final MapOutputCollector<K,V> collector;
     private final org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner;
     private final int partitions;
+    private final ReentrantLock spillLock;
+
+    public ReentrantLock spillLock() {
+        return this.spillLock;
+    }
+
+    @Override
+    public void setUsingOpenCL(boolean val) {
+        collector.setUsingOpenCL(val);
+    }
 
     @SuppressWarnings("unchecked")
     NewOutputCollector(org.apache.hadoop.mapreduce.JobContext jobContext,
@@ -684,7 +696,9 @@ public class MapTask extends Task {
                        TaskUmbilicalProtocol umbilical,
                        TaskReporter reporter
                        ) throws IOException, ClassNotFoundException {
-      collector = new MapOutputBuffer<K,V>(umbilical, job, reporter);
+      MapOutputBuffer<K,V> tmp = new MapOutputBuffer<K,V>(umbilical, job, reporter);
+      this.spillLock = tmp.spillLock();
+      collector = tmp;
       partitions = jobContext.getNumReduceTasks();
       if (partitions > 0) {
         partitioner = (org.apache.hadoop.mapreduce.Partitioner<K,V>)
@@ -764,19 +778,24 @@ public class MapTask extends Task {
                      org.apache.hadoop.mapreduce.RecordWriter.class,
                      org.apache.hadoop.mapreduce.OutputCommitter.class,
                      org.apache.hadoop.mapreduce.StatusReporter.class,
-                     org.apache.hadoop.mapreduce.InputSplit.class});
+                     org.apache.hadoop.mapreduce.InputSplit.class,
+                     java.util.concurrent.locks.ReentrantLock.class });
 
       // get an output object
+      ReentrantLock spillLock = null;
       if (job.getNumReduceTasks() == 0) {
          output =
            new NewDirectOutputCollector(taskContext, job, umbilical, reporter);
       } else {
-        output = new NewOutputCollector(taskContext, job, umbilical, reporter);
+          NewOutputCollector tmp =
+              new NewOutputCollector(taskContext, job, umbilical, reporter);
+          spillLock = tmp.spillLock();
+          output = tmp;
       }
 
       mapperContext = contextConstructor.newInstance(mapper, job, getTaskID(),
                                                      input, output, committer,
-                                                     reporter, split);
+                                                     reporter, split, spillLock);
 
       input.initialize(split, mapperContext);
       mapper.run(mapperContext);
@@ -794,6 +813,7 @@ public class MapTask extends Task {
   }
 
   interface MapOutputCollector<K, V> {
+    public void setUsingOpenCL(boolean val);
 
     public void collect(K key, V value, int partition
                         ) throws IOException, InterruptedException;
@@ -814,6 +834,11 @@ public class MapTask extends Task {
     private final Counters.Counter mapOutputRecordCounter;
     private final Counters.Counter fileOutputByteCounter;
     private final Statistics fsStats;
+
+    @Override
+    public void setUsingOpenCL(boolean val) {
+        // NOOP
+    }
 
     @SuppressWarnings("unchecked")
     public DirectMapOutputCollector(TaskUmbilicalProtocol umbilical,
@@ -869,7 +894,7 @@ public class MapTask extends Task {
   }
 
   class MapOutputBuffer<K extends Object, V extends Object> 
-  implements MapOutputCollector<K, V>, IndexedSortable {
+      implements MapOutputCollector<K, V>, IndexedSortable {
     private final int partitions;
     private final JobConf job;
     private final TaskReporter reporter;
@@ -912,12 +937,23 @@ public class MapTask extends Task {
     private final int softBufferLimit;
     private final int minSpillsForCombine;
     private final IndexedSorter sorter;
-    private final ReentrantLock spillLock = new ReentrantLock();
+    private final ReentrantLock spillLock = new ReentrantLock(true);
     private final Condition spillDone = spillLock.newCondition();
     private final Condition spillReady = spillLock.newCondition();
     private final BlockingBuffer bb = new BlockingBuffer();
     private volatile boolean spillThreadRunning = false;
     private final SpillThread spillThread = new SpillThread();
+
+    public ReentrantLock spillLock() {
+        return this.spillLock;
+    }
+
+    private boolean usingOpenCL = false;
+
+    @Override
+    public void setUsingOpenCL(boolean val) {
+        this.usingOpenCL = val;
+    }
 
     private final FileSystem localFs;
     private final FileSystem rfs;
@@ -1056,7 +1092,13 @@ public class MapTask extends Task {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
+          // System.err.println(System.currentTimeMillis()+" kvfull="+kvfull);
           if (kvfull) {
+            if (usingOpenCL) {
+                // spillLock is unlocked below in the finally clause
+                // System.err.println(System.currentTimeMillis()+" Throwing would block exception");
+                throw new RuntimeException("WOULD_BLOCK");
+            }
             try {
               while (kvstart != kvend) {
                 reporter.progress();
@@ -1070,6 +1112,7 @@ public class MapTask extends Task {
           }
         } while (kvfull);
       } finally {
+        // System.err.println(System.currentTimeMillis()+" Unlocking spillLock in collect");
         spillLock.unlock();
       }
 
@@ -1357,21 +1400,26 @@ public class MapTask extends Task {
             while (kvstart == kvend) {
               spillReady.await();
             }
+            // System.err.println(System.currentTimeMillis()+" SPILLTHREAD released!");
             try {
               spillLock.unlock();
               sortAndSpill();
             } catch (Exception e) {
+              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD encoutered exception");
               sortSpillException = e;
             } catch (Throwable t) {
+              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD encoutered throwable");
               sortSpillException = t;
               String logMsg = "Task " + getTaskID() + " failed : " 
                               + StringUtils.stringifyException(t);
               reportFatalError(getTaskID(), t, logMsg);
             } finally {
+              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD waiting for spillLock");
               spillLock.lock();
               if (bufend < bufindex && bufindex < bufstart) {
                 bufvoid = kvbuffer.length;
               }
+              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD Setting kvstart to "+kvend);
               kvstart = kvend;
               bufstart = bufend;
             }
@@ -1439,8 +1487,53 @@ public class MapTask extends Task {
                 ++spindex;
               }
             } else {
-              int spstart = spindex;
-              while (spindex < endPosition &&
+
+              final int chunking = job.getInt("mapred.combine.chunking", 50000);
+              while (spindex < endPosition) {
+                  final int spstart = spindex;
+                  final int limit = spstart + chunking;
+
+                  while (spindex < endPosition && spindex < limit &&
+                          kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
+                      ++spindex;
+                  }
+
+                  if (spstart != spindex) {
+                      combineCollector.setWriter(writer);
+                      RawKeyValueIterator kvIter =
+                        new MRResultIterator(spstart, spindex);
+                      // System.err.println(System.currentTimeMillis()+" SPILLTHREAD starting combiner");
+                      combinerRunner.combine(kvIter, combineCollector);
+                      // System.err.println(System.currentTimeMillis()+" SPILLTHREAD done with combiner");
+                  }
+
+                  spillLock.lock();
+                  try {
+                      // StringBuffer sb = new StringBuffer();
+                      // sb.append(" SPILLTHREAD doing intermediate increment from kvstart=");
+                      // sb.append(kvstart);
+                      // sb.append(" bufstart=");
+                      // sb.append(bufstart);
+                      // sb.append(" to kvstart=");
+                      // sb.append(spindex);
+
+                      kvstart = spindex;
+                      if (spindex < endPosition) {
+                          int nextKeyStart = kvindices[kvoffsets[(spindex+1) % kvoffsets.length] + KEYSTART];
+                          bufstart = nextKeyStart;
+                      } else {
+                          bufstart = bufend;
+                      }
+                      // sb.append(" bufstart="+bufstart);
+                      // System.err.println(System.currentTimeMillis()+sb.toString());
+
+                  } finally {
+                      spillLock.unlock();
+                  }
+              }
+
+              /*
+              while (spindex < endPosition && spindex < limit &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]
                             + PARTITION] == i) {
                 ++spindex;
@@ -1451,8 +1544,37 @@ public class MapTask extends Task {
                 combineCollector.setWriter(writer);
                 RawKeyValueIterator kvIter =
                   new MRResultIterator(spstart, spindex);
+                System.err.println(System.currentTimeMillis()+" SPILLTHREAD starting combiner");
                 combinerRunner.combine(kvIter, combineCollector);
+                System.err.println(System.currentTimeMillis()+" SPILLTHREAD done with combiner");
               }
+                spillLock.lock();
+                try {
+                    // if (bufend < bufindex && bufindex < bufstart) {
+                    //   bufvoid = kvbuffer.length;
+                    // }
+                    StringBuffer sb = new StringBuffer();
+                    sb.append(" SPILLTHREAD doing intermediate increment from kvstart=");
+                    sb.append(kvstart);
+                    sb.append(" bufstart=");
+                    sb.append(bufstart);
+                    sb.append(" to kvstart=");
+                    sb.append(spindex);
+
+                    kvstart = spindex;
+                    if (spindex < endPosition) {
+                        int nextKeyStart = kvindices[kvoffsets[(spindex+1) % kvoffsets.length] + KEYSTART];
+                        bufstart = nextKeyStart;
+                    } else {
+                        bufstart = bufend;
+                    }
+                    sb.append(" bufstart="+bufstart);
+                    System.err.println(System.currentTimeMillis()+sb.toString());
+
+                } finally {
+                    spillLock.unlock();
+                }
+                */
             }
 
             // close the writer
@@ -1486,6 +1608,7 @@ public class MapTask extends Task {
       } finally {
         if (out != null) out.close();
       }
+      // System.err.println(System.currentTimeMillis()+" SPILLTHREAD exiting sortAndSpill");
     }
 
     /**

@@ -183,9 +183,10 @@ Java_org_apache_hadoop_io_compress_zlib_ZlibDecompressor_inflateBytesDirect(
 		THROW(env, "java/lang/NullPointerException", NULL);
 		return (jint)0;
     } 
+    jclass this_class = (*env)->GetObjectClass(env, this);
 
     // Get members of ZlibDecompressor
-    jobject clazz = (*env)->GetStaticObjectField(env, this, 
+    jobject clazz = (*env)->GetStaticObjectField(env, this_class, 
                                                  ZlibDecompressor_clazz);
 	jarray compressed_direct_buf = (jarray)(*env)->GetObjectField(env, this, 
 											ZlibDecompressor_compressedDirectBuf);

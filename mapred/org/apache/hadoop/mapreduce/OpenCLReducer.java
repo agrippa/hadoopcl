@@ -60,7 +60,7 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
         OpenCLDriver driver = null;
         try {
             boolean isCombiner = context.getTaskAttemptID().isMap();
-            driver = new OpenCLDriver("reducer", context, isCombiner ? context.getOCLCombinerClass() : context.getOCLReducerClass());
+            driver = new OpenCLDriver("reducer", context, isCombiner ? context.getOCLCombinerClass() : context.getOCLReducerClass(), null);
         } catch(java.lang.ClassNotFoundException ce) {
             throw new RuntimeException("Failed to load reducer kernel class");
         }

@@ -1494,6 +1494,8 @@ abstract public class Task implements Writable, Configurable {
       OutputConverter(OutputCollector<K,V> output) {
         this.output = output;
       }
+        
+      public void setUsingOpenCL(boolean val) { }
 
       @Override
       public void close(org.apache.hadoop.mapreduce.TaskAttemptContext context){

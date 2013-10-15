@@ -31,6 +31,14 @@ public class HadoopCLLimitedQueue<BufferType extends HadoopCLBuffer> {
 
     public synchronized BufferTypeContainer<BufferType> nonBlockingGet() {
         BufferTypeContainer<BufferType> result = null;
+        // StringBuffer sb = new StringBuffer();
+        // sb.append("nonBlockingGet: ");
+        // for( BufferType b : queue) {
+        //     if (b != null) {
+        //         sb.append(b.id+" ");
+        //     }
+        // }
+        // System.err.println(sb.toString());
         if (!queue.isEmpty()) {
             result = new BufferTypeContainer<BufferType>(queue.poll());
         }
@@ -62,5 +70,21 @@ public class HadoopCLLimitedQueue<BufferType extends HadoopCLBuffer> {
             sum = sum + b.space();
         }
         return sum;
+    }
+
+    private synchronized String str() {
+        StringBuffer sb = new StringBuffer();
+        sb.append("[ ");
+        for (BufferType b : this.queue) {
+            sb.append(b.id);
+            sb.append(" ");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    @Override
+    public String toString() {
+        return this.str();
     }
 }
