@@ -1256,7 +1256,8 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
     fp.write('    public void init(HadoopOpenCLContext clContext) {\n')
     fp.write('        baseInit(clContext);\n')
     if isMapper and isVariableLength(nativeInputValueType):
-        fp.write('        this.setStrided(this.clContext.runningOnGPU());\n')
+        # fp.write('        this.setStrided(this.clContext.runningOnGPU());\n')
+        fp.write('        this.setStrided(false);\n')
     else:
         fp.write('        this.setStrided(false);\n')
     fp.write('    }\n')
@@ -1697,13 +1698,13 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 4096;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 16384;\n')
     elif nativeInputValueType == 'ivec':
         input_fp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 4096;\n')
+        input_fp.write('    private final int nVectorsToBuffer = 16384;\n')
 
     if nativeOutputValueType == 'svec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')
