@@ -34,6 +34,7 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
         supportedKeys.add("org.apache.hadoop.io.PairWritable");
         supportedKeys.add("org.apache.hadoop.io.LongWritable");
         supportedValues.add("org.apache.hadoop.io.FloatWritable");
+        supportedValues.add("org.apache.hadoop.io.DoubleWritable");
         supportedValues.add("org.apache.hadoop.io.IntWritable");
         supportedValues.add("org.apache.hadoop.io.ArrayPrimitiveWritable");
         supportedValues.add("org.apache.hadoop.io.LongWritable");

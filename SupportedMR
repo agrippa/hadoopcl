@@ -28,3 +28,5 @@ mapper int int int int
 mapper int ivec int int
 reducer int int int pair
 reducer int int int svec
+reducer int double int double
+mapper int svec int double

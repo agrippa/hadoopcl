@@ -170,7 +170,7 @@ public class SparseVectorWritable implements WritableComparable {
     }
 
     public int hashCode() {
-        return this.size();
+        return this.indices()[this.indicesOffset()];
     }
 
     private double distFromOrigin() {

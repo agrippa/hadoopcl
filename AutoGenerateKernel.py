@@ -508,16 +508,24 @@ class SvecVisitor(NativeTypeVisitor):
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
-                 '    this.inputValIndices.ensureCapacity(this.nPairs +',
-                 '        (actual.size()  * nVectorsToBuffer));',
-                 '    this.inputValVals.ensureCapacity(this.nPairs +',
-                 '        (actual.size() * nVectorsToBuffer));',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputValIndices.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
-                 '            actual.indices()[i]);',
-                 '        this.inputValVals.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
-                 '            actual.vals()[i]);',
+                 '    IndValWrapper wrapper = new IndValWrapper(actual.indices(), actual.vals(), actual.size());',
+                 '    if (this.sortedVals.containsKey(actual.size())) {',
+                 '        this.sortedVals.get(actual.size()).add(wrapper);',
+                 '    } else {',
+                 '        LinkedList<IndValWrapper> newList = new LinkedList<IndValWrapper>();',
+                 '        newList.add(wrapper);',
+                 '        this.sortedVals.put(actual.size(), newList);',
                  '    }',
+                 # '    this.inputValIndices.ensureCapacity( (this.nPairs +',
+                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
+                 # '    this.inputValVals.ensureCapacity( (this.nPairs +',
+                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '} else {',
                  '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
                  '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
@@ -723,12 +731,20 @@ class IvecVisitor(NativeTypeVisitor):
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
-                 '    this.inputVal.ensureCapacity(this.nPairs +',
-                 '        (actual.size()  * nVectorsToBuffer));',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputVal.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
-                 '            actual.vals()[i]);',
+                 '    IndValWrapper wrapper = new IndValWrapper(actual.vals(), actual.size());',
+                 '    if (this.sortedVals.containsKey(actual.size())) {',
+                 '        this.sortedVals.get(actual.size()).add(wrapper);',
+                 '    } else {',
+                 '        LinkedList<IndValWrapper> newList = new LinkedList<IndValWrapper>();',
+                 '        newList.add(wrapper);',
+                 '        this.sortedVals.put(actual.size(), newList);',
                  '    }',
+                 # '    this.inputVal.ensureCapacity(this.nPairs +',
+                 # '        (actual.size()  * nVectorsToBuffer));',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputVal.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '} else {',
                  '    this.inputVal.ensureCapacity(this.individualInputValsCount + actual.size());',
                  '    for (int i = 0; i < actual.size(); i++) {',
@@ -988,6 +1004,9 @@ def writeHeader(fp, isMapper):
     fp.write('import java.util.ArrayList;\n')
     fp.write('import java.util.HashMap;\n')
     fp.write('import java.util.concurrent.locks.ReentrantLock;\n')
+    fp.write('import java.util.TreeMap;\n')
+    fp.write('import java.util.LinkedList;\n')
+    fp.write('import java.util.Iterator;\n')
     if isMapper:
         fp.write('import org.apache.hadoop.mapreduce.Mapper.Context;\n')
     else:
@@ -1255,11 +1274,13 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
     fp.write('    @Override\n')
     fp.write('    public void init(HadoopOpenCLContext clContext) {\n')
     fp.write('        baseInit(clContext);\n')
-    if isMapper and isVariableLength(nativeInputValueType):
-        # fp.write('        this.setStrided(this.clContext.runningOnGPU());\n')
-        fp.write('        this.setStrided(false);\n')
-    else:
-        fp.write('        this.setStrided(false);\n')
+    # Just init to false, it gets actually set in fill
+    fp.write('        this.setStrided(false);\n')
+    # if isMapper and isVariableLength(nativeInputValueType):
+    #     # fp.write('        this.setStrided(this.clContext.runningOnGPU());\n')
+    #     fp.write('        this.setStrided(false);\n')
+    # else:
+    #     fp.write('        this.setStrided(false);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -1307,9 +1328,11 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
             fp.write('        this.individualInputValsCount = 0;\n')
             fp.write('        this.inputValIndices.reset();\n')
             fp.write('        this.inputValVals.reset();\n')
+            fp.write('        this.sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
         elif nativeInputValueType == 'ivec':
             fp.write('        this.individualInputValsCount = 0;\n')
             fp.write('        this.inputVal.reset();\n')
+            fp.write('        this.sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
     else:
         fp.write('        this.nKeys = 0;\n')
         fp.write('        this.nVals = 0;\n')
@@ -1587,6 +1610,37 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     fp.write('        '+inputBufferClass+' inputBuffer = ('+inputBufferClass+')genericInputBuffer;\n')
     fp.write('        '+outputBufferClass+' outputBuffer = ('+outputBufferClass+')genericOutputBuffer;\n')
 
+    if isMapper and isVariableLength(nativeInputValType):
+        fp.write('        this.setStrided(inputBuffer.enableStriding);\n')
+        fp.write('\n')
+        fp.write('        if (inputBuffer.enableStriding) {\n')
+        fp.write('            int index = 0;\n')
+        fp.write('            Iterator<Integer> lengthIter = inputBuffer.sortedVals.descendingKeySet().iterator();\n')
+        fp.write('            while (lengthIter.hasNext()) {\n')
+        fp.write('                LinkedList<IndValWrapper> pairs = inputBuffer.sortedVals.get(lengthIter.next());\n')
+        fp.write('                Iterator<IndValWrapper> pairsIter = pairs.iterator();\n')
+        fp.write('                while (pairsIter.hasNext()) {\n')
+        fp.write('                    IndValWrapper curr = pairsIter.next();\n')
+        fp.write('                    inputBuffer.inputValLookAsideBuffer[index] = inputBuffer.individualInputValsCount;\n')
+        if nativeInputValType == 'svec':
+            fp.write('                    inputBuffer.inputValIndices.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
+            fp.write('                    inputBuffer.inputValVals.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
+        else:
+            fp.write('                    inputBuffer.inputVal.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
+        fp.write('                    for (int i = 0; i < curr.length; i++) {\n')
+        if nativeInputValType == 'svec':
+            fp.write('                        inputBuffer.inputValIndices.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.indices[i]);\n')
+            fp.write('                        inputBuffer.inputValVals.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.vals[i]);\n')
+        else:
+            fp.write('                        inputBuffer.inputVal.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.indices[i]);\n')
+        fp.write('                    }\n')
+        fp.write('                    inputBuffer.individualInputValsCount += curr.length;\n')
+        fp.write('                    index++;\n')
+        fp.write('                } // while (pairsIter)\n')
+        fp.write('            } // while (lengthIter)\n')
+        fp.write('        } // if (enableStriding)\n')
+        fp.write('\n')
+
     if not isMapper:
         fp.write('        if(this.outputsPerInput < 0 && (outputBuffer.outputKeys == null || outputBuffer.outputKeys.length < inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey)) {\n')
         writeln(visitor(nativeOutputKeyType).getKeyValInit('outputBuffer.outputKey',
@@ -1698,13 +1752,15 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 16384;\n')
+            input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
+        input_fp.write('    public final int nVectorsToBuffer = 131072;\n')
     elif nativeInputValueType == 'ivec':
         input_fp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
-        input_fp.write('    private final int nVectorsToBuffer = 16384;\n')
+            input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
+        input_fp.write('    public final int nVectorsToBuffer = 131072;\n')
 
     if nativeOutputValueType == 'svec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')

@@ -12,7 +12,7 @@ import java.util.HashMap;
 public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
     public int nPairs;
     private int capacity;
-    protected boolean enableStriding;
+    public boolean enableStriding;
 
     public void baseInit(HadoopOpenCLContext clContext) {
         this.clContext = clContext;
@@ -20,8 +20,8 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
         this.nPairs = 0;
         this.capacity = this.clContext.getBufferSize();
         this.isGPU = this.clContext.isGPU();
-        // this.enableStriding = this.clContext.runningOnGPU();
-        this.enableStriding  =false;
+        this.enableStriding = this.clContext.runningOnGPU();
+        // this.enableStriding  =false;
     }
 
     public int capacity() {

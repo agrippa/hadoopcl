@@ -31,9 +31,13 @@ import com.amd.aparapi.internal.opencl.OpenCLPlatform;
 import com.amd.aparapi.device.OpenCLDevice;
 
 public class OpenCLDriver {
+  // public static final int nKernels = 1;
+  // public static final int nInputBuffers = 10;
+  // public static final int nOutputBuffers = 10;
+
   public static final int nKernels = 1;
-  public static final int nInputBuffers = 10;
-  public static final int nOutputBuffers = 10;
+  public static final int nInputBuffers = 3;
+  public static final int nOutputBuffers = 3;
   public static final boolean profileMemory = false;
 
   public static long inputsRead = -1L;
