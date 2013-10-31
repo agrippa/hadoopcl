@@ -1443,6 +1443,7 @@ public class MapTask extends Task {
       spillReady.signal();
     }
 
+    /*
     private void sortAndSpill() throws IOException, ClassNotFoundException,
                                        InterruptedException {
       //approximate the length of the output file to be the length of the
@@ -1494,6 +1495,7 @@ public class MapTask extends Task {
               // System.err.println("spindex = "+spindex);
               // System.err.println("endPosition = "+endPosition);
               // System.err.println();
+              /*
               while (spindex < endPosition &&
                     kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
                   final int spstart = spindex;
@@ -1542,8 +1544,9 @@ public class MapTask extends Task {
                       spillLock.unlock();
                   }
               }
+              */
 
-              /*
+              
               while (spindex < endPosition && spindex < limit &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]
                             + PARTITION] == i) {
@@ -1564,13 +1567,6 @@ public class MapTask extends Task {
                     // if (bufend < bufindex && bufindex < bufstart) {
                     //   bufvoid = kvbuffer.length;
                     // }
-                    StringBuffer sb = new StringBuffer();
-                    sb.append(" SPILLTHREAD doing intermediate increment from kvstart=");
-                    sb.append(kvstart);
-                    sb.append(" bufstart=");
-                    sb.append(bufstart);
-                    sb.append(" to kvstart=");
-                    sb.append(spindex);
 
                     kvstart = spindex;
                     if (spindex < endPosition) {
@@ -1579,13 +1575,9 @@ public class MapTask extends Task {
                     } else {
                         bufstart = bufend;
                     }
-                    sb.append(" bufstart="+bufstart);
-                    System.err.println(System.currentTimeMillis()+sb.toString());
-
                 } finally {
                     spillLock.unlock();
                 }
-                */
             }
 
             // close the writer
@@ -1621,6 +1613,9 @@ public class MapTask extends Task {
       }
       // System.err.println(System.currentTimeMillis()+" SPILLTHREAD exiting sortAndSpill");
     }
+*/
+
+
 
     /**
      * Handles the degenerate case where serialization fails to fit in
