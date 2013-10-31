@@ -1489,14 +1489,25 @@ public class MapTask extends Task {
             } else {
 
               final int chunking = job.getInt("mapred.combine.chunking", 50000);
-              while (spindex < endPosition) {
+              // System.err.println("-----------------------------------------------");
+              // System.err.println("chunking = "+chunking);
+              // System.err.println("spindex = "+spindex);
+              // System.err.println("endPosition = "+endPosition);
+              // System.err.println();
+              while (spindex < endPosition &&
+                    kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
                   final int spstart = spindex;
                   final int limit = spstart + chunking;
+
+                  // System.err.println("spstart = "+spstart);
+                  // System.err.println("limit = "+limit);
 
                   while (spindex < endPosition && spindex < limit &&
                           kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
                       ++spindex;
                   }
+
+                  // System.err.println("spindex = "+spindex);
 
                   if (spstart != spindex) {
                       combineCollector.setWriter(writer);
