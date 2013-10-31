@@ -1443,7 +1443,6 @@ public class MapTask extends Task {
       spillReady.signal();
     }
 
-    /*
     private void sortAndSpill() throws IOException, ClassNotFoundException,
                                        InterruptedException {
       //approximate the length of the output file to be the length of the
@@ -1613,7 +1612,6 @@ public class MapTask extends Task {
       }
       // System.err.println(System.currentTimeMillis()+" SPILLTHREAD exiting sortAndSpill");
     }
-*/
 
 
 
