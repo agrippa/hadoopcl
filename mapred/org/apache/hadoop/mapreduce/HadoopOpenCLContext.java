@@ -27,6 +27,7 @@ public class HadoopOpenCLContext {
     private final int bufferSize;
     private final String deviceString;
     private final int nBuffs;
+    private final int nVectorsToBuffer;
 
     private final int[] globalsInd;
     private final double[] globalsVal;
@@ -121,6 +122,13 @@ public class HadoopOpenCLContext {
             this.nBuffs = 3;
         }
 
+        String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
+        if (vectorsToBufferStr != null) {
+            this.nVectorsToBuffer = Integer.parseInt(vectorsToBufferStr);
+        } else {
+            this.nVectorsToBuffer = 65536;
+        }
+
         List<SparseVectorWritable> bufferGlobals = new LinkedList<SparseVectorWritable>();
         Iterator<SparseVectorWritable> globalIter = conf.getHadoopCLGlobalsIterator();
         int totalGlobals = 0;
@@ -210,6 +218,10 @@ public class HadoopOpenCLContext {
 
     public int getNBuffs() {
         return this.nBuffs;
+    }
+
+    public int getNVectorsToBuffer() {
+        return this.nVectorsToBuffer;
     }
 
     public int isGPU() {

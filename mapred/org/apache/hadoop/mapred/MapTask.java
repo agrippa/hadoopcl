@@ -1442,7 +1442,101 @@ public class MapTask extends Task {
       bufend = bufmark;
       spillReady.signal();
     }
+          
+          private void sortAndSpill() throws IOException, ClassNotFoundException,
+          InterruptedException {
+              //approximate the length of the output file to be the length of the
+              //buffer + header lengths for the partitions
+              long size = (bufend >= bufstart
+                           ? bufend - bufstart
+                           : (bufvoid - bufend) + bufstart) +
+              partitions * APPROX_HEADER_LENGTH;
+              FSDataOutputStream out = null;
+              try {
+                  // create spill file
+                  final SpillRecord spillRec = new SpillRecord(partitions);
+                  final Path filename =
+                  mapOutputFile.getSpillFileForWrite(numSpills, size);
+                  out = rfs.create(filename);
+                  
+                  final int endPosition = (kvend > kvstart)
+                  ? kvend
+                  : kvoffsets.length + kvend;
+                  sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
+                  int spindex = kvstart;
+                  IndexRecord rec = new IndexRecord();
+                  InMemValBytes value = new InMemValBytes();
+                  for (int i = 0; i < partitions; ++i) {
+                      IFile.Writer<K, V> writer = null;
+                      try {
+                          long segmentStart = out.getPos();
+                          writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
+                                                    spilledRecordsCounter);
+                          if (combinerRunner == null) {
+                              // spill directly
+                              DataInputBuffer key = new DataInputBuffer();
+                              while (spindex < endPosition &&
+                                     kvindices[kvoffsets[spindex % kvoffsets.length]
+                                               + PARTITION] == i) {
+                                         final int kvoff = kvoffsets[spindex % kvoffsets.length];
+                                         getVBytesForOffset(kvoff, value);
+                                         key.reset(kvbuffer, kvindices[kvoff + KEYSTART],
+                                                   (kvindices[kvoff + VALSTART] -
+                                                    kvindices[kvoff + KEYSTART]));
+                                         writer.append(key, value);
+                                         ++spindex;
+                                     }
+                          } else {
+                              int spstart = spindex;
+                              while (spindex < endPosition &&
+                                     kvindices[kvoffsets[spindex % kvoffsets.length]
+                                               + PARTITION] == i) {
+                                         ++spindex;
+                                     }
+                              // Note: we would like to avoid the combiner if we've fewer
+                              // than some threshold of records for a partition
+                              if (spstart != spindex) {
+                                  combineCollector.setWriter(writer);
+                                  RawKeyValueIterator kvIter =
+                                  new MRResultIterator(spstart, spindex);
+                                  combinerRunner.combine(kvIter, combineCollector);
+                              }
+                          }
+                          
+                          // close the writer
+                          writer.close();
+                          
+                          // record offsets
+                          rec.startOffset = segmentStart;
+                          rec.rawLength = writer.getRawLength();
+                          rec.partLength = writer.getCompressedLength();
+                          spillRec.putIndex(rec, i);
+                          
+                          writer = null;
+                      } finally {
+                          if (null != writer) writer.close();
+                      }
+                  }
+                  
+                  if (totalIndexCacheMemory >= INDEX_CACHE_MEMORY_LIMIT) {
+                      // create spill index file
+                      Path indexFilename =
+                      mapOutputFile.getSpillIndexFileForWrite(numSpills, partitions
+                                                              * MAP_OUTPUT_INDEX_RECORD_LENGTH);
+                      spillRec.writeToFile(indexFilename, job);
+                  } else {
+                      indexCacheList.add(spillRec);
+                      totalIndexCacheMemory +=
+                      spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
+                  }
+                  LOG.info("Finished spill " + numSpills);
+                  ++numSpills;
+              } finally {
+                  if (out != null) out.close();
+              }
+          }
 
+          /*
     private void sortAndSpill() throws IOException, ClassNotFoundException,
                                        InterruptedException {
       //approximate the length of the output file to be the length of the
@@ -1494,56 +1588,55 @@ public class MapTask extends Task {
               // System.err.println("spindex = "+spindex);
               // System.err.println("endPosition = "+endPosition);
               // System.err.println();
-              /*
-              while (spindex < endPosition &&
-                    kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
-                  final int spstart = spindex;
-                  final int limit = spstart + chunking;
-
-                  // System.err.println("spstart = "+spstart);
-                  // System.err.println("limit = "+limit);
-
-                  while (spindex < endPosition && spindex < limit &&
-                          kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
-                      ++spindex;
-                  }
-
-                  // System.err.println("spindex = "+spindex);
-
-                  if (spstart != spindex) {
-                      combineCollector.setWriter(writer);
-                      RawKeyValueIterator kvIter =
-                        new MRResultIterator(spstart, spindex);
-                      // System.err.println(System.currentTimeMillis()+" SPILLTHREAD starting combiner");
-                      combinerRunner.combine(kvIter, combineCollector);
-                      // System.err.println(System.currentTimeMillis()+" SPILLTHREAD done with combiner");
-                  }
-
-                  spillLock.lock();
-                  try {
-                      // StringBuffer sb = new StringBuffer();
-                      // sb.append(" SPILLTHREAD doing intermediate increment from kvstart=");
-                      // sb.append(kvstart);
-                      // sb.append(" bufstart=");
-                      // sb.append(bufstart);
-                      // sb.append(" to kvstart=");
-                      // sb.append(spindex);
-
-                      kvstart = spindex;
-                      if (spindex < endPosition) {
-                          int nextKeyStart = kvindices[kvoffsets[(spindex+1) % kvoffsets.length] + KEYSTART];
-                          bufstart = nextKeyStart;
-                      } else {
-                          bufstart = bufend;
-                      }
-                      // sb.append(" bufstart="+bufstart);
-                      // System.err.println(System.currentTimeMillis()+sb.toString());
-
-                  } finally {
-                      spillLock.unlock();
-                  }
-              }
-              */
+           
+//              while (spindex < endPosition &&
+//                    kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
+//                  final int spstart = spindex;
+//                  final int limit = spstart + chunking;
+//
+//                  // System.err.println("spstart = "+spstart);
+//                  // System.err.println("limit = "+limit);
+//
+//                  while (spindex < endPosition && spindex < limit &&
+//                          kvindices[kvoffsets[spindex % kvoffsets.length] + PARTITION] == i) {
+//                      ++spindex;
+//                  }
+//
+//                  // System.err.println("spindex = "+spindex);
+//
+//                  if (spstart != spindex) {
+//                      combineCollector.setWriter(writer);
+//                      RawKeyValueIterator kvIter =
+//                        new MRResultIterator(spstart, spindex);
+//                      // System.err.println(System.currentTimeMillis()+" SPILLTHREAD starting combiner");
+//                      combinerRunner.combine(kvIter, combineCollector);
+//                      // System.err.println(System.currentTimeMillis()+" SPILLTHREAD done with combiner");
+//                  }
+//
+//                  spillLock.lock();
+//                  try {
+//                      // StringBuffer sb = new StringBuffer();
+//                      // sb.append(" SPILLTHREAD doing intermediate increment from kvstart=");
+//                      // sb.append(kvstart);
+//                      // sb.append(" bufstart=");
+//                      // sb.append(bufstart);
+//                      // sb.append(" to kvstart=");
+//                      // sb.append(spindex);
+//
+//                      kvstart = spindex;
+//                      if (spindex < endPosition) {
+//                          int nextKeyStart = kvindices[kvoffsets[(spindex+1) % kvoffsets.length] + KEYSTART];
+//                          bufstart = nextKeyStart;
+//                      } else {
+//                          bufstart = bufend;
+//                      }
+//                      // sb.append(" bufstart="+bufstart);
+//                      // System.err.println(System.currentTimeMillis()+sb.toString());
+//
+//                  } finally {
+//                      spillLock.unlock();
+//                  }
+//              }
 
               
               while (spindex < endPosition && spindex < limit &&
@@ -1612,6 +1705,7 @@ public class MapTask extends Task {
       }
       // System.err.println(System.currentTimeMillis()+" SPILLTHREAD exiting sortAndSpill");
     }
+*/
 
 
 

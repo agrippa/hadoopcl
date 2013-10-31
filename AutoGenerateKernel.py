@@ -452,6 +452,8 @@ class SvecVisitor(NativeTypeVisitor):
                 buf.append(basename+'Vals = new double[('+size+') * 5];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
+            buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
+            buf.append('System.err.println("Setting nVectorsToBuffer to "+this.nVectorsToBuffer);')
         if isMapper and not isInput and not isKey:
             buf.append('outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
             buf.append('memAuxIntIncr = new int[1];')
@@ -687,6 +689,8 @@ class IvecVisitor(NativeTypeVisitor):
                 buf.append(basename+' = new int[('+size+') * 5];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
+            buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
+            buf.append('System.err.println("Setting nVectorsToBuffer to "+this.nVectorsToBuffer);')
         if isMapper and not isInput and not isKey:
             buf.append('outputLengthBuffer = new int['+size+'];')
             buf.append('memAuxIncr = new int[1];')
@@ -892,6 +896,8 @@ class FsvecVisitor(NativeTypeVisitor):
                 buf.append(basename+'Vals = new float[('+size+') * 5];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
+            buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
+            buf.append('System.err.println("Setting nVectorsToBuffer to "+this.nVectorsToBuffer);')
         if isMapper and not isInput and not isKey:
             buf.append('outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
             buf.append('memAuxIntIncr = new int[1];')
@@ -2074,14 +2080,14 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
             input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
-        input_fp.write('    public final int nVectorsToBuffer = 65536;\n')
+        input_fp.write('    public int nVectorsToBuffer;\n')
     elif nativeInputValueType == 'ivec':
         input_fp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
             input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
-        input_fp.write('    public final int nVectorsToBuffer = 65536;\n')
+        input_fp.write('    public int nVectorsToBuffer;\n')
 
     if nativeOutputValueType == 'svec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')
