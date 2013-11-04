@@ -2134,6 +2134,9 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected double[] allocDouble(int len) {\n')
         kernelfp.write('        return new double[len];\n')
         kernelfp.write('    }\n')
+        kernelfp.write('    protected float[] allocFloat(int len) {\n')
+        kernelfp.write('        return new float[len];\n')
+        kernelfp.write('    }\n')
         kernelfp.write('\n')
     kernelfp.write('\n')
 
