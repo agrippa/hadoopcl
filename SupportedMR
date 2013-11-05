@@ -31,3 +31,4 @@ reducer int int int svec
 reducer int double int double
 mapper int svec int double
 mapper int fsvec int int
+mapper int fsvec int fsvec
