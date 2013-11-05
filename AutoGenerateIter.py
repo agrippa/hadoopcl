@@ -1,7 +1,7 @@
 import os
 import sys
 
-supportedTypes = [ 'int', 'float', 'double', 'long', 'pair', 'ipair', 'svec', 'ivec' ];
+supportedTypes = [ 'int', 'float', 'double', 'long', 'pair', 'ipair', 'svec', 'ivec', 'fsvec' ];
 
 class IterTypeVisitor:
     def write(self, typ, fp):
@@ -17,6 +17,8 @@ class IterTypeVisitor:
             return self.processSvec()
         elif typ == 'ivec':
             return self.processIvec()
+        elif typ == 'fsvec':
+            return self.processFsvec()
         else:
             try:
                 return self.processPrimitive(typ)
@@ -52,6 +54,8 @@ class IterTypeVisitor:
         raise NotImplementedError("Unimplemented svec processor")
     def processIvec(self):
         raise NotImplementedError("Unimplemented ivec processor")
+    def processFsvec(self):
+        raise NotImplementedError("Unimplemented fsvec processor")
 
 class NativeToJavaVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -64,6 +68,8 @@ class NativeToJavaVisitor(IterTypeVisitor):
         return 'Svec'
     def processIvec(self):
         return 'Ivec'
+    def processFsvec(self):
+        return 'Fsvec'
 
 class ImportVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -79,6 +85,10 @@ class ImportVisitor(IterTypeVisitor):
                 'import java.util.HashMap;', 'import java.util.List;' ]
     def processIvec(self):
         return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
+                'import java.util.HashMap;', 'import java.util.List;' ]
+    def processFsvec(self):
+        return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
+                'import org.apache.hadoop.io.HadoopCLResizableFloatArray;',
                 'import java.util.HashMap;', 'import java.util.List;' ]
 
 class FieldDeclarationVisitor(IterTypeVisitor):
@@ -98,6 +108,10 @@ class FieldDeclarationVisitor(IterTypeVisitor):
                  '    private int currentIndex;', '    private int len;' ]
     def processIvec(self):
         return [ '    private List<HadoopCLResizableIntArray> vals;',
+                 '    private int currentIndex;', '    private int len;' ]
+    def processFsvec(self):
+        return [ '    private List<HadoopCLResizableIntArray> indices;',
+                 '    private List<HadoopCLResizableFloatArray> vals;',
                  '    private int currentIndex;', '    private int len;' ]
 
 class ConstructorVisitor(IterTypeVisitor):
@@ -139,6 +153,17 @@ class ConstructorVisitor(IterTypeVisitor):
                 """ValueIterator(List<HadoopCLResizableIntArray> vals) {""")
         lines.append('        this.vals = vals;')
         lines.append('        this.len = vals.size();')
+        lines.append('        this.currentIndex = 0;')
+        lines.append('    }')
+        return lines
+    def processFsvec(self):
+        lines = [ ]
+        lines.append('    public HadoopCL'+NativeToJavaVisitor().process('fsvec')+
+                """ValueIterator(List<HadoopCLResizableIntArray> indices,
+                List<HadoopCLResizableFloatArray> vals) {""")
+        lines.append('        this.indices = indices;')
+        lines.append('        this.vals = vals;')
+        lines.append('        this.len = indices.size();')
         lines.append('        this.currentIndex = 0;')
         lines.append('    }')
         return lines
@@ -191,6 +216,16 @@ class GetterVisitor(IterTypeVisitor):
         lines.append('        return (int[])this.vals.get(this.currentIndex).getArray();')
         lines.append('    }')
         return lines
+    def processFsvec(self):
+        lines = [ ]
+        lines.append('    public int[] getValIndices() {')
+        lines.append('        return (int[])this.indices.get(this.currentIndex).getArray();')
+        lines.append('    }')
+        lines.append('')
+        lines.append('    public float[] getValVals() {')
+        lines.append('        return (float[])this.vals.get(this.currentIndex).getArray();')
+        lines.append('    }')
+        return lines
 
 if len(sys.argv) != 2:
     print 'usage: python AutoGenerateIter.py type'
@@ -234,7 +269,7 @@ fp.write('    }\n')
 fp.write('\n')
 GetterVisitor().write(typ, fp)
 fp.write('\n')
-if typ == 'svec' or typ == 'ivec':
+if typ == 'svec' or typ == 'ivec' or typ == 'fsvec':
     fp.write('    public int vectorLength(int index) {\n')
     fp.write('        return this.indices.get(index).size();\n')
     fp.write('    }\n')

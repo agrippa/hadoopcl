@@ -925,13 +925,13 @@ class FsvecVisitor(NativeTypeVisitor):
             raise RuntimeError('Unsupported key type fsvec')
         return [ basename+'Obj.set('+basename+'Indices, '+basename+'Vals, len);' ]
     def getIterArg(self):
-        return [ 'HadoopCLSvecValueIterator valIter' ]
+        return [ 'HadoopCLFsvecValueIterator valIter' ]
     def getKernelCall(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupported key type fsvec')
         return [ 'input'+basename+'Indices, input'+basename+'Vals, input'+basename+'LookAsideBuffer[3] + this.nPairs + this.individualInputValsCount' ]
     def getKernelCallIter(self):
-        return [ 'new HadoopCLSvecValueIterator(null, null)' ]
+        return [ 'new HadoopCLFsvecValueIterator(null, null)' ]
     def getOriginalInitMethod(self):
         return [ 'this.tempBuffer1 = new HadoopCLResizableIntArray();',
                  'this.tempBuffer2 = new HadoopCLResizableIntArray();',
@@ -1071,7 +1071,7 @@ class FsvecVisitor(NativeTypeVisitor):
                  'accIndices.add(indices);',
                  'accVals.add(vals);' ]
     def getJavaProcessReducerCall(self):
-        return [ """new HadoopCLSvecValueIterator(
+        return [ """new HadoopCLFsvecValueIterator(
                        accIndices, accVals));""" ]
     def getSpace(self, isMapper, isInput, isKey):
         # Can't be a key, so isKey always == False
