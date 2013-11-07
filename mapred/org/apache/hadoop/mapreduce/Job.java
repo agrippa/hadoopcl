@@ -552,7 +552,6 @@ public class Job extends JobContext {
                                    ) throws IOException, InterruptedException,
                                             ClassNotFoundException {
 
-    this.conf.sendGlobalsToHDFS(this.getJobID().toString());
     if (state == JobState.DEFINE) {
       submit();
     }

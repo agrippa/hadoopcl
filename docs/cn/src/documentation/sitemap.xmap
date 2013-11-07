@@ -21,7 +21,7 @@
       <map:serializer name="fo2pdf"
                 src="org.apache.cocoon.serialization.FOPSerializer"
                 mime-type="application/pdf">
-        <user-config src="/home/jmg3/hadoop-1.0.3/src/docs/cn/uming.conf"/>
+        <user-config src="/home/yiskylee/hadoopcl/src/docs/cn/uming.conf"/>
         </map:serializer>
     </map:serializers>
   </map:components>

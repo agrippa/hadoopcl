@@ -856,6 +856,9 @@ public class JobClient extends Configured implements MRConstants, Tool  {
         Path jobStagingArea = JobSubmissionFiles.getStagingDir(JobClient.this,
             jobCopy);
         JobID jobId = jobSubmitClient.getNewJobId();
+
+        job.sendGlobalsToHDFS(jobId.toString());
+
         Path submitJobDir = new Path(jobStagingArea, jobId.toString());
         jobCopy.set("mapreduce.job.dir", submitJobDir.toString());
         JobStatus status = null;

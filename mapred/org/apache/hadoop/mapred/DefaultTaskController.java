@@ -143,9 +143,10 @@ public class DefaultTaskController extends TaskController {
           getConf()), COMMAND_FILE);
 
       String commandFile = writeCommand(cmdLine, rawFs, p);
-      rawFs.setPermission(p, TaskController.TASK_LAUNCH_SCRIPT_PERMISSION);
+//      rawFs.setPermission(p, TaskController.TASK_LAUNCH_SCRIPT_PERMISSION);
       shExec = new ShellCommandExecutor(new String[]{
-          "bash", "-c", commandFile},
+//          "bash", "-c", commandFile},
+          "bash", commandFile},
           currentWorkDirectory);
       //long execStart = System.currentTimeMillis();
       shExec.execute();
