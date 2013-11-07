@@ -37,6 +37,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -74,7 +75,9 @@ import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SparseVectorWritable;
+import org.apache.hadoop.io.SequenceFile;
 
 /** 
  * Provides access to configuration parameters.
@@ -147,7 +150,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     LogFactory.getLog(Configuration.class);
 
   private boolean quietmode = true;
-  
+
   /**
    * List of configuration resources.
    */
@@ -1567,28 +1570,67 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   private int nHadoopCLGlobals = 0;
   private int hadoopCLGlobalsSize = 0;
 
+  List<int[]> globalIndices = new LinkedList<int[]>();
+  List<double[]> globalVals = new LinkedList<double[]>();
+
+  public void sendGlobalsToHDFS(String pre) {
+      String filename = pre+".hadoopcl.globals";
+
+      SequenceFile.Writer writer;
+      try {
+          writer = SequenceFile.createWriter(FileSystem.get(this), this, new Path(filename),
+                  IntWritable.class, SparseVectorWritable.class);
+
+          final IntWritable key = new IntWritable();
+          final SparseVectorWritable val = new SparseVectorWritable();
+          for (int i = 0; i < globalIndices.size(); i++) {
+              key.set(i);
+              val.set(this.globalIndices.get(i), this.globalVals.get(i));
+              writer.append(key, val);
+          }
+
+          writer.close();
+      } catch(IOException io) {
+          throw new RuntimeException(io);
+      }
+
+      this.set("opencl.properties.globalsfile", filename);
+  }
+
   public void addHadoopCLGlobal(List<Integer> ivec, List<Double> vec) {
       if(ivec.size() != vec.size()) {
           throw new RuntimeException("Mismatch in global vector lengths");
       }
-      int thisID = this.nHadoopCLGlobals;
-      this.set("opencl.properties."+thisID, Integer.toString(vec.size()));
-      StringBuffer serial = new StringBuffer();
-      for(int i = 0; i < vec.size(); i++) {
-          serial.append(Integer.toString(ivec.get(i)));
-          serial.append(";");
-          serial.append(Double.toString(vec.get(i)));
-          serial.append(",");
+
+      int[] convertedIndices = new int[ivec.size()];
+      double[] convertedVals = new double[vec.size()];
+
+      for (int i = 0; i < vec.size(); i++) {
+          convertedIndices[i] = ivec.get(i);
+          convertedVals[i] = vec.get(i);
       }
-      this.set("opencl.properties."+thisID+".val", serial.toString());
-      this.nHadoopCLGlobals++;
-      this.hadoopCLGlobalsSize += vec.size();
+
+      addHadoopCLGlobalHelper(convertedIndices, convertedVals);
   }
 
   public void addHadoopCLGlobal(int[] ivec, double[] vec) {
+      int[] indices = new int[ivec.length];
+      double[] vals = new double[vec.length];
+
+      System.arraycopy(ivec, 0, indices, 0, indices.length);
+      System.arraycopy(vec, 0, vals, 0, vals.length);
+
+      addHadoopCLGlobalHelper(indices, vals);
+  }
+
+  // Don't copy the inputs
+  private void addHadoopCLGlobalHelper(int[] ivec, double[] vec) {
       if(ivec.length != vec.length) {
           throw new RuntimeException("Mismatch between global vector lengths");
       }
+
+      this.globalIndices.add(ivec);
+      this.globalVals.add(vec);
 
       int thisID = this.nHadoopCLGlobals;
       this.set("opencl.properties."+thisID, Integer.toString(vec.length));

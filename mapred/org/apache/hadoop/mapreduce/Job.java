@@ -551,6 +551,8 @@ public class Job extends JobContext {
   public boolean waitForCompletion(boolean verbose
                                    ) throws IOException, InterruptedException,
                                             ClassNotFoundException {
+
+    this.conf.sendGlobalsToHDFS(this.getJobID().toString());
     if (state == JobState.DEFINE) {
       submit();
     }

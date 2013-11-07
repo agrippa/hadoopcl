@@ -12,8 +12,13 @@ import com.amd.aparapi.device.Device;
 import com.amd.aparapi.internal.util.OpenCLUtil;
 import org.apache.hadoop.conf.Configuration;
 import java.util.ArrayList;
+import java.io.IOException;
 
 import org.apache.hadoop.io.SparseVectorWritable;
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 public class HadoopOpenCLContext {
     private final TaskInputOutputContext hadoopContext;
@@ -130,32 +135,71 @@ public class HadoopOpenCLContext {
         }
 
         List<SparseVectorWritable> bufferGlobals = new LinkedList<SparseVectorWritable>();
-        Iterator<SparseVectorWritable> globalIter = conf.getHadoopCLGlobalsIterator();
         int totalGlobals = 0;
         int countGlobals = 0;
-        while(globalIter.hasNext()) {
-            SparseVectorWritable g = globalIter.next();
-            countGlobals++;
-            totalGlobals += g.size();
-            bufferGlobals.add(g);
-        }
 
-        this.globalsInd = new int[totalGlobals];
-        this.globalsVal = new double[totalGlobals];
-        this.globalIndices = new int[countGlobals];
-        this.nGlobals = countGlobals;
+        SequenceFile.Reader reader;
+        try {
+            reader = new SequenceFile.Reader(FileSystem.get(conf),
+                    new Path(conf.get("opencl.properties.globalsfile")), conf);
 
-        int globalIndex = 0;
-        int globalCount = 0;
-        for(SparseVectorWritable g : bufferGlobals) {
-            this.globalIndices[globalCount] = globalIndex;
-            for(int i = 0 ; i < g.size(); i++) {
-                this.globalsInd[globalIndex] = g.indices()[i];
-                this.globalsVal[globalIndex] = g.vals()[i];
-                globalIndex = globalIndex + 1;
+            final IntWritable key = new IntWritable();
+            SparseVectorWritable val = new SparseVectorWritable();
+            while(reader.next(key, val)) {
+                bufferGlobals.add(val);
+                countGlobals++;
+                totalGlobals += val.size();
+                val = new SparseVectorWritable();
             }
-            globalCount = globalCount + 1;
+
+            reader.close();
+
+            this.globalsInd = new int[totalGlobals];
+            this.globalsVal = new double[totalGlobals];
+            this.globalIndices = new int[countGlobals];
+            this.nGlobals = countGlobals;
+
+            int globalIndex = 0;
+            int globalCount = 0;
+            for(SparseVectorWritable g : bufferGlobals) {
+                this.globalIndices[globalCount] = globalIndex;
+                for(int i = 0 ; i < g.size(); i++) {
+                    this.globalsInd[globalIndex] = g.indices()[i];
+                    this.globalsVal[globalIndex] = g.vals()[i];
+                    globalIndex = globalIndex + 1;
+                }
+                globalCount = globalCount + 1;
+            }
+        } catch(IOException io) {
+            throw new RuntimeException(io);
         }
+
+        // Iterator<SparseVectorWritable> globalIter = conf.getHadoopCLGlobalsIterator();
+        // int totalGlobals = 0;
+        // int countGlobals = 0;
+        // while(globalIter.hasNext()) {
+        //     SparseVectorWritable g = globalIter.next();
+        //     countGlobals++;
+        //     totalGlobals += g.size();
+        //     bufferGlobals.add(g);
+        // }
+
+        // this.globalsInd = new int[totalGlobals];
+        // this.globalsVal = new double[totalGlobals];
+        // this.globalIndices = new int[countGlobals];
+        // this.nGlobals = countGlobals;
+
+        // int globalIndex = 0;
+        // int globalCount = 0;
+        // for(SparseVectorWritable g : bufferGlobals) {
+        //     this.globalIndices[globalCount] = globalIndex;
+        //     for(int i = 0 ; i < g.size(); i++) {
+        //         this.globalsInd[globalIndex] = g.indices()[i];
+        //         this.globalsVal[globalIndex] = g.vals()[i];
+        //         globalIndex = globalIndex + 1;
+        //     }
+        //     globalCount = globalCount + 1;
+        // }
 
         try {
             Class mapperClass = hadoopContext.getOCLMapperClass();
