@@ -84,7 +84,7 @@ public class OpenCLDriver {
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
         kernel.init(clContext);
-        kernel.setGlobals(this.clContext.getGlobalsInd(), this.clContext.getGlobalsVal(),
+        kernel.setGlobals(this.clContext.getGlobalsInd(), this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
                 this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
     } catch(Exception ex) {
         throw new RuntimeException(ex);
@@ -185,7 +185,7 @@ public class OpenCLDriver {
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
         kernel.init(clContext);
-        kernel.setGlobals(this.clContext.getGlobalsInd(), this.clContext.getGlobalsVal(),
+        kernel.setGlobals(this.clContext.getGlobalsInd(), this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
                 this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
 
         inputManager = new BufferManager<HadoopCLInputBuffer>("inputs", nInputBuffers,

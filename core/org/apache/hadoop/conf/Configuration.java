@@ -276,6 +276,15 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
      if (other.overlay!=null) {
        this.overlay = (Properties)other.overlay.clone();
      }
+
+     if (other.globalIndices.size() > 0) {
+         for (int[] indices : other.globalIndices) {
+             this.globalIndices.add(indices);
+         }
+         for (double[] vals : other.globalVals) {
+             this.globalVals.add(vals);
+         }
+     }
    }
    
     this.finalParameters = new HashSet<String>(other.finalParameters);
@@ -1576,6 +1585,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   public void sendGlobalsToHDFS(String pre) {
       String filename = pre+".hadoopcl.globals";
 
+      System.out.println("Sending "+globalIndices.size()+" to HDFS");
       SequenceFile.Writer writer;
       try {
           writer = SequenceFile.createWriter(FileSystem.get(this), this, new Path(filename),
@@ -1629,6 +1639,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           throw new RuntimeException("Mismatch between global vector lengths");
       }
 
+      System.out.println("Adding sparse vector to globals");
       this.globalIndices.add(ivec);
       this.globalVals.add(vec);
 

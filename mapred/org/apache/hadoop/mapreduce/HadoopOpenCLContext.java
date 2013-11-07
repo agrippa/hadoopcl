@@ -36,6 +36,7 @@ public class HadoopOpenCLContext {
 
     private final int[] globalsInd;
     private final double[] globalsVal;
+    private final float[] globalsFval;
     private final int[] globalIndices;
     private final int nGlobals;
     private final boolean isCombiner;
@@ -140,6 +141,7 @@ public class HadoopOpenCLContext {
 
         SequenceFile.Reader reader;
         try {
+            System.out.println("Globals seq file at "+conf.get("opencl.properties.globalsfile"));
             reader = new SequenceFile.Reader(FileSystem.get(conf),
                     new Path(conf.get("opencl.properties.globalsfile")), conf);
 
@@ -152,10 +154,13 @@ public class HadoopOpenCLContext {
                 val = new SparseVectorWritable();
             }
 
+            System.out.println("Got totalGlobals="+totalGlobals+" countGlobals="+countGlobals);
+
             reader.close();
 
             this.globalsInd = new int[totalGlobals];
             this.globalsVal = new double[totalGlobals];
+            this.globalsFval = new float[totalGlobals];
             this.globalIndices = new int[countGlobals];
             this.nGlobals = countGlobals;
 
@@ -166,6 +171,7 @@ public class HadoopOpenCLContext {
                 for(int i = 0 ; i < g.size(); i++) {
                     this.globalsInd[globalIndex] = g.indices()[i];
                     this.globalsVal[globalIndex] = g.vals()[i];
+                    this.globalsFval[globalIndex] = (float)g.vals()[i];
                     globalIndex = globalIndex + 1;
                 }
                 globalCount = globalCount + 1;
@@ -208,18 +214,18 @@ public class HadoopOpenCLContext {
 
             this.mapperKernel = (HadoopCLMapperKernel)mapperClass.newInstance();
             this.mapperKernel.init(this);
-            this.mapperKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(),
+            this.mapperKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(), this.getGlobalsFval(),
                 this.getGlobalIndices(), this.getNGlobals());
 
             this.reducerKernel = (HadoopCLReducerKernel)reducerClass.newInstance();
             this.reducerKernel.init(this);
-            this.reducerKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(),
+            this.reducerKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(), this.getGlobalsFval(),
                 this.getGlobalIndices(), this.getNGlobals());
 
             if(combinerClass != null) {
                 this.combinerKernel = (HadoopCLReducerKernel)combinerClass.newInstance();
                 this.combinerKernel.init(this);
-                this.combinerKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(),
+                this.combinerKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(), this.getGlobalsFval(),
                         this.getGlobalIndices(), this.getNGlobals());
             }
         } catch(Exception ex) {
@@ -234,6 +240,10 @@ public class HadoopOpenCLContext {
 
     public double[] getGlobalsVal() {
         return this.globalsVal;
+    }
+
+    public float[] getGlobalsFval() {
+        return this.globalsFval;
     }
 
     public int[] getGlobalsInd() {

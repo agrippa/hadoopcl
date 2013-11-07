@@ -19,7 +19,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
             System.err.println("Allocing kernel "+result.obj().id);
             result.obj().init(this.clContext);
             result.obj().setGlobals(this.clContext.getGlobalsInd(),
-                    this.clContext.getGlobalsVal(),
+                    this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
                     this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
         }
         return result;
@@ -31,7 +31,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
             System.err.println("Allocing kernel "+result.obj().id);
             result.obj().init(this.clContext);
             result.obj().setGlobals(this.clContext.getGlobalsInd(),
-                    this.clContext.getGlobalsVal(),
+                    this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
                     this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
         }
         return result;

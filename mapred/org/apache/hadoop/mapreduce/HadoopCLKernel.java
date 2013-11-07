@@ -18,6 +18,7 @@ public abstract class HadoopCLKernel extends Kernel {
     protected HadoopOpenCLContext clContext;
     protected HadoopCLAccumulatedProfile javaProfile;
     protected double[] globalsVal;
+    protected float[] globalsFval;
     protected int[] globalsInd;
     protected int[] globalIndices;
     protected int nGlobals;
@@ -40,10 +41,11 @@ public abstract class HadoopCLKernel extends Kernel {
     public abstract void deviceStrength(DeviceStrength str);
     public abstract Device.TYPE[] validDevices();
 
-    public void setGlobals(int[] globalsInd, double[] globalsVal,
+    public void setGlobals(int[] globalsInd, double[] globalsVal, float[] globalsFval,
             int[] globalIndices, int nGlobals) {
         this.globalsInd = globalsInd;
         this.globalsVal = globalsVal;
+        this.globalsFval = globalsFval;
         this.globalIndices = globalIndices;
         this.nGlobals = nGlobals;
     }
