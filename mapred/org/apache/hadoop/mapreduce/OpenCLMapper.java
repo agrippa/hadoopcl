@@ -64,6 +64,7 @@ public class OpenCLMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN
       supportedValues.add("org.apache.hadoop.io.UniquePairWritable");
       supportedValues.add("org.apache.hadoop.io.SparseVectorWritable");
       supportedValues.add("org.apache.hadoop.io.IntegerVectorWritable");
+      supportedValues.add("org.apache.hadoop.io.FSparseVectorWritable");
   }
 
   /**
