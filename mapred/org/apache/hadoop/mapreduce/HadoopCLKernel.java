@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.io.HadoopCLResizableIntArray;
 import org.apache.hadoop.io.HadoopCLResizableDoubleArray;
+import org.apache.hadoop.io.HadoopCLResizableFloatArray;
 
 public abstract class HadoopCLKernel extends Kernel {
     protected final static AtomicInteger idIncr = new AtomicInteger(0);
@@ -26,6 +27,7 @@ public abstract class HadoopCLKernel extends Kernel {
     protected int outputsPerInput;
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
     private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
+    private HadoopCLResizableFloatArray copyFvals = new HadoopCLResizableFloatArray();
 
     // public abstract Class getBufferClass();
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
@@ -62,6 +64,13 @@ public abstract class HadoopCLKernel extends Kernel {
         copyVals.ensureCapacity(len);
         System.arraycopy(this.globalsVal, this.globalIndices[gid], copyVals.getArray(), 0, len);
         return (double[])copyVals.getArray();
+    }
+
+    protected float[] getGlobalFVals(int gid) {
+        int len = globalsLength(gid);
+        copyFvals.ensureCapacity(len);
+        System.arraycopy(this.globalsFval, this.globalIndices[gid], copyFvals.getArray(), 0, len);
+        return (float[])copyFvals.getArray();
     }
 
     protected int nGlobals() {
