@@ -1516,69 +1516,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     return result;
   }
 
-  public static class HadoopCLGlobalIterator 
-          implements Iterator<SparseVectorWritable> {
-      private final Configuration conf;
-      private int index;
-
-      public HadoopCLGlobalIterator(Configuration conf) {
-          this.conf = conf;
-          this.index = 0;
-      }
-
-      @Override
-      public boolean hasNext() {
-          String str = this.conf.get("opencl.properties."+this.index);
-          return str != null;
-      }
-
-      @Override
-      public SparseVectorWritable next() {
-          String lengthStr = this.conf.get("opencl.properties."+this.index);
-          int length = Integer.parseInt(lengthStr);
-          String vecStr = this.conf.get("opencl.properties."+this.index+".val");
-          String[] tokens = vecStr.split(",");
-
-          int[] ivec = new int[length];
-          double[] vec = new double[length];
-
-          for(int i = 0; i < tokens.length; i++) {
-              if(tokens[i].length() <= 1) continue;
-              String[] t = tokens[i].split(";");
-
-              try {
-                  ivec[i] = Integer.parseInt(t[0]);
-                  vec[i] = Double.parseDouble(t[1]);
-              } catch(Exception x) {
-                  StringBuffer sb = new StringBuffer();
-                  sb.append("tokens[i]=\"");
-                  sb.append(tokens[i]);
-                  sb.append("\" t={ ");
-                  for(String tt : t) {
-                      sb.append("\"");
-                      sb.append(tt);
-                      sb.append("\" ");
-                  }
-                  sb.append("}");
-                  throw new RuntimeException("Error parsing "+sb.toString());
-              }
-          }
-
-          this.index++;
-
-          return new SparseVectorWritable(ivec, vec);
-      }
-
-      @Override
-      public void remove() {
-          throw new UnsupportedOperationException(
-                  "remove not supported for HadoopCLGlobalIterator");
-      }
-  }
-
-  private int nHadoopCLGlobals = 0;
-  private int hadoopCLGlobalsSize = 0;
-
   List<int[]> globalIndices = new LinkedList<int[]>();
   List<double[]> globalVals = new LinkedList<double[]>();
 
@@ -1642,36 +1579,5 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       System.out.println("Adding sparse vector to globals");
       this.globalIndices.add(ivec);
       this.globalVals.add(vec);
-
-      int thisID = this.nHadoopCLGlobals;
-      this.set("opencl.properties."+thisID, Integer.toString(vec.length));
-      StringBuffer serial = new StringBuffer();
-      for(int i = 0 ; i < vec.length; i++) {
-          serial.append(Integer.toString(ivec[i]));
-          serial.append(";");
-          serial.append(Double.toString(vec[i]));
-          serial.append(",");
-      }
-      this.set("opencl.properties."+thisID+".val", serial.toString());
-      this.nHadoopCLGlobals++;
-      this.hadoopCLGlobalsSize += vec.length;
   }
-
-  public void clearHadoopCLGlobals() {
-      this.nHadoopCLGlobals = 0;
-      this.hadoopCLGlobalsSize = 0;
-  }
-
-  public int aggregateHadoopCLGlobalSize() {
-      return this.hadoopCLGlobalsSize;
-  }
-
-  public int getNHadoopCLGlobals() {
-      return this.nHadoopCLGlobals;
-  }
-
-  public Iterator<SparseVectorWritable> getHadoopCLGlobalsIterator() {
-      return new HadoopCLGlobalIterator(this);
-  }
-
 }
