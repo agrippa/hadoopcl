@@ -30,6 +30,7 @@ public class HadoopOpenCLContext {
     private final int isGPU;
     private final Range r;
     private final int bufferSize;
+    private final int preallocLength;
     private final String deviceString;
     private final int nBuffs;
     private final int nVectorsToBuffer;
@@ -119,6 +120,13 @@ public class HadoopOpenCLContext {
             this.bufferSize = Integer.parseInt(bufferSizeStr);
         } else {
             this.bufferSize = 1048576;
+        }
+
+        String preallocLengthStr = System.getProperty("opencl.prealloc.length");
+        if (preallocLengthStr != null) {
+            this.preallocLength = Integer.parseInt(preallocLengthStr);
+        } else {
+            this.preallocLength = 1048576;
         }
 
         String nBuffsStr = System.getProperty("opencl."+contextType+".buffers."+this.deviceString);
@@ -301,6 +309,10 @@ public class HadoopOpenCLContext {
 
     public int getBufferSize() {
         return this.bufferSize;
+    }
+
+    public int getPreallocLength() {
+        return this.preallocLength;
     }
 
     public String getDeviceString() {

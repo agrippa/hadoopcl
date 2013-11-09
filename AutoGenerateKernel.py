@@ -448,12 +448,12 @@ class SvecVisitor(NativeTypeVisitor):
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+'Indices = new int[('+size+') * 5];\n')
-                buf.append(basename+'Vals = new double[('+size+') * 5];\n')
+                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+'Indices = new int[bigger];\n')
+                buf.append(basename+'Vals = new double[bigger];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
-            buf.append('System.err.println("Setting nVectorsToBuffer to "+this.nVectorsToBuffer);')
         if isMapper and not isInput and not isKey:
             buf.append('outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
             buf.append('memAuxIntIncr = new int[1];')
@@ -686,7 +686,8 @@ class IvecVisitor(NativeTypeVisitor):
                     buf.append(basename+' = new int[('+size+') * 5];\n')
             else:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+' = new int[('+size+') * 5];\n')
+                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+' = new int[bigger];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
@@ -892,8 +893,9 @@ class FsvecVisitor(NativeTypeVisitor):
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'FloatLookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+'Indices = new int[('+size+') * 5];\n')
-                buf.append(basename+'Vals = new float[('+size+') * 5];\n')
+                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+'Indices = new int[bigger];\n')
+                buf.append(basename+'Vals = new float[bigger];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
