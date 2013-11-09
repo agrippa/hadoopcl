@@ -141,7 +141,6 @@ public class HadoopOpenCLContext {
 
         SequenceFile.Reader reader;
         try {
-            System.out.println("Globals seq file at "+conf.get("opencl.properties.globalsfile"));
             reader = new SequenceFile.Reader(FileSystem.get(conf),
                     new Path(conf.get("opencl.properties.globalsfile")), conf);
 
@@ -153,8 +152,6 @@ public class HadoopOpenCLContext {
                 totalGlobals += val.size();
                 val = new SparseVectorWritable();
             }
-
-            System.out.println("Got totalGlobals="+totalGlobals+" countGlobals="+countGlobals);
 
             reader.close();
 
