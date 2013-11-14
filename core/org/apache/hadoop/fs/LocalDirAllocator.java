@@ -379,7 +379,8 @@ public class LocalDirAllocator {
       
       //no path found
       throw new DiskErrorException("Could not find any valid local " +
-          "directory for " + pathStr);
+          "directory for " + pathStr+" of size "+size+" after searching "+
+          numDirsSearched+" directories");
     }
 
     /** Creates a file on the local FS. Pass size as 
