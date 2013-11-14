@@ -333,6 +333,8 @@ public class LocalDirAllocator {
       }
       Path returnPath = null;
       Path path = new Path(pathStr);
+
+      StringBuffer searched = new StringBuffer("{ ");
       
       if(size == SIZE_UNKNOWN) {  //do roulette selection: pick dir with probability 
                     //proportional to available size
@@ -365,6 +367,7 @@ public class LocalDirAllocator {
       } else {
         while (numDirsSearched < numDirs && returnPath == null) {
           long capacity = dirDF[dirNumLastAccessed].getAvailable();
+          searched.append(dirDF[dirNumLastAccessed].getDirPath()+" ");
           if (capacity > size) {
         	  returnPath = createPath(path, checkWrite);
           }
@@ -376,11 +379,13 @@ public class LocalDirAllocator {
       if (returnPath != null) {
         return returnPath;
       }
+
+      searched.append(" }");
       
       //no path found
       throw new DiskErrorException("Could not find any valid local " +
           "directory for " + pathStr+" of size "+size+" after searching "+
-          numDirsSearched+" directories");
+          numDirsSearched+"/"+numDirs+" directories: "+searched.toString());
     }
 
     /** Creates a file on the local FS. Pass size as 
