@@ -183,9 +183,7 @@ public class HadoopCLUtils {
  
       while (low < high) {
         int mid = (high + low) / 2;
-        System.out.println("low="+low+" high="+high+" mid="+mid);
         int v = vals[mid];
-        System.out.println("  v="+v+" find="+find);
         if (v == find) return mid;
         if (v > find) high = mid;
         else low = mid+1;
