@@ -227,10 +227,10 @@ public class BufferRunner implements Runnable {
                     HadoopCLOutputBuffer output = pair.outputBuffer();
 
                     int errCode = k.waitFor();
-                    if (input == null) {
-                        throw new RuntimeException("input is null?");
-                    }
                     input.getProfile().stopKernel();
+
+                    System.out.println("Output tried to allocate "+((IntFsvecHadoopCLOutputMapperBuffer)output).memAuxIntIncr[0]+
+                        " but had limit "+((IntFsvecHadoopCLOutputMapperBuffer)output).outputValIndices.length);
 
                     output.copyOverFromInput(input);
                     if (enableLogs) {

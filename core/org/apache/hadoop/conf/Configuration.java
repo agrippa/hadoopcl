@@ -837,27 +837,26 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       try {
           tmp = Class.forName(name, true, classLoader);
       } catch(Exception ex) {
-//          URL[] urls = ((URLClassLoader)classLoader).getURLs();
-//          if(classLoader instanceof URLClassLoader) {
-//              try {
-//                  classLoader = new URLClassLoader(new URL[] { new File("/home/jmg3/hadoop-1.0.3/build/hadoop-core-1.0.4-SNAPSHOT.jar").toURI().toURL() }, classLoader);
-//                  urls = ((URLClassLoader)classLoader).getURLs();
-//                  //tmp = Class.forName(name, true, classLoader);
-//                  tmp = Class.forName(name, true, this.getClass().getClassLoader());
-//              } catch(Exception ex2) {
-//                  throw new RuntimeException(ex2);
-//              }
-//          } else {
-//              throw new RuntimeException(ex);
-//          }
-          //System.err.println("Class loader=\""+classLoader.toString()+"\"");
-          //URL[] urls = ((URLClassLoader)classLoader).getURLs();
-          //for(URL u : urls) {
-          //    System.err.println("    "+u.toString());
-          //}
-          //ex.printStackTrace();
-
-          throw new RuntimeException(ex);
+          // URL[] urls = ((URLClassLoader)classLoader).getURLs();
+          // if(classLoader instanceof URLClassLoader) {
+          //     try {
+          //         classLoader = new URLClassLoader(new URL[] { new File("/home/yiskylee/hadoopcl/build/hadoop-core-1.0.4-SNAPSHOT.jar").toURI().toURL() }, classLoader);
+          //         urls = ((URLClassLoader)classLoader).getURLs();
+          //         tmp = Class.forName(name, true, classLoader);
+          //         // tmp = Class.forName(name, true, this.getClass().getClassLoader());
+          //     } catch(Exception ex2) {
+          //         throw new RuntimeException(ex2);
+          //     }
+          // } else {
+          //     throw new RuntimeException(ex);
+          // }
+//           System.err.println("Class loader=\""+classLoader.toString()+"\"");
+//           URL[] urls = ((URLClassLoader)classLoader).getURLs();
+//           for(URL u : urls) {
+//               System.err.println("    "+u.toString());
+//           }
+// 
+           throw new RuntimeException(ex);
       }
       return tmp;
   }

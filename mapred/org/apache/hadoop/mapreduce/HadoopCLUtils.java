@@ -171,5 +171,25 @@ public class HadoopCLUtils {
         }
         return nOutput;
     }
-
+   
+    /*
+     * Search a sorted integer array for a given value 'find' within the bounds
+     * of [low,high). Return the index in the array of the element, or -1 if not
+     * found.
+     */
+    public static int binarySearch(int[] vals, int find, int inLow, int inHigh) {
+      int low = inLow;
+      int high = inHigh;
+ 
+      while (low < high) {
+        int mid = (high + low) / 2;
+        System.out.println("low="+low+" high="+high+" mid="+mid);
+        int v = vals[mid];
+        System.out.println("  v="+v+" find="+find);
+        if (v == find) return mid;
+        if (v > find) high = mid;
+        else low = mid+1;
+      }
+      return -1;
+    }
 }
