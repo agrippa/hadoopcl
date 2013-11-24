@@ -229,9 +229,6 @@ public class BufferRunner implements Runnable {
                     int errCode = k.waitFor();
                     input.getProfile().stopKernel();
 
-                    // System.out.println("Output tried to allocate "+((IntFsvecHadoopCLOutputMapperBuffer)output).memAuxIntIncr[0]+
-                    //     " but had limit "+((IntFsvecHadoopCLOutputMapperBuffer)output).outputValIndices.length);
-
                     output.copyOverFromInput(input);
                     if (enableLogs) {
                         log("    Adding "+output.id+" to output buffers to write");
