@@ -1536,6 +1536,25 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       this.set("opencl.properties.globalsfile", filename);
   }
 
+  private int minInt(int[] arr, int start) {
+    int minIndex = start;
+    int minVal = arr[start];
+    for (int i = start+1; i < arr.length; i++) {
+      if (arr[i] < minVal) {
+        minVal = arr[i];
+        minIndex = i;
+      }
+    }
+    return minIndex;
+  }
+
+  private boolean isSorted(int[] arr) {
+    for (int i = 0; i < arr.length-1; i++) {
+      if (arr[i] > arr[i+1]) return false;
+    }
+    return true;
+  }
+
   public void addHadoopCLGlobal(List<Integer> ivec, List<Double> vec) {
       if(ivec.size() != vec.size()) {
           throw new RuntimeException("Mismatch in global vector lengths");
@@ -1566,6 +1585,21 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   private void addHadoopCLGlobalHelper(int[] ivec, double[] vec) {
       if(ivec.length != vec.length) {
           throw new RuntimeException("Mismatch between global vector lengths");
+      }
+
+      if (!isSorted(ivec)) {
+        for (int i = 0; i < ivec.length; i++) {
+          int minIndex = minInt(ivec, i);
+          if (minIndex != i) {
+            int tmpi = ivec[i];
+            ivec[i] = ivec[minIndex];
+            ivec[minIndex] = tmpi;
+
+            double tmpd = vec[i];
+            vec[i] = vec[minIndex];
+            vec[minIndex] = tmpd;
+          }
+        }
       }
 
       this.globalIndices.add(ivec);

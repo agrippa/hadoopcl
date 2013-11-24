@@ -36,8 +36,8 @@ public class OpenCLDriver {
   // public static final int nOutputBuffers = 10;
 
   public static final int nKernels = 1;
-  public static final int nInputBuffers = 3;
-  public static final int nOutputBuffers = 3;
+  public static final int nInputBuffers = 1;
+  public static final int nOutputBuffers = 1;
   public static final boolean profileMemory = false;
 
   public static long inputsRead = -1L;
@@ -84,8 +84,12 @@ public class OpenCLDriver {
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
         kernel.init(clContext);
-        kernel.setGlobals(this.clContext.getGlobalsInd(), this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
-                this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
+        kernel.setGlobals(this.clContext.getGlobalsInd(),
+                this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
+                this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
+                this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
+                this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
+                this.clContext.nGlobalBuckets());
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
@@ -185,8 +189,12 @@ public class OpenCLDriver {
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
         kernel.init(clContext);
-        kernel.setGlobals(this.clContext.getGlobalsInd(), this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
-                this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
+        kernel.setGlobals(this.clContext.getGlobalsInd(),
+                this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
+                this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
+                this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
+                this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
+                this.clContext.nGlobalBuckets());
 
         inputManager = new BufferManager<HadoopCLInputBuffer>("inputs", nInputBuffers,
             kernel.getInputBufferClass(), globalSpace);

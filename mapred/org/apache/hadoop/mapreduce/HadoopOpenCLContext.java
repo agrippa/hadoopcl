@@ -1,6 +1,7 @@
 
 package org.apache.hadoop.mapreduce;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.LinkedList;
 import java.util.Iterator;
@@ -40,11 +41,19 @@ public class HadoopOpenCLContext {
     private final float[] globalsFval;
     private final int[] globalIndices;
     private final int nGlobals;
+
+    private final int[] globalsMapInd;
+    private final double[] globalsMapVal;
+    private final float[] globalsMapFval;
+    private final int[] globalsMap;
+
     private final boolean isCombiner;
 
     private HadoopCLMapperKernel mapperKernel;
     private HadoopCLReducerKernel reducerKernel;
     private HadoopCLReducerKernel combinerKernel;
+
+    private final int nGlobalBuckets;
 
     public HadoopOpenCLContext(String contextType, TaskInputOutputContext setHadoopContext) {
         this.hadoopContext = setHadoopContext;
@@ -129,6 +138,13 @@ public class HadoopOpenCLContext {
             this.preallocLength = 1048576;
         }
 
+        String bucketsStr = System.getProperty("opencl.global.buckets");
+        if (bucketsStr != null) {
+          this.nGlobalBuckets = Integer.parseInt(bucketsStr);
+        } else {
+          this.nGlobalBuckets = 16;
+        }
+
         String nBuffsStr = System.getProperty("opencl."+contextType+".buffers."+this.deviceString);
         if(nBuffsStr != null) {
             this.nBuffs = Integer.parseInt(nBuffsStr);
@@ -163,54 +179,52 @@ public class HadoopOpenCLContext {
 
             reader.close();
 
+            final HashMap<Integer, List<IntDoublePair>> buckets = constructEmptyBuckets(this.nGlobalBuckets);
+            this.globalIndices = new int[countGlobals];
+            this.nGlobals = countGlobals;
+
             this.globalsInd = new int[totalGlobals];
             this.globalsVal = new double[totalGlobals];
             this.globalsFval = new float[totalGlobals];
-            this.globalIndices = new int[countGlobals];
-            this.nGlobals = countGlobals;
+
+            this.globalsMapInd = new int[totalGlobals];
+            this.globalsMapVal = new double[totalGlobals];
+            this.globalsMapFval = new float[totalGlobals];
+            this.globalsMap = new int[this.nGlobalBuckets * countGlobals];
 
             int globalIndex = 0;
             int globalCount = 0;
             for(SparseVectorWritable g : bufferGlobals) {
+                clearBuckets(buckets);
                 this.globalIndices[globalCount] = globalIndex;
                 for(int i = 0 ; i < g.size(); i++) {
+                    buckets.get(g.indices()[i] % this.nGlobalBuckets).add(
+                        new IntDoublePair(g.indices()[i], g.vals()[i]));
                     this.globalsInd[globalIndex] = g.indices()[i];
                     this.globalsVal[globalIndex] = g.vals()[i];
                     this.globalsFval[globalIndex] = (float)g.vals()[i];
                     globalIndex = globalIndex + 1;
                 }
+
+                int tmpGlobalIndex = this.globalIndices[globalCount];
+                for (int bucket = 0; bucket < this.nGlobalBuckets; bucket++) {
+                  this.globalsMap[globalCount * this.nGlobalBuckets + bucket] = tmpGlobalIndex;
+                  // System.out.println("Global bucket "+(globalCount+bucket)+" at offset "+tmpGlobalIndex);
+                  for (IntDoublePair element : buckets.get(bucket)) {
+                    this.globalsMapInd[tmpGlobalIndex] = element.i;
+                    this.globalsMapVal[tmpGlobalIndex] = element.d;
+                    this.globalsMapFval[tmpGlobalIndex] = (float)element.d;
+                    // System.out.print(this.globalsMapInd[tmpGlobalIndex]+":"+this.globalsMapVal[tmpGlobalIndex]+" ");
+                    tmpGlobalIndex++;
+                  }
+                  // System.out.println();
+                }
+
                 globalCount = globalCount + 1;
             }
         } catch(IOException io) {
             throw new RuntimeException(io);
         }
-
-        // Iterator<SparseVectorWritable> globalIter = conf.getHadoopCLGlobalsIterator();
-        // int totalGlobals = 0;
-        // int countGlobals = 0;
-        // while(globalIter.hasNext()) {
-        //     SparseVectorWritable g = globalIter.next();
-        //     countGlobals++;
-        //     totalGlobals += g.size();
-        //     bufferGlobals.add(g);
-        // }
-
-        // this.globalsInd = new int[totalGlobals];
-        // this.globalsVal = new double[totalGlobals];
-        // this.globalIndices = new int[countGlobals];
-        // this.nGlobals = countGlobals;
-
-        // int globalIndex = 0;
-        // int globalCount = 0;
-        // for(SparseVectorWritable g : bufferGlobals) {
-        //     this.globalIndices[globalCount] = globalIndex;
-        //     for(int i = 0 ; i < g.size(); i++) {
-        //         this.globalsInd[globalIndex] = g.indices()[i];
-        //         this.globalsVal[globalIndex] = g.vals()[i];
-        //         globalIndex = globalIndex + 1;
-        //     }
-        //     globalCount = globalCount + 1;
-        // }
 
         try {
             Class mapperClass = hadoopContext.getOCLMapperClass();
@@ -219,19 +233,31 @@ public class HadoopOpenCLContext {
 
             this.mapperKernel = (HadoopCLMapperKernel)mapperClass.newInstance();
             this.mapperKernel.init(this);
-            this.mapperKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(), this.getGlobalsFval(),
-                this.getGlobalIndices(), this.getNGlobals());
+            this.mapperKernel.setGlobals(this.getGlobalsInd(),
+                this.getGlobalsVal(), this.getGlobalsFval(),
+                this.getGlobalIndices(), this.getNGlobals(),
+                this.getGlobalsMapInd(), this.getGlobalsMapVal(),
+                this.getGlobalsMapFval(), this.getGlobalsMap(),
+                this.nGlobalBuckets);
 
             this.reducerKernel = (HadoopCLReducerKernel)reducerClass.newInstance();
             this.reducerKernel.init(this);
-            this.reducerKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(), this.getGlobalsFval(),
-                this.getGlobalIndices(), this.getNGlobals());
+            this.reducerKernel.setGlobals(this.getGlobalsInd(),
+                this.getGlobalsVal(), this.getGlobalsFval(),
+                this.getGlobalIndices(), this.getNGlobals(),
+                this.getGlobalsMapInd(), this.getGlobalsMapVal(),
+                this.getGlobalsMapFval(), this.getGlobalsMap(),
+                this.nGlobalBuckets);
 
             if(combinerClass != null) {
                 this.combinerKernel = (HadoopCLReducerKernel)combinerClass.newInstance();
                 this.combinerKernel.init(this);
-                this.combinerKernel.setGlobals(this.getGlobalsInd(), this.getGlobalsVal(), this.getGlobalsFval(),
-                        this.getGlobalIndices(), this.getNGlobals());
+                this.combinerKernel.setGlobals(this.getGlobalsInd(),
+                    this.getGlobalsVal(), this.getGlobalsFval(),
+                    this.getGlobalIndices(), this.getNGlobals(),
+                    this.getGlobalsMapInd(), this.getGlobalsMapVal(),
+                    this.getGlobalsMapFval(), this.getGlobalsMap(),
+                    this.nGlobalBuckets);
             }
         } catch(Exception ex) {
             throw new RuntimeException(ex);
@@ -239,25 +265,40 @@ public class HadoopOpenCLContext {
 
     }
 
-    public int[] getGlobalIndices() {
-        return this.globalIndices;
+    private static class IntDoublePair {
+      public final int i;
+      public final double d;
+
+      public IntDoublePair(int setI, double setD) {
+        this.i = setI;
+        this.d = setD;
+      }
     }
 
-    public double[] getGlobalsVal() {
-        return this.globalsVal;
+    private HashMap<Integer, List<IntDoublePair>> constructEmptyBuckets(int nBuckets) {
+      HashMap<Integer, List<IntDoublePair>> buckets = new HashMap<Integer, List<IntDoublePair>>();
+      for (int i = 0 ; i < nBuckets; i++) {
+        buckets.put(i, new LinkedList<IntDoublePair>());
+      }
+      return buckets;
     }
 
-    public float[] getGlobalsFval() {
-        return this.globalsFval;
+    private void clearBuckets(HashMap<Integer, List<IntDoublePair>> buckets) {
+      for (Map.Entry<Integer, List<IntDoublePair>> entry : buckets.entrySet()) {
+        entry.getValue().clear();
+      }
     }
 
-    public int[] getGlobalsInd() {
-        return this.globalsInd;
-    }
-
-    public int getNGlobals() {
-        return this.nGlobals;
-    }
+    public int[] getGlobalIndices() { return this.globalIndices; }
+    public double[] getGlobalsVal() { return this.globalsVal; }
+    public float[] getGlobalsFval() { return this.globalsFval; }
+    public int[] getGlobalsInd() { return this.globalsInd; }
+    public double[] getGlobalsMapVal() { return this.globalsMapVal; }
+    public float[] getGlobalsMapFval() { return this.globalsMapFval; }
+    public int[] getGlobalsMapInd() { return this.globalsMapInd; }
+    public int[] getGlobalsMap() { return this.globalsMap; }
+    public int nGlobalBuckets() { return this.nGlobalBuckets; }
+    public int getNGlobals() { return this.nGlobals; }
     
     public boolean isCombiner() {
         return this.isCombiner;

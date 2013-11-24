@@ -18,11 +18,19 @@ public abstract class HadoopCLKernel extends Kernel {
 
     protected HadoopOpenCLContext clContext;
     protected HadoopCLAccumulatedProfile javaProfile;
+
     protected double[] globalsVal;
     protected float[] globalsFval;
     protected int[] globalsInd;
     protected int[] globalIndices;
     protected int nGlobals;
+
+    protected int[] globalsMapInd;
+    protected double[] globalsMapVal;
+    protected float[] globalsMapFval;
+    protected int[] globalsMap;
+    protected int nGlobalBuckets;
+
     protected int[] memIncr;
     protected int outputsPerInput;
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
@@ -43,13 +51,22 @@ public abstract class HadoopCLKernel extends Kernel {
     public abstract void deviceStrength(DeviceStrength str);
     public abstract Device.TYPE[] validDevices();
 
-    public void setGlobals(int[] globalsInd, double[] globalsVal, float[] globalsFval,
-            int[] globalIndices, int nGlobals) {
+    public void setGlobals(int[] globalsInd, double[] globalsVal,
+            float[] globalsFval, int[] globalIndices, int nGlobals,
+            int[] globalsMapInd, double[] globalsMapVal, float[] globalsMapFval,
+            int[] globalsMap, int nBuckets) {
+        this.globalIndices = globalIndices;
+        this.nGlobals = nGlobals;
+        this.nGlobalBuckets = nBuckets;
+
         this.globalsInd = globalsInd;
         this.globalsVal = globalsVal;
         this.globalsFval = globalsFval;
-        this.globalIndices = globalIndices;
-        this.nGlobals = nGlobals;
+
+        this.globalsMapInd = globalsMapInd;
+        this.globalsMapVal = globalsMapVal;
+        this.globalsMapFval = globalsMapFval;
+        this.globalsMap = globalsMap;
     }
 
     protected int[] getGlobalIndices(int gid) {
@@ -71,6 +88,26 @@ public abstract class HadoopCLKernel extends Kernel {
         copyFvals.ensureCapacity(len);
         System.arraycopy(this.globalsFval, this.globalIndices[gid], copyFvals.getArray(), 0, len);
         return (float[])copyFvals.getArray();
+    }
+
+    private int findSparseIndexInGlobals(int gid, int sparseIndex) {
+      int hash = sparseIndex % this.nGlobalBuckets;
+      int globalBucketId = gid * this.nGlobalBuckets + hash;
+      int bucketStart = this.globalsMap[globalBucketId];
+      int bucketTop = globalBucketId == this.globalsMap.length-1 ?
+          this.globalsInd.length : this.globalsMap[globalBucketId+1];
+      return HadoopCLUtils.binarySearch(this.globalsMapInd, sparseIndex,
+          bucketStart, bucketTop);
+    }
+
+    protected double referenceGlobalVal(int gid, int sparseIndex) {
+      int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
+      return globalIndex == -1 ? 0.0 : this.globalsMapVal[globalIndex];
+    }
+
+    protected float referenceGlobalFval(int gid, int sparseIndex) {
+      int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
+      return globalIndex == -1 ? 0.0f : this.globalsMapFval[globalIndex];
     }
 
     protected int nGlobals() {

@@ -19,8 +19,11 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
             System.err.println("Allocing kernel "+result.obj().id);
             result.obj().init(this.clContext);
             result.obj().setGlobals(this.clContext.getGlobalsInd(),
-                    this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
-                    this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
+                this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
+                this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
+                this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
+                this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
+                this.clContext.nGlobalBuckets());
         }
         return result;
     }
@@ -31,8 +34,11 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
             System.err.println("Allocing kernel "+result.obj().id);
             result.obj().init(this.clContext);
             result.obj().setGlobals(this.clContext.getGlobalsInd(),
-                    this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
-                    this.clContext.getGlobalIndices(), this.clContext.getNGlobals());
+                this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
+                this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
+                this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
+                this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
+                this.clContext.nGlobalBuckets());
         }
         return result;
     }

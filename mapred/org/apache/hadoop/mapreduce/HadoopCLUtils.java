@@ -179,13 +179,14 @@ public class HadoopCLUtils {
      */
     public static int binarySearch(int[] vals, int find, int inLow, int inHigh) {
       int low = inLow;
-      int high = inHigh;
+      int high = inHigh-1;
  
-      while (low < high) {
+      while (low <= high) {
         int mid = (high + low) / 2;
         int v = vals[mid];
+        // System.out.println("      low="+low+" high="+high+" mid="+mid+" v="+v+" find="+find);
         if (v == find) return mid;
-        if (v > find) high = mid;
+        if (v > find) high = mid-1;
         else low = mid+1;
       }
       return -1;
