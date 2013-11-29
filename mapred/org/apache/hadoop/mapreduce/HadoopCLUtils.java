@@ -283,4 +283,15 @@ public class HadoopCLUtils {
       }
       return -1;
     }
+
+    /*
+     * Search a sorted integer array for a given value 'find' within the bounds
+     * of [low,high). Return the index in the array of the element, or -1 if not
+     * found.
+     */
+    public static int linearSearch(int[] vals, int find, int low, int high) {
+      int i = low;
+      for ( ; i < high && vals[i] < find; i++) ;
+      return i < high && vals[i] == find ? i : -1;
+    }
 }

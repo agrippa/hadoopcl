@@ -91,13 +91,11 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     private int findSparseIndexInGlobals(int gid, int sparseIndex) {
-      int hash = sparseIndex % this.nGlobalBuckets;
-      int globalBucketId = gid * this.nGlobalBuckets + hash;
-      int bucketStart = this.globalsMap[globalBucketId];
-      int bucketTop = globalBucketId == this.globalsMap.length-1 ?
-          this.globalsInd.length : this.globalsMap[globalBucketId+1];
+      int globalBucketId = gid * this.nGlobalBuckets + (sparseIndex % this.nGlobalBuckets);
       return HadoopCLUtils.binarySearch(this.globalsMapInd, sparseIndex,
-          bucketStart, bucketTop);
+          this.globalsMap[globalBucketId], 
+          globalBucketId == this.globalsMap.length-1 ?
+            this.globalsInd.length : this.globalsMap[globalBucketId+1]);
     }
 
     protected double referenceGlobalVal(int gid, int sparseIndex) {
