@@ -163,8 +163,6 @@ public class HadoopCLUtils {
             int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks,
             int[] queueOfVectors) {
 
-long overallStart = System.currentTimeMillis();
-
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
             indicesIntoVectors[i] = 0;
@@ -192,10 +190,6 @@ long overallStart = System.currentTimeMillis();
         int nOutput = 0;
         // Current length of the queue
         int queueLength = valsIter.nValues();
-
-long loopStart = System.currentTimeMillis();
-long insertAccum = 0;
-long shiftAccum = 0;
 
         // While we haven't processed all input elements.
         while (nProcessed < totalNElements) {
@@ -252,10 +246,6 @@ long shiftAccum = 0;
             queueHead = todoNext;
         }
 
-long overallStop = System.currentTimeMillis();
-System.out.println("DIAGNOSTICS: Overall "+(overallStop-overallStart)+
-        " ms, loop "+(overallStop-loopStart)+" ms, insert "+insertAccum+
-        " ms, shift "+shiftAccum+" ms");
         return nOutput;
     }
    
