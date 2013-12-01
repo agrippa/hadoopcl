@@ -25,16 +25,21 @@ public class HadoopCLUtils {
         }
     }
 
-    protected static int reverseIterate(int queueHead,
-            int queueLength) {
-        int tmp = queueHead  - 1;
-        return tmp < 0 ? queueLength-1 : tmp;
+    protected static int forwardIterate(int queueHead, int[] links) {
+        return links[queueHead];
     }
 
-    protected static int forwardIterate(int queueHead,
-            int queueLength) {
-        int tmp = queueHead + 1;
-        return tmp >= queueLength ? 0 : tmp;
+    protected static int findNextSmallest(int sparseIndex, int startIndex,
+            int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks) {
+        int index = startIndex;
+        int prev = -1;
+
+        while (index != -1 && queueOfSparseIndices[index] < sparseIndex) {
+            prev = index;
+            index = forwardIterate(index, queueOfSparseIndicesLinks);
+        }
+
+        return prev;
     }
 
     /*
@@ -76,110 +81,111 @@ public class HadoopCLUtils {
      * vectors with INT_MAX as an index value may not be passed to this
      * method.
      */
-    public static int merge(HadoopCLFsvecValueIterator valsIter,
-            int[] outputIndices, float[] outputVals, int totalNElements,
-            int[] indicesIntoVectors,
-            int[] queueOfSparseIndices, int[] queueOfVectors) {
+    // public static int merge(HadoopCLFsvecValueIterator valsIter,
+    //         int[] outputIndices, float[] outputVals, int totalNElements,
+    //         int[] indicesIntoVectors,
+    //         int[] queueOfSparseIndices, int[] queueOfVectors) {
 
-        for (int i = 0; i < valsIter.nValues(); i++) {
-            valsIter.seekTo(i);
-            indicesIntoVectors[i] = 0;
-            queueOfSparseIndices[i] = valsIter.getValIndices()[0];
-            queueOfVectors[i] = i;
-        }
+    //     for (int i = 0; i < valsIter.nValues(); i++) {
+    //         valsIter.seekTo(i);
+    //         indicesIntoVectors[i] = 0;
+    //         queueOfSparseIndices[i] = valsIter.getValIndices()[0];
+    //         queueOfVectors[i] = i;
+    //     }
 
-        // Sort queueOfSparseIndices so that the vectors with the smallest minimum
-        // index is at the front of the queue (i.e. index 0)
-        stupidSort(queueOfSparseIndices, queueOfVectors, valsIter.nValues());
+    //     // Sort queueOfSparseIndices so that the vectors with the smallest minimum
+    //     // index is at the front of the queue (i.e. index 0)
+    //     stupidSort(queueOfSparseIndices, queueOfVectors, valsIter.nValues());
 
-        // Current queue head, incremented as we pass through the queue
-        int queueHead = 0;
+    //     // Current queue head, incremented as we pass through the queue
+    //     int queueHead = 0;
 
-        // The number of individual input elements we've passed over so far.
-        int nProcessed = 0;
-        // The number of individual output elements we've written so far.
-        // This may be less than nProcessed if there are duplicated sparse
-        // indices in different input vectors.
-        int nOutput = 0;
-        // Current length of the queue
-        int queueLength = valsIter.nValues();
+    //     // The number of individual input elements we've passed over so far.
+    //     int nProcessed = 0;
+    //     // The number of individual output elements we've written so far.
+    //     // This may be less than nProcessed if there are duplicated sparse
+    //     // indices in different input vectors.
+    //     int nOutput = 0;
+    //     // Current length of the queue
+    //     int queueLength = valsIter.nValues();
 
-        // While we haven't processed all input elements.
-        while (nProcessed < totalNElements) {
+    //     // While we haven't processed all input elements.
+    //     while (nProcessed < totalNElements) {
 
-            // Retrieve the vector ID in the input vals which has the
-            // smallest minimum index that hasn't been processed so far.
-            int minVector = queueOfVectors[queueHead];
-            boolean dontIncr = false;
+    //         // Retrieve the vector ID in the input vals which has the
+    //         // smallest minimum index that hasn't been processed so far.
+    //         int minVector = queueOfVectors[queueHead];
+    //         boolean dontIncr = false;
 
-            valsIter.seekTo(minVector);
-            int newIndex = ++indicesIntoVectors[minVector];
-            int minIndex = valsIter.getValIndices()[newIndex-1];
-            float minValue = valsIter.getValVals()[newIndex-1];
+    //         valsIter.seekTo(minVector);
+    //         int newIndex = ++indicesIntoVectors[minVector];
+    //         int minIndex = valsIter.getValIndices()[newIndex-1];
+    //         float minValue = valsIter.getValVals()[newIndex-1];
 
-            if (newIndex < valsIter.currentVectorLength()) {
-                // If there are still elements to be processed in the current
-                // vector, start by grabbing the value of the next smallest
-                // index.
-                int tmp = valsIter.getValIndices()[newIndex];
-                if (tmp <= queueOfSparseIndices[forwardIterate(queueHead,
-                            queueLength)]) {
-                    // If the next element in the current vector is also smaller
-                    // than any of the current elements in the queue, just place
-                    // it back at our current location in the circular queue and
-                    // don't increment the queueHead below.
-                    queueOfSparseIndices[queueHead] = tmp;
-                    dontIncr = true;
-                } else {
-                    // Otherwise, we need to insert our newly discovered min for
-                    // the current vector back into the appropriate place in the
-                    // queue.
-                    insert(tmp, minVector,
-                            queueOfSparseIndices, queueOfVectors,
-                            queueLength, queueHead);
-                }
-            } else {
-                // We've finished all of the elements in the current vector, so
-                // the queue can be resized down.
-                for (int i = queueHead + 1; i < queueLength; i++) {
-                    queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
-                    queueOfVectors[i-1] = queueOfVectors[i];
-                }
-                queueLength--;
-                /*
-                 * Decrementing queueHead will ensure that it either gets set
-                 * to the same location on the forwardIterate below, or wraps
-                 * around to the front of the queue (rather than special
-                 * casing that here).
-                 */
-                queueHead--;
-            }
-            nProcessed++;
+    //         if (newIndex < valsIter.currentVectorLength()) {
+    //             // If there are still elements to be processed in the current
+    //             // vector, start by grabbing the value of the next smallest
+    //             // index.
+    //             int tmp = valsIter.getValIndices()[newIndex];
+    //             if (tmp <= queueOfSparseIndices[forwardIterate(queueHead,
+    //                         queueLength)]) {
+    //                 // If the next element in the current vector is also smaller
+    //                 // than any of the current elements in the queue, just place
+    //                 // it back at our current location in the circular queue and
+    //                 // don't increment the queueHead below.
+    //                 queueOfSparseIndices[queueHead] = tmp;
+    //                 dontIncr = true;
+    //             } else {
+    //                 // Otherwise, we need to insert our newly discovered min for
+    //                 // the current vector back into the appropriate place in the
+    //                 // queue.
+    //                 insert(tmp, minVector,
+    //                         queueOfSparseIndices, queueOfVectors,
+    //                         queueLength, queueHead);
+    //             }
+    //         } else {
+    //             // We've finished all of the elements in the current vector, so
+    //             // the queue can be resized down.
+    //             for (int i = queueHead + 1; i < queueLength; i++) {
+    //                 queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
+    //                 queueOfVectors[i-1] = queueOfVectors[i];
+    //             }
+    //             queueLength--;
+    //             /*
+    //              * Decrementing queueHead will ensure that it either gets set
+    //              * to the same location on the forwardIterate below, or wraps
+    //              * around to the front of the queue (rather than special
+    //              * casing that here).
+    //              */
+    //             queueHead--;
+    //         }
+    //         nProcessed++;
 
-            // Write the values we just extracted to the output combined
-            // values.
-            if (nOutput > 0 && outputIndices[nOutput-1] == minIndex) {
-                outputVals[nOutput-1] += minValue;
-            } else {
-                outputIndices[nOutput] = minIndex;
-                outputVals[nOutput] = minValue;
-                nOutput++;
-            }
+    //         // Write the values we just extracted to the output combined
+    //         // values.
+    //         if (nOutput > 0 && outputIndices[nOutput-1] == minIndex) {
+    //             outputVals[nOutput-1] += minValue;
+    //         } else {
+    //             outputIndices[nOutput] = minIndex;
+    //             outputVals[nOutput] = minValue;
+    //             nOutput++;
+    //         }
 
-            // If we didn't find the next smallest index in the same vector,
-            // need to iterate the queueHead to the next location.
-            if (!dontIncr) {
-                queueHead = forwardIterate(queueHead,
-                        queueLength);
-            }
-        }
-        return nOutput;
-    }
+    //         // If we didn't find the next smallest index in the same vector,
+    //         // need to iterate the queueHead to the next location.
+    //         if (!dontIncr) {
+    //             queueHead = forwardIterate(queueHead,
+    //                     queueLength);
+    //         }
+    //     }
+    //     return nOutput;
+    // }
 
     public static int merge(HadoopCLSvecValueIterator valsIter,
             int[] outputIndices, double[] outputVals, int totalNElements,
             int[] indicesIntoVectors,
-            int[] queueOfSparseIndices, int[] queueOfVectors) {
+            int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks,
+            int[] queueOfVectors) {
 
 long overallStart = System.currentTimeMillis();
 
@@ -190,9 +196,14 @@ long overallStart = System.currentTimeMillis();
             queueOfVectors[i] = i;
         }
 
-        // Sort queueOfSparseIndices so that the vectors with the smallest minimum
-        // index is at the front of the queue (i.e. index 0)
+        // Sort queueOfSparseIndices so that the vectors with the smallest
+        // minimum index is at the front of the queue (i.e. index 0).
         stupidSort(queueOfSparseIndices, queueOfVectors, valsIter.nValues());
+
+        for (int i = 0; i < valsIter.nValues()-1; i++) {
+            queueOfSparseIndicesLinks[i] = i+1;
+        }
+        queueOfSparseIndicesLinks[i-1] = -1;
 
         // Current queue head, incremented as we pass through the queue
         int queueHead = 0;
@@ -222,47 +233,31 @@ long shiftAccum = 0;
             int newIndex = ++indicesIntoVectors[minVector];
             int minIndex = valsIter.getValIndices()[newIndex-1];
             double minValue = valsIter.getValVals()[newIndex-1];
+            int todoNext = queueOfSparseIndicesLinks[queueHead];
 
             if (newIndex < valsIter.currentVectorLength()) {
                 // If there are still elements to be processed in the current
                 // vector, start by grabbing the value of the next smallest
                 // index.
-                int tmp = valsIter.getValIndices()[newIndex];
-                if (tmp <= queueOfSparseIndices[forwardIterate(queueHead,
-                            queueLength)]) {
-                    // If the next element in the current vector is also smaller
-                    // than any of the current elements in the queue, just place
-                    // it back at our current location in the circular queue and
-                    // don't increment the queueHead below.
-                    queueOfSparseIndices[queueHead] = tmp;
-                    dontIncr = true;
+                int nextIndexInVector = valsIter.getValIndices()[newIndex];
+
+                int indexToInsertAfter = findNextSmallest(nextIndexInVector,
+                        queueHead,
+                        queueOfSparseIndices, queueOfSparseIndicesLinks);
+                int next = queueOfSparseIndicesLinks[indexToInsertAfter];
+
+                // Don't need to update queueOfVectors, stays the same value
+                queueOfSparseIndices[queueHead] = nextIndexInVector;
+                if (indexToInsertAfter != queueHead) {
+                    queueOfSparseIndicesLinks[queueHead] = next;
+                    queueOfSparseIndicesLinks[indexToInsertAfter] = queueHead;
                 } else {
-                    // Otherwise, we need to insert our newly discovered min for
-                    // the current vector back into the appropriate place in the
-                    // queue.
-                    long insertStart = System.currentTimeMillis();
-                    insert(tmp, minVector,
-                            queueOfSparseIndices, queueOfVectors,
-                            queueLength, queueHead);
-                    insertAccum += (System.currentTimeMillis() - insertStart);
+                    todoNext = queueHead;
                 }
             } else {
-                // We've finished all of the elements in the current vector, so
-                // the queue can be resized down.
-                long shiftStart = System.currentTimeMillis();
-                for (int i = queueHead + 1; i < queueLength; i++) {
-                    queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
-                    queueOfVectors[i-1] = queueOfVectors[i];
-                }
-                shiftAccum += (System.currentTimeMillis() - shiftStart);
-                queueLength--;
-                /*
-                 * Decrementing queueHead will ensure that it either gets set
-                 * to the same location on the forwardIterate below, or wraps
-                 * around to the front of the queue (rather than special
-                 * casing that here).
-                 */
-                queueHead--;
+                // This slot is no longer valid, if we arrive at it we want to
+                // crash
+                queueofSparseIndicesLinks[queueHead] = -1;
             }
             nProcessed++;
 
@@ -278,11 +273,9 @@ long shiftAccum = 0;
 
             // If we didn't find the next smallest index in the same vector,
             // need to iterate the queueHead to the next location.
-            if (!dontIncr) {
-                queueHead = forwardIterate(queueHead,
-                        queueLength);
-            }
+            queueHead = todoNext;
         }
+
 long overallStop = System.currentTimeMillis();
 System.out.println("DIAGNOSTICS: Overall "+(overallStop-overallStart)+
         " ms, loop "+(overallStop-loopStart)+" ms, insert "+insertAccum+
