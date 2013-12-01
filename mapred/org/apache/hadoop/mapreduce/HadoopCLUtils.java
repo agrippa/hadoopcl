@@ -46,13 +46,15 @@ public class HadoopCLUtils {
         int emptySlot = queueHead;
         int checkingSlot = reverseIterate(emptySlot,
                 queueLength);
+        int checkingSlotVal = queueOfSparseIndices[checkingSlot];
 
-        while (queueOfSparseIndices[checkingSlot] > newIndex) {
-            queueOfSparseIndices[emptySlot] = queueOfSparseIndices[checkingSlot];
+        while (checkingSlotVal > newIndex) {
+            queueOfSparseIndices[emptySlot] = checkingSlotVal;
             queueOfVectors[emptySlot] = queueOfVectors[checkingSlot];
             emptySlot = checkingSlot;
             checkingSlot = reverseIterate(checkingSlot,
                     queueLength);
+            checkingSlotVal = queueOfSparseIndices[checkingSlot];
         }
 
         queueOfSparseIndices[emptySlot] = newIndex;
