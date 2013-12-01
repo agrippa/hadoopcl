@@ -205,6 +205,8 @@ long overallStart = System.currentTimeMillis();
         int queueLength = valsIter.nValues();
 
 long loopStart = System.currentTimeMillis();
+long insertAccum = 0;
+long shiftAccum = 0;
 
         // While we haven't processed all input elements.
         while (nProcessed < totalNElements) {
@@ -236,17 +238,21 @@ long loopStart = System.currentTimeMillis();
                     // Otherwise, we need to insert our newly discovered min for
                     // the current vector back into the appropriate place in the
                     // queue.
+                    long insertStart = System.currentTimeMillis();
                     insert(tmp, minVector,
                             queueOfSparseIndices, queueOfVectors,
                             queueLength, queueHead);
+                    insertAccum += (System.currentTimeMillis() - insertStart);
                 }
             } else {
                 // We've finished all of the elements in the current vector, so
                 // the queue can be resized down.
+                long shiftStart = System.currentTimeMillis();
                 for (int i = queueHead + 1; i < queueLength; i++) {
                     queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
                     queueOfVectors[i-1] = queueOfVectors[i];
                 }
+                shiftAccum += (System.currentTimeMillis() - shiftStart);
                 queueLength--;
                 /*
                  * Decrementing queueHead will ensure that it either gets set
@@ -276,6 +282,9 @@ long loopStart = System.currentTimeMillis();
             }
         }
 long overallStop = System.currentTimeMillis();
+System.out.println("DIAGNOSTICS: Overall "+(overallStop-overallStart)+
+        " ms, loop "+(overallStop-loopStart)+" ms, insert "+insertAccum+
+        " ms, shift "+shiftAccum+" ms");
         return nOutput;
     }
    
