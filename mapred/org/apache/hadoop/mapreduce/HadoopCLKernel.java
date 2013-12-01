@@ -96,6 +96,10 @@ public abstract class HadoopCLKernel extends Kernel {
           this.globalsMap[globalBucketId], 
           globalBucketId == this.globalsMap.length-1 ?
             this.globalsInd.length : this.globalsMap[globalBucketId+1]);
+      // return HadoopCLUtils.linearSearch(this.globalsMapInd, sparseIndex,
+      //     this.globalsMap[globalBucketId], 
+      //     globalBucketId == this.globalsMap.length-1 ?
+      //       this.globalsInd.length : this.globalsMap[globalBucketId+1]);
     }
 
     protected double referenceGlobalVal(int gid, int sparseIndex) {

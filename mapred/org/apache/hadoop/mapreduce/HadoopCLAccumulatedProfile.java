@@ -4,6 +4,7 @@ public class HadoopCLAccumulatedProfile {
     private long accumRead = 0;
     private long accumKernel = 0;
     private long accumWrite = 0;
+    private long accumKeys = 0;
     private long overallTime = 0;
 
     private long startRead = -1;
@@ -23,6 +24,7 @@ public class HadoopCLAccumulatedProfile {
             throw new RuntimeException("Overwriting last read start time");
         }
         this.startRead = System.currentTimeMillis();
+        this.accumKeys++;
     }
 
     public void startKernel() {
@@ -76,6 +78,9 @@ public class HadoopCLAccumulatedProfile {
     public long totalWriteTime() {
         return this.accumWrite;
     }
+    public long totalKeysProcessed() {
+      return this.accumKeys;
+    }
 
     @Override
     public String toString() {
@@ -88,7 +93,8 @@ public class HadoopCLAccumulatedProfile {
         sb.append(this.accumKernel);
         sb.append(" ms, writeTime=");
         sb.append(this.accumWrite);
-        sb.append(" ms");
+        sb.append(" ms, keysProcessed=");
+        sb.append(this.accumKeys);
         return sb.toString();
     }
 }

@@ -215,20 +215,8 @@ public class OpenCLDriver {
             kernelManager, clContext, this.spillLock);
     Thread thread = new Thread(runner);
     thread.start();
-    // ToOpenCLThread.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
-    // ToHadoopThread.toWrite = new HadoopCLLimitedQueue<HadoopCLOutputBuffer>();
-
-    // ToHadoopThread th0 = new ToHadoopThread(this.clContext, outputManager, kernel);
-    // Thread hadoopThread = new Thread(th0);
-
-    // ToOpenCLThread runner = new ToOpenCLThread(kernel, inputManager, outputManager, clContext);
-    // Thread openclThread = new Thread(runner);
-
-    // openclThread.start();
-    // hadoopThread.start();
-
+    
     buffer.getProfile().startRead();
-    // System.err.println("Main starting buffering into "+buffer.id);
 
     while (this.context.nextKeyValue()) {
         if (buffer.isFull(this.context)) {
@@ -270,7 +258,6 @@ public class OpenCLDriver {
 
                 buffer.transferBufferedValues(newBuffer);
                 buffer.getProfile().stopRead();
-                // ToOpenCLThread.addWorkFromMain(buffer);
                 runner.addWork(buffer);
                 buffer = newBuffer;
             }
@@ -285,22 +272,17 @@ public class OpenCLDriver {
     buffer.getProfile().stopRead();
 
     if(buffer.hasWork()) {
-        // ToOpenCLThread.addWorkFromMain(buffer);
         runner.addWork(buffer);
     }
 
     runner.addWork(null);
-    // ToOpenCLThread.addWorkFromMain(null);
 
     thread.join();
-    // openclThread.join();
-    // hadoopThread.join();
 
     OpenCLDriver.processingFinish = System.currentTimeMillis();
 
     long stop = System.currentTimeMillis();
     System.out.println(profilesToString(stop-start, runner.profiles(), inputManager.timeWaiting(), outputManager.timeWaiting(), kernelManager.timeWaiting()));
-    // System.err.println(System.currentTimeMillis()+" Leaving OpenCLDriver");
   }
 
   /*

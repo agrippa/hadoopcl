@@ -68,7 +68,6 @@ class Child {
 
   public static void main(String[] args) throws Throwable {
     LOG.debug("Child starting");
-
     final JobConf defaultConf = new JobConf();
     String host = args[0];
     int port = Integer.parseInt(args[1]);

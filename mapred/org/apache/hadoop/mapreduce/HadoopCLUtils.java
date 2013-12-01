@@ -25,45 +25,37 @@ public class HadoopCLUtils {
         }
     }
 
-    protected static int reverseIterateHelper(int queueHead, int queueLength) {
-        int tmp = queueHead  -1;
+    protected static int reverseIterate(int queueHead,
+            int queueLength) {
+        int tmp = queueHead  - 1;
         return tmp < 0 ? queueLength-1 : tmp;
     }
 
-    protected static int forwardIterateHelper(int queueHead, int queueLength) {
+    protected static int forwardIterate(int queueHead,
+            int queueLength) {
         int tmp = queueHead + 1;
         return tmp >= queueLength ? 0 : tmp;
-    }
-
-    protected static int reverseIterate(int queueHead, int[] q,
-            int queueLength) {
-        return reverseIterateHelper(queueHead, queueLength);
-    }
-
-    protected static int forwardIterate(int queueHead, int[] q,
-            int queueLength) {
-        return forwardIterateHelper(queueHead, queueLength);
     }
 
     /*
      * Already know the first element has been used and is no longer needed
      */
     protected static void insert(int newIndex, int newVector,
-            int[] queueOfOffsets, int[] queueOfVectors, int queueLength,
+            int[] queueOfSparseIndices, int[] queueOfVectors, int queueLength,
             int queueHead) {
         int emptySlot = queueHead;
-        int checkingSlot = reverseIterate(emptySlot, queueOfOffsets,
+        int checkingSlot = reverseIterate(emptySlot,
                 queueLength);
 
-        while (queueOfOffsets[checkingSlot] > newIndex) {
-            queueOfOffsets[emptySlot] = queueOfOffsets[checkingSlot];
+        while (queueOfSparseIndices[checkingSlot] > newIndex) {
+            queueOfSparseIndices[emptySlot] = queueOfSparseIndices[checkingSlot];
             queueOfVectors[emptySlot] = queueOfVectors[checkingSlot];
             emptySlot = checkingSlot;
-            checkingSlot = reverseIterate(checkingSlot, queueOfOffsets,
+            checkingSlot = reverseIterate(checkingSlot,
                     queueLength);
         }
 
-        queueOfOffsets[emptySlot] = newIndex;
+        queueOfSparseIndices[emptySlot] = newIndex;
         queueOfVectors[emptySlot] = newVector;
     }
 
@@ -82,18 +74,19 @@ public class HadoopCLUtils {
      */
     public static int merge(HadoopCLFsvecValueIterator valsIter,
             int[] outputIndices, float[] outputVals, int totalNElements,
-            int[] vectorIndices, int[] queueOfOffsets, int[] queueOfVectors) {
+            int[] indicesIntoVectors,
+            int[] queueOfSparseIndices, int[] queueOfVectors) {
 
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
-            vectorIndices[i] = 0;
-            queueOfOffsets[i] = valsIter.getValIndices()[0];
+            indicesIntoVectors[i] = 0;
+            queueOfSparseIndices[i] = valsIter.getValIndices()[0];
             queueOfVectors[i] = i;
         }
 
-        // Sort queueOfOffsets so that the vectors with the smallest minimum
+        // Sort queueOfSparseIndices so that the vectors with the smallest minimum
         // index is at the front of the queue (i.e. index 0)
-        stupidSort(queueOfOffsets, queueOfVectors, valsIter.nValues());
+        stupidSort(queueOfSparseIndices, queueOfVectors, valsIter.nValues());
 
         // Current queue head, incremented as we pass through the queue
         int queueHead = 0;
@@ -101,8 +94,8 @@ public class HadoopCLUtils {
         // The number of individual input elements we've passed over so far.
         int nProcessed = 0;
         // The number of individual output elements we've written so far.
-        // This may be less than nProcessed if there are duplicated indices
-        // in different input vectors.
+        // This may be less than nProcessed if there are duplicated sparse
+        // indices in different input vectors.
         int nOutput = 0;
         // Current length of the queue
         int queueLength = valsIter.nValues();
@@ -116,7 +109,7 @@ public class HadoopCLUtils {
             boolean dontIncr = false;
 
             valsIter.seekTo(minVector);
-            int newIndex = ++vectorIndices[minVector];
+            int newIndex = ++indicesIntoVectors[minVector];
             int minIndex = valsIter.getValIndices()[newIndex-1];
             float minValue = valsIter.getValVals()[newIndex-1];
 
@@ -125,30 +118,37 @@ public class HadoopCLUtils {
                 // vector, start by grabbing the value of the next smallest
                 // index.
                 int tmp = valsIter.getValIndices()[newIndex];
-                if (tmp <= queueOfOffsets[forwardIterate(queueHead,
-                            queueOfOffsets, queueLength)]) {
+                if (tmp <= queueOfSparseIndices[forwardIterate(queueHead,
+                            queueLength)]) {
                     // If the next element in the current vector is also smaller
                     // than any of the current elements in the queue, just place
                     // it back at our current location in the circular queue and
                     // don't increment the queueHead below.
-                    queueOfOffsets[queueHead] = tmp;
+                    queueOfSparseIndices[queueHead] = tmp;
                     dontIncr = true;
                 } else {
                     // Otherwise, we need to insert our newly discovered min for
                     // the current vector back into the appropriate place in the
                     // queue.
                     insert(tmp, minVector,
-                            queueOfOffsets, queueOfVectors,
+                            queueOfSparseIndices, queueOfVectors,
                             queueLength, queueHead);
                 }
             } else {
                 // We've finished all of the elements in the current vector, so
                 // the queue can be resized down.
                 for (int i = queueHead + 1; i < queueLength; i++) {
-                    queueOfOffsets[i-1] = queueOfOffsets[i];
+                    queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
                     queueOfVectors[i-1] = queueOfVectors[i];
                 }
                 queueLength--;
+                /*
+                 * Decrementing queueHead will ensure that it either gets set
+                 * to the same location on the forwardIterate below, or wraps
+                 * around to the front of the queue (rather than special
+                 * casing that here).
+                 */
+                queueHead--;
             }
             nProcessed++;
 
@@ -165,7 +165,7 @@ public class HadoopCLUtils {
             // If we didn't find the next smallest index in the same vector,
             // need to iterate the queueHead to the next location.
             if (!dontIncr) {
-                queueHead = forwardIterate(queueHead, queueOfOffsets,
+                queueHead = forwardIterate(queueHead,
                         queueLength);
             }
         }
@@ -174,18 +174,19 @@ public class HadoopCLUtils {
 
     public static int merge(HadoopCLSvecValueIterator valsIter,
             int[] outputIndices, double[] outputVals, int totalNElements,
-            int[] vectorIndices, int[] queueOfOffsets, int[] queueOfVectors) {
+            int[] indicesIntoVectors,
+            int[] queueOfSparseIndices, int[] queueOfVectors) {
 
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
-            vectorIndices[i] = 0;
-            queueOfOffsets[i] = valsIter.getValIndices()[0];
+            indicesIntoVectors[i] = 0;
+            queueOfSparseIndices[i] = valsIter.getValIndices()[0];
             queueOfVectors[i] = i;
         }
 
-        // Sort queueOfOffsets so that the vectors with the smallest minimum
+        // Sort queueOfSparseIndices so that the vectors with the smallest minimum
         // index is at the front of the queue (i.e. index 0)
-        stupidSort(queueOfOffsets, queueOfVectors, valsIter.nValues());
+        stupidSort(queueOfSparseIndices, queueOfVectors, valsIter.nValues());
 
         // Current queue head, incremented as we pass through the queue
         int queueHead = 0;
@@ -193,8 +194,8 @@ public class HadoopCLUtils {
         // The number of individual input elements we've passed over so far.
         int nProcessed = 0;
         // The number of individual output elements we've written so far.
-        // This may be less than nProcessed if there are duplicated indices
-        // in different input vectors.
+        // This may be less than nProcessed if there are duplicated sparse
+        // indices in different input vectors.
         int nOutput = 0;
         // Current length of the queue
         int queueLength = valsIter.nValues();
@@ -208,7 +209,7 @@ public class HadoopCLUtils {
             boolean dontIncr = false;
 
             valsIter.seekTo(minVector);
-            int newIndex = ++vectorIndices[minVector];
+            int newIndex = ++indicesIntoVectors[minVector];
             int minIndex = valsIter.getValIndices()[newIndex-1];
             double minValue = valsIter.getValVals()[newIndex-1];
 
@@ -217,30 +218,37 @@ public class HadoopCLUtils {
                 // vector, start by grabbing the value of the next smallest
                 // index.
                 int tmp = valsIter.getValIndices()[newIndex];
-                if (tmp <= queueOfOffsets[forwardIterate(queueHead,
-                            queueOfOffsets, queueLength)]) {
+                if (tmp <= queueOfSparseIndices[forwardIterate(queueHead,
+                            queueLength)]) {
                     // If the next element in the current vector is also smaller
                     // than any of the current elements in the queue, just place
                     // it back at our current location in the circular queue and
                     // don't increment the queueHead below.
-                    queueOfOffsets[queueHead] = tmp;
+                    queueOfSparseIndices[queueHead] = tmp;
                     dontIncr = true;
                 } else {
                     // Otherwise, we need to insert our newly discovered min for
                     // the current vector back into the appropriate place in the
                     // queue.
                     insert(tmp, minVector,
-                            queueOfOffsets, queueOfVectors,
+                            queueOfSparseIndices, queueOfVectors,
                             queueLength, queueHead);
                 }
             } else {
                 // We've finished all of the elements in the current vector, so
                 // the queue can be resized down.
                 for (int i = queueHead + 1; i < queueLength; i++) {
-                    queueOfOffsets[i-1] = queueOfOffsets[i];
+                    queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
                     queueOfVectors[i-1] = queueOfVectors[i];
                 }
                 queueLength--;
+                /*
+                 * Decrementing queueHead will ensure that it either gets set
+                 * to the same location on the forwardIterate below, or wraps
+                 * around to the front of the queue (rather than special
+                 * casing that here).
+                 */
+                queueHead--;
             }
             nProcessed++;
 
@@ -257,7 +265,7 @@ public class HadoopCLUtils {
             // If we didn't find the next smallest index in the same vector,
             // need to iterate the queueHead to the next location.
             if (!dontIncr) {
-                queueHead = forwardIterate(queueHead, queueOfOffsets,
+                queueHead = forwardIterate(queueHead,
                         queueLength);
             }
         }
@@ -276,7 +284,6 @@ public class HadoopCLUtils {
       while (low <= high) {
         int mid = (high + low) / 2;
         int v = vals[mid];
-        // System.out.println("      low="+low+" high="+high+" mid="+mid+" v="+v+" find="+find);
         if (v == find) return mid;
         if (v > find) high = mid-1;
         else low = mid+1;

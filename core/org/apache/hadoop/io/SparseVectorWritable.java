@@ -155,6 +155,8 @@ public class SparseVectorWritable implements WritableComparable {
     }
 
     public boolean equals(Object o) {
+        if (this == o) return true;
+
         if(o instanceof SparseVectorWritable) {
             SparseVectorWritable other = (SparseVectorWritable)o;
             if(this.size() == other.size()) {
