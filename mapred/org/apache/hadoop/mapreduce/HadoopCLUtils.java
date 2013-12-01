@@ -43,30 +43,6 @@ public class HadoopCLUtils {
     }
 
     /*
-     * Already know the first element has been used and is no longer needed
-     */
-    protected static void insert(int newIndex, int newVector,
-            int[] queueOfSparseIndices, int[] queueOfVectors, int queueLength,
-            int queueHead) {
-        int emptySlot = queueHead;
-        int checkingSlot = reverseIterate(emptySlot,
-                queueLength);
-        int checkingSlotVal = queueOfSparseIndices[checkingSlot];
-
-        while (checkingSlotVal > newIndex) {
-            queueOfSparseIndices[emptySlot] = checkingSlotVal;
-            queueOfVectors[emptySlot] = queueOfVectors[checkingSlot];
-            emptySlot = checkingSlot;
-            checkingSlot = reverseIterate(checkingSlot,
-                    queueLength);
-            checkingSlotVal = queueOfSparseIndices[checkingSlot];
-        }
-
-        queueOfSparseIndices[emptySlot] = newIndex;
-        queueOfVectors[emptySlot] = newVector;
-    }
-
-    /*
      * 1. outputIndices and outputVals should be as long as the number of
      *    unique indices in the vectors referenced by valsIter.
      * 2. totalNElements should be the sum of all the vector lengths in
@@ -203,7 +179,7 @@ long overallStart = System.currentTimeMillis();
         for (int i = 0; i < valsIter.nValues()-1; i++) {
             queueOfSparseIndicesLinks[i] = i+1;
         }
-        queueOfSparseIndicesLinks[i-1] = -1;
+        queueOfSparseIndicesLinks[valsIter.nValues()-1] = -1;
 
         // Current queue head, incremented as we pass through the queue
         int queueHead = 0;
@@ -257,7 +233,7 @@ long shiftAccum = 0;
             } else {
                 // This slot is no longer valid, if we arrive at it we want to
                 // crash
-                queueofSparseIndicesLinks[queueHead] = -1;
+                queueOfSparseIndicesLinks[queueHead] = -1;
             }
             nProcessed++;
 
