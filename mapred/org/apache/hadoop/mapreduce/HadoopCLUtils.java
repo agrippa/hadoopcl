@@ -139,20 +139,18 @@ public class HadoopCLUtils {
             } else {
                 // We've finished all of the elements in the current vector, so
                 // the queue can be resized down.
-                queueOfSparseIndices[queueHead] = Integer.MAX_VALUE;
-
-                // for (int i = queueHead + 1; i < queueLength; i++) {
-                //     queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
-                //     queueOfVectors[i-1] = queueOfVectors[i];
-                // }
-                // queueLength--;
-                // /*
-                //  * Decrementing queueHead will ensure that it either gets set
-                //  * to the same location on the forwardIterate below, or wraps
-                //  * around to the front of the queue (rather than special
-                //  * casing that here).
-                //  */
-                // queueHead--;
+                for (int i = queueHead + 1; i < queueLength; i++) {
+                    queueOfSparseIndices[i-1] = queueOfSparseIndices[i];
+                    queueOfVectors[i-1] = queueOfVectors[i];
+                }
+                queueLength--;
+                /*
+                 * Decrementing queueHead will ensure that it either gets set
+                 * to the same location on the forwardIterate below, or wraps
+                 * around to the front of the queue (rather than special
+                 * casing that here).
+                 */
+                queueHead--;
             }
             nProcessed++;
 
