@@ -25,8 +25,8 @@ public class HadoopCLUtils {
         }
     }
 
-    protected static int findNextSmallestLong(int sparseIndex, int startIndex,
-            int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len) {
+    protected static int findNextSmallest(int sparseIndex, int startIndex,
+            int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks) {
         int index = startIndex;
         int prev = -1;
 
@@ -38,40 +38,6 @@ public class HadoopCLUtils {
 
         return prev;
     }
-
-    protected static int findNextSmallestShort(int sparseIndex, int startIndex,
-        int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len, int minValid, int maxValid) {
-      int bestSoFar = -1;
-      int bestSoFarIndex = -1;
-      for (int i = minValid; i <= maxValid; i++) {
-        int curr = queueOfSparseIndices[i];
-        if (curr < sparseIndex) {
-          if (bestSoFarIndex == -1 || curr > bestSoFar) {
-            bestSoFar = curr;
-            bestSoFarIndex = i;
-          } else if (curr == bestSoFar) {
-            int nextOfCurr = queueOfSparseIndicesLinks[i];
-            if (nextOfCurr == -1 || queueOfSparseIndices[nextOfCurr] != curr) {
-              bestSoFarIndex = i;
-            }
-          }
-        }
-      }
-      return bestSoFarIndex;
-    }
-
-    protected static int findNextSmallest(int sparseIndex, int startIndex,
-        int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len,
-        int minValid, int maxValid) {
-      if (maxValid - minValid < 20) {
-        return findNextSmallestShort(sparseIndex, startIndex, queueOfSparseIndices,
-            queueOfSparseIndicesLinks, len, minValid, maxValid);
-      } else {
-        return findNextSmallestLong(sparseIndex, startIndex, queueOfSparseIndices,
-            queueOfSparseIndicesLinks, len);
-      }
-    }
-
     /*
      * 1. outputIndices and outputVals should be as long as the number of
      *    unique indices in the vectors referenced by valsIter.
@@ -193,9 +159,6 @@ public class HadoopCLUtils {
             int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks,
             int[] queueOfVectors) {
 
-        int minValid = 0;
-        int maxValid = valsIter.nValues()-1;
-
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
             indicesIntoVectors[i] = 0;
@@ -242,8 +205,7 @@ public class HadoopCLUtils {
 
                 int indexToInsertAfter = findNextSmallest(nextIndexInVector,
                         queueHead,
-                        queueOfSparseIndices, queueOfSparseIndicesLinks, valsIter.nValues(),
-                        minValid, maxValid);
+                        queueOfSparseIndices, queueOfSparseIndicesLinks);
                 int next = queueOfSparseIndicesLinks[indexToInsertAfter];
 
                 // Don't need to update queueOfVectors, stays the same value
@@ -259,12 +221,6 @@ public class HadoopCLUtils {
                 // crash
                 queueOfSparseIndicesLinks[queueHead] = -1;
                 queueOfSparseIndices[queueHead] = Integer.MAX_VALUE;
-
-                if (queueHead == minValid) {
-                  while (minValid < valsIter.nValues() && queueOfSparseIndices[minValid] == Integer.MAX_VALUE) minValid++;
-                } else if (queueHead == maxValid) {
-                  while (maxValid >= 0 && queueOfSparseIndices[maxValid] == Integer.MAX_VALUE) maxValid--;
-                }
             }
             nProcessed++;
 

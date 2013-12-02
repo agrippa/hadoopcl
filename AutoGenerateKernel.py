@@ -615,14 +615,14 @@ class SvecVisitor(NativeTypeVisitor):
     def getBufferedInit(self):
         return [ ]
     def getResetHelper(self):
-        return [ 'List<HadoopCLResizableIntArray> accIndices = new ArrayList<HadoopCLResizableIntArray>();',
-                 'List<HadoopCLResizableDoubleArray> accVals = new ArrayList<HadoopCLResizableDoubleArray>();' ]
+        return [ 'List<int[]> accIndices = new ArrayList<int[]>();',
+                 'List<double[]> accVals = new ArrayList<double[]>();' ]
     def getAddValHelper(self):
-        return [ 'HadoopCLResizableIntArray indices = new HadoopCLResizableIntArray();',
-                 'HadoopCLResizableDoubleArray vals = new HadoopCLResizableDoubleArray();',
+        return [ 'int[] indices = new int[v.size()];',
+                 'double[] vals = new double[v.size()];',
                  'for(int i = 0; i < v.size(); i++) {',
-                 '    indices.add(v.indices()[i]);',
-                 '    vals.add(v.vals()[i]);',
+                 '    indices[i] = v.indices()[i];',
+                 '    vals[i] = v.vals()[i];',
                  '}',
                  'accIndices.add(indices);',
                  'accVals.add(vals);' ]
@@ -824,13 +824,13 @@ class IvecVisitor(NativeTypeVisitor):
     def getBufferedInit(self):
         return [ ]
     def getResetHelper(self):
-        return [ 'List<HadoopCLResizableIntArray> acc = new ArrayList<HadoopCLResizableIntArray>();' ]
+        return [ 'List<int[]> acc = new ArrayList<int[]>();' ]
     def getAddValHelper(self):
-        return [ 'HadoopCLResizableIntArray vals = new HadoopCLResizableIntArray();',
+        return [ 'int[] vals = new int[v.size()];',
                  'for(int i = 0; i < v.size(); i++) {',
-                 '    vals.add(v.getArray()[i]);',
+                 '    vals[i] = v.getArray()[i];',
                  '}',
-                 'acc.add(indices);' ]
+                 'acc.add(vals);' ]
     def getJavaProcessReducerCall(self):
         return [ 'new HadoopCLIvecValueIterator(acc));' ]
     def getSpace(self, isMapper, isInput, isKey):
@@ -1061,14 +1061,14 @@ class FsvecVisitor(NativeTypeVisitor):
     def getBufferedInit(self):
         return [ ]
     def getResetHelper(self):
-        return [ 'List<HadoopCLResizableIntArray> accIndices = new ArrayList<HadoopCLResizableIntArray>();',
-                 'List<HadoopCLResizableFloatArray> accVals = new ArrayList<HadoopCLResizableFloatArray>();' ]
+        return [ 'List<int[]> accIndices = new ArrayList<int[]>();',
+                 'List<float[]> accVals = new ArrayList<float[]>();' ]
     def getAddValHelper(self):
-        return [ 'HadoopCLResizableIntArray indices = new HadoopCLResizableIntArray();',
-                 'HadoopCLResizableFloatArray vals = new HadoopCLResizableFloatArray();',
+        return [ 'int[] indices = new int[v.size()];',
+                 'float[] vals = new float[v.size()];',
                  'for(int i = 0; i < v.size(); i++) {',
-                 '    indices.add(v.indices()[i]);',
-                 '    vals.add(v.vals()[i]);',
+                 '    indices[i] = v.indices()[i];',
+                 '    vals[i] = v.vals()[i];',
                  '}',
                  'accIndices.add(indices);',
                  'accVals.add(vals);' ]

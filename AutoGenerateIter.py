@@ -82,14 +82,17 @@ class ImportVisitor(IterTypeVisitor):
     def processSvec(self):
         return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
                 'import org.apache.hadoop.io.HadoopCLResizableDoubleArray;',
-                'import java.util.HashMap;', 'import java.util.List;' ]
+                'import java.util.HashMap;', 'import java.util.List;',
+                'import java.util.ArrayList;' ]
     def processIvec(self):
         return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
-                'import java.util.HashMap;', 'import java.util.List;' ]
+                'import java.util.HashMap;', 'import java.util.List;',
+                'import java.util.ArrayList;' ]
     def processFsvec(self):
         return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
                 'import org.apache.hadoop.io.HadoopCLResizableFloatArray;',
-                'import java.util.HashMap;', 'import java.util.List;' ]
+                'import java.util.HashMap;', 'import java.util.List;',
+                'import java.util.ArrayList;' ]
 
 class FieldDeclarationVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
@@ -103,15 +106,15 @@ class FieldDeclarationVisitor(IterTypeVisitor):
                  '    private double[] vals2;', '    int len;',
                  '    private int currentIndex;' ]
     def processSvec(self):
-        return [ '    private List<HadoopCLResizableIntArray> indices;',
-                 '    private List<HadoopCLResizableDoubleArray> vals;',
+        return [ '    private List<int[]> indices;',
+                 '    private List<double[]> vals;',
                  '    private int currentIndex;', '    private int len;' ]
     def processIvec(self):
-        return [ '    private List<HadoopCLResizableIntArray> vals;',
+        return [ '    private List<int[]> vals;',
                  '    private int currentIndex;', '    private int len;' ]
     def processFsvec(self):
-        return [ '    private List<HadoopCLResizableIntArray> indices;',
-                 '    private List<HadoopCLResizableFloatArray> vals;',
+        return [ '    private List<int[]> indices;',
+                 '    private List<float[]> vals;',
                  '    private int currentIndex;', '    private int len;' ]
 
 class ConstructorVisitor(IterTypeVisitor):
@@ -139,8 +142,8 @@ class ConstructorVisitor(IterTypeVisitor):
     def processSvec(self):
         lines = [ ]
         lines.append('    public HadoopCL'+NativeToJavaVisitor().process('svec')+
-                """ValueIterator(List<HadoopCLResizableIntArray> indices,
-                List<HadoopCLResizableDoubleArray> vals) {""")
+                """ValueIterator(List<int[]> indices,
+                List<double[]> vals) {""")
         lines.append('        this.indices = indices;')
         lines.append('        this.vals = vals;')
         lines.append('        this.len = indices.size();')
@@ -150,7 +153,7 @@ class ConstructorVisitor(IterTypeVisitor):
     def processIvec(self):
         lines = [ ]
         lines.append('    public HadoopCL'+NativeToJavaVisitor().process('ivec')+
-                """ValueIterator(List<HadoopCLResizableIntArray> vals) {""")
+                """ValueIterator(List<int[]> vals) {""")
         lines.append('        this.vals = vals;')
         lines.append('        this.len = vals.size();')
         lines.append('        this.currentIndex = 0;')
@@ -159,8 +162,8 @@ class ConstructorVisitor(IterTypeVisitor):
     def processFsvec(self):
         lines = [ ]
         lines.append('    public HadoopCL'+NativeToJavaVisitor().process('fsvec')+
-                """ValueIterator(List<HadoopCLResizableIntArray> indices,
-                List<HadoopCLResizableFloatArray> vals) {""")
+                """ValueIterator(List<int[]> indices,
+                List<float[]> vals) {""")
         lines.append('        this.indices = indices;')
         lines.append('        this.vals = vals;')
         lines.append('        this.len = indices.size();')
@@ -203,27 +206,27 @@ class GetterVisitor(IterTypeVisitor):
     def processSvec(self):
         lines = [ ]
         lines.append('    public int[] getValIndices() {')
-        lines.append('        return (int[])this.indices.get(this.currentIndex).getArray();')
+        lines.append('        return this.indices.get(this.currentIndex);')
         lines.append('    }')
         lines.append('')
         lines.append('    public double[] getValVals() {')
-        lines.append('        return (double[])this.vals.get(this.currentIndex).getArray();')
+        lines.append('        return this.vals.get(this.currentIndex);')
         lines.append('    }')
         return lines
     def processIvec(self):
         lines = [ ]
         lines.append('    public int[] getArray() {')
-        lines.append('        return (int[])this.vals.get(this.currentIndex).getArray();')
+        lines.append('        return this.vals.get(this.currentIndex);')
         lines.append('    }')
         return lines
     def processFsvec(self):
         lines = [ ]
         lines.append('    public int[] getValIndices() {')
-        lines.append('        return (int[])this.indices.get(this.currentIndex).getArray();')
+        lines.append('        return this.indices.get(this.currentIndex);')
         lines.append('    }')
         lines.append('')
         lines.append('    public float[] getValVals() {')
-        lines.append('        return (float[])this.vals.get(this.currentIndex).getArray();')
+        lines.append('        return this.vals.get(this.currentIndex);')
         lines.append('    }')
         return lines
 
@@ -271,7 +274,7 @@ GetterVisitor().write(typ, fp)
 fp.write('\n')
 if typ == 'svec' or typ == 'ivec' or typ == 'fsvec':
     fp.write('    public int vectorLength(int index) {\n')
-    fp.write('        return this.indices.get(index).size();\n')
+    fp.write('        return this.indices.get(index).length;\n')
     fp.write('    }\n')
     fp.write('\n')
     fp.write('    public int currentVectorLength() {\n')
