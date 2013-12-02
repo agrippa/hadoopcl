@@ -25,6 +25,7 @@ public class HadoopCLUtils {
         }
     }
 
+    /*
     protected static int findNextSmallest(int sparseIndex, int startIndex,
             int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks) {
         int index = startIndex;
@@ -37,6 +38,27 @@ public class HadoopCLUtils {
         }
 
         return prev;
+    }
+    */
+    protected static int findNextSmallest(int sparseIndex, int startIndex,
+        int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len) {
+      int bestSoFar = -1;
+      int bestSoFarIndex = -1;
+      for (int i =0 ; i < len; i++) {
+        int curr = queueOfSparseIndices[i];
+        if (curr < sparseIndex) {
+          if (bestSoFarIndex == -1 || curr < bestSoFar) {
+            bestSoFar = curr;
+            bestSoFarIndex = i;
+          } else if (curr == bestSoFar) {
+            int nextOfCurr = queueOfSparseIndicesLinks[i];
+            if (nextOfCurr == -1 || queueOfSparseIndices[nextOfCurr] != curr) {
+              bestSoFarIndex = i;
+            }
+          }
+        }
+      }
+      return bestSoFarIndex;
     }
 
     /*
@@ -158,8 +180,10 @@ public class HadoopCLUtils {
             int[] outputIndices, double[] outputVals, int totalNElements,
             int[] indicesIntoVectors,
             int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks,
-            int[] queueOfVectors) {
+            int[] queueOfVectors, int id) {
 
+long overallStart = System.currentTimeMillis();
+long accumFind = 0;
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
             indicesIntoVectors[i] = 0;
@@ -187,6 +211,12 @@ public class HadoopCLUtils {
 
         // While we haven't processed all input elements.
         while (nProcessed < totalNElements) {
+            if (id == 35964) {
+              System.out.println("queueHead="+queueHead);
+              for (int i =0 ; i < valsIter.nValues(); i++) {
+                System.out.print(queueOfSparseIndices[i]+":"+queueOfSparseIndicesLinks[i]+" ");
+              }
+            }
 
             // Retrieve the vector ID in the input vals which has the
             // smallest minimum index that hasn't been processed so far.
@@ -204,10 +234,23 @@ public class HadoopCLUtils {
                 // index.
                 int nextIndexInVector = valsIter.getValIndices()[newIndex];
 
+long startFind = System.currentTimeMillis();
                 int indexToInsertAfter = findNextSmallest(nextIndexInVector,
                         queueHead,
-                        queueOfSparseIndices, queueOfSparseIndicesLinks);
-                int next = queueOfSparseIndicesLinks[indexToInsertAfter];
+                        queueOfSparseIndices, queueOfSparseIndicesLinks, valsIter.nValues());
+accumFind += (System.currentTimeMillis() - startFind);
+                int next;
+                try {
+                  next = queueOfSparseIndicesLinks[indexToInsertAfter];
+                } catch(java.lang.ArrayIndexOutOfBoundsException e) {
+                  System.out.println("indexToInsertAfter="+indexToInsertAfter+" nextIndexInVector="+nextIndexInVector+" todoNext="+todoNext+" nValues="+valsIter.nValues());
+                  System.out.println("queueHead="+queueHead+" id="+id);
+                  for (int i =0 ; i < valsIter.nValues(); i++) {
+                    System.out.print(queueOfSparseIndices[i]+":"+queueOfSparseIndicesLinks[i]+" ");
+                  }
+                  System.out.println();
+                  throw e;
+                }
 
                 // Don't need to update queueOfVectors, stays the same value
                 queueOfSparseIndices[queueHead] = nextIndexInVector;
@@ -221,6 +264,7 @@ public class HadoopCLUtils {
                 // This slot is no longer valid, if we arrive at it we want to
                 // crash
                 queueOfSparseIndicesLinks[queueHead] = -1;
+                queueOfSparseIndices[queueHead] = Integer.MAX_VALUE;
             }
             nProcessed++;
 
@@ -239,6 +283,9 @@ public class HadoopCLUtils {
             queueHead = todoNext;
         }
 
+
+long overallStop = System.currentTimeMillis();
+// System.out.println("Merge profiling: overall "+(overallStop-overallStart)+" find "+accumFind);
         return nOutput;
     }
    
