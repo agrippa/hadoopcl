@@ -106,15 +106,15 @@ class FieldDeclarationVisitor(IterTypeVisitor):
                  '    private double[] vals2;', '    int len;',
                  '    private int currentIndex;' ]
     def processSvec(self):
-        return [ '    private List<int[]> indices;',
-                 '    private List<double[]> vals;',
+        return [ '    private final List<int[]> indices;',
+                 '    private final List<double[]> vals;',
                  '    private int currentIndex;', '    private int len;' ]
     def processIvec(self):
-        return [ '    private List<int[]> vals;',
+        return [ '    private final List<int[]> vals;',
                  '    private int currentIndex;', '    private int len;' ]
     def processFsvec(self):
-        return [ '    private List<int[]> indices;',
-                 '    private List<float[]> vals;',
+        return [ '    private final List<int[]> indices;',
+                 '    private final List<float[]> vals;',
                  '    private int currentIndex;', '    private int len;' ]
 
 class ConstructorVisitor(IterTypeVisitor):
