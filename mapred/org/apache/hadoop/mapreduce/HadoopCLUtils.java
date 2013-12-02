@@ -25,18 +25,16 @@ public class HadoopCLUtils {
         }
     }
 
-    protected static int forwardIterate(int queueHead, int[] links) {
-        return links[queueHead];
-    }
-
     protected static int findNextSmallest(int sparseIndex, int startIndex,
             int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks) {
         int index = startIndex;
         int prev = -1;
+        int next;
 
-        while (index != -1 && queueOfSparseIndices[index] < sparseIndex) {
+        while (index != -1 && (next = queueOfSparseIndices[index]) <
+                sparseIndex) {
             prev = index;
-            index = forwardIterate(index, queueOfSparseIndicesLinks);
+            index = next;
         }
 
         return prev;
