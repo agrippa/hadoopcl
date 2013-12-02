@@ -25,9 +25,8 @@ public class HadoopCLUtils {
         }
     }
 
-    /*
-    protected static int findNextSmallest(int sparseIndex, int startIndex,
-            int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks) {
+    protected static int findNextSmallestLong(int sparseIndex, int startIndex,
+            int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len) {
         int index = startIndex;
         int prev = -1;
 
@@ -39,15 +38,15 @@ public class HadoopCLUtils {
 
         return prev;
     }
-    */
-    protected static int findNextSmallest(int sparseIndex, int startIndex,
-        int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len) {
+
+    protected static int findNextSmallestShort(int sparseIndex, int startIndex,
+        int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len, int minValid, int maxValid) {
       int bestSoFar = -1;
       int bestSoFarIndex = -1;
-      for (int i =0 ; i < len; i++) {
+      for (int i = minValid; i <= maxValid; i++) {
         int curr = queueOfSparseIndices[i];
         if (curr < sparseIndex) {
-          if (bestSoFarIndex == -1 || curr < bestSoFar) {
+          if (bestSoFarIndex == -1 || curr > bestSoFar) {
             bestSoFar = curr;
             bestSoFarIndex = i;
           } else if (curr == bestSoFar) {
@@ -59,6 +58,18 @@ public class HadoopCLUtils {
         }
       }
       return bestSoFarIndex;
+    }
+
+    protected static int findNextSmallest(int sparseIndex, int startIndex,
+        int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks, int len,
+        int minValid, int maxValid) {
+      if (maxValid - minValid < 20) {
+        return findNextSmallestShort(sparseIndex, startIndex, queueOfSparseIndices,
+            queueOfSparseIndicesLinks, len, minValid, maxValid);
+      } else {
+        return findNextSmallestLong(sparseIndex, startIndex, queueOfSparseIndices,
+            queueOfSparseIndicesLinks, len);
+      }
     }
 
     /*
@@ -180,10 +191,11 @@ public class HadoopCLUtils {
             int[] outputIndices, double[] outputVals, int totalNElements,
             int[] indicesIntoVectors,
             int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks,
-            int[] queueOfVectors, int id) {
+            int[] queueOfVectors) {
 
-long overallStart = System.currentTimeMillis();
-long accumFind = 0;
+        int minValid = 0;
+        int maxValid = valsIter.nValues()-1;
+
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
             indicesIntoVectors[i] = 0;
@@ -211,12 +223,6 @@ long accumFind = 0;
 
         // While we haven't processed all input elements.
         while (nProcessed < totalNElements) {
-            if (id == 35964) {
-              System.out.println("queueHead="+queueHead);
-              for (int i =0 ; i < valsIter.nValues(); i++) {
-                System.out.print(queueOfSparseIndices[i]+":"+queueOfSparseIndicesLinks[i]+" ");
-              }
-            }
 
             // Retrieve the vector ID in the input vals which has the
             // smallest minimum index that hasn't been processed so far.
@@ -234,23 +240,11 @@ long accumFind = 0;
                 // index.
                 int nextIndexInVector = valsIter.getValIndices()[newIndex];
 
-long startFind = System.currentTimeMillis();
                 int indexToInsertAfter = findNextSmallest(nextIndexInVector,
                         queueHead,
-                        queueOfSparseIndices, queueOfSparseIndicesLinks, valsIter.nValues());
-accumFind += (System.currentTimeMillis() - startFind);
-                int next;
-                try {
-                  next = queueOfSparseIndicesLinks[indexToInsertAfter];
-                } catch(java.lang.ArrayIndexOutOfBoundsException e) {
-                  System.out.println("indexToInsertAfter="+indexToInsertAfter+" nextIndexInVector="+nextIndexInVector+" todoNext="+todoNext+" nValues="+valsIter.nValues());
-                  System.out.println("queueHead="+queueHead+" id="+id);
-                  for (int i =0 ; i < valsIter.nValues(); i++) {
-                    System.out.print(queueOfSparseIndices[i]+":"+queueOfSparseIndicesLinks[i]+" ");
-                  }
-                  System.out.println();
-                  throw e;
-                }
+                        queueOfSparseIndices, queueOfSparseIndicesLinks, valsIter.nValues(),
+                        minValid, maxValid);
+                int next = queueOfSparseIndicesLinks[indexToInsertAfter];
 
                 // Don't need to update queueOfVectors, stays the same value
                 queueOfSparseIndices[queueHead] = nextIndexInVector;
@@ -265,6 +259,12 @@ accumFind += (System.currentTimeMillis() - startFind);
                 // crash
                 queueOfSparseIndicesLinks[queueHead] = -1;
                 queueOfSparseIndices[queueHead] = Integer.MAX_VALUE;
+
+                if (queueHead == minValid) {
+                  while (minValid < valsIter.nValues() && queueOfSparseIndices[minValid] == Integer.MAX_VALUE) minValid++;
+                } else if (queueHead == maxValid) {
+                  while (maxValid >= 0 && queueOfSparseIndices[maxValid] == Integer.MAX_VALUE) maxValid--;
+                }
             }
             nProcessed++;
 
@@ -283,9 +283,6 @@ accumFind += (System.currentTimeMillis() - startFind);
             queueHead = todoNext;
         }
 
-
-long overallStop = System.currentTimeMillis();
-// System.out.println("Merge profiling: overall "+(overallStop-overallStart)+" find "+accumFind);
         return nOutput;
     }
    
