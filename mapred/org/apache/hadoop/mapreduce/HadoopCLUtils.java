@@ -33,7 +33,7 @@ public class HadoopCLUtils {
         while (index != -1 && queueOfSparseIndices[index] <
                 sparseIndex) {
             prev = index;
-            index = queueOfSparseIndices[index];
+            index = queueOfSparseIndicesLinks[index];
         }
 
         return prev;
