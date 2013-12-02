@@ -168,16 +168,13 @@ public class HadoopCLUtils {
             indicesIntoVectors[i] = 0;
             queueOfSparseIndices[i] = valsIter.getValIndices()[0];
             queueOfVectors[i] = i;
+            queueOfSparseIndicesLinks[i] = i+1;
         }
+        queueOfSparseIndicesLinks[valsIter.nValues()-1] = -1;
 
         // Sort queueOfSparseIndices so that the vectors with the smallest
         // minimum index is at the front of the queue (i.e. index 0).
         stupidSort(queueOfSparseIndices, queueOfVectors, valsIter.nValues());
-
-        for (int i = 0; i < valsIter.nValues()-1; i++) {
-            queueOfSparseIndicesLinks[i] = i+1;
-        }
-        queueOfSparseIndicesLinks[valsIter.nValues()-1] = -1;
 
         // Current queue head, incremented as we pass through the queue
         int queueHead = 0;
@@ -197,7 +194,6 @@ public class HadoopCLUtils {
             // Retrieve the vector ID in the input vals which has the
             // smallest minimum index that hasn't been processed so far.
             int minVector = queueOfVectors[queueHead];
-            boolean dontIncr = false;
 
             valsIter.seekTo(minVector);
             int newIndex = ++indicesIntoVectors[minVector];
