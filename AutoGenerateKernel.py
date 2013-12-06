@@ -128,8 +128,9 @@ class PrimitiveVisitor(NativeTypeVisitor):
     def getKernelCall(self, basename, isKey):
         return [ 'input'+basename+'s[3]' ]
     def getKernelCallIter(self):
-        return [ 'new HadoopCL'+self.typ.capitalize()+
-                 'ValueIterator(inputVals, stopOffset-startOffset)' ]
+        return [ 'null' ]
+        # return [ 'new HadoopCL'+self.typ.capitalize()+
+        #          'ValueIterator(inputVals, stopOffset-startOffset)' ]
     def getOriginalInitMethod(self):
         return [ 'this.tempBuffer1 = new HadoopCLResizable'+self.typ.capitalize()+'Array();' ]
     def getSetupParameter(self, basename, isInput, isKey):
@@ -210,7 +211,8 @@ class PairVisitor(NativeTypeVisitor):
     def getKernelCall(self, basename, isKey):
         return [ 'input'+basename+'s1[3], input'+basename+'s2[3]' ]
     def getKernelCallIter(self):
-        return [ 'new HadoopCLPairValueIterator(inputVals1, inputVals2, stopOffset-startOffset)' ]
+        return [ 'null' ]
+        # return [ 'new HadoopCLPairValueIterator(inputVals1, inputVals2, stopOffset-startOffset)' ]
     def getOriginalInitMethod(self):
         return [ 'this.tempBuffer1 = new HadoopCLResizableDoubleArray();',
                  'this.tempBuffer2 = new HadoopCLResizableDoubleArray();' ]
@@ -312,7 +314,8 @@ class IpairVisitor(NativeTypeVisitor):
     def getKernelCall(self, basename, isKey):
         return [ 'input'+basename+'Ids[3], input'+basename+'s1[3], input'+basename+'s2[3]' ]
     def getKernelCallIter(self):
-        return [ 'new HadoopCLUPairValueIterator(inputValIds, inputVals1, inputVals2, stopOffset-startOffset)' ]
+        return [ 'null' ]
+        # return [ 'new HadoopCLUPairValueIterator(inputValIds, inputVals1, inputVals2, stopOffset-startOffset)' ]
     def getOriginalInitMethod(self):
         return [ 'this.tempBuffer1 = new HadoopCLResizableIntArray();',
                  'this.tempBuffer2 = new HadoopCLResizableDoubleArray();',
@@ -454,7 +457,8 @@ class SvecVisitor(NativeTypeVisitor):
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
-        if isMapper and not isInput and not isKey:
+        # if isMapper and not isInput and not isKey:
+        if not isInput and not isKey:
             buf.append('outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxDoubleIncr = new int[1];')
@@ -487,7 +491,8 @@ class SvecVisitor(NativeTypeVisitor):
             raise RuntimeError('Unsupported key type svec')
         return [ 'input'+basename+'Indices, input'+basename+'Vals, input'+basename+'LookAsideBuffer[3] + this.nPairs + this.individualInputValsCount' ]
     def getKernelCallIter(self):
-        return [ 'new HadoopCLSvecValueIterator(null, null)' ]
+        return [ 'null' ]
+        # return [ 'new HadoopCLSvecValueIterator(null, null)' ]
     def getOriginalInitMethod(self):
         return [ 'this.tempBuffer1 = new HadoopCLResizableIntArray();',
                  'this.tempBuffer2 = new HadoopCLResizableIntArray();',
@@ -618,14 +623,8 @@ class SvecVisitor(NativeTypeVisitor):
         return [ 'List<int[]> accIndices = new ArrayList<int[]>();',
                  'List<double[]> accVals = new ArrayList<double[]>();' ]
     def getAddValHelper(self):
-        return [ 'int[] indices = new int[v.size()];',
-                 'double[] vals = new double[v.size()];',
-                 'for(int i = 0; i < v.size(); i++) {',
-                 '    indices[i] = v.indices()[i];',
-                 '    vals[i] = v.vals()[i];',
-                 '}',
-                 'accIndices.add(indices);',
-                 'accVals.add(vals);' ]
+        return [ 'accIndices.add(v.indices());',
+                 'accVals.add(v.vals());' ]
     def getJavaProcessReducerCall(self):
         return [ """new HadoopCLSvecValueIterator(
                        accIndices, accVals));""" ]
@@ -719,7 +718,8 @@ class IvecVisitor(NativeTypeVisitor):
             raise RuntimeError('Unsupported key type svec')
         return [ 'input'+basename+', input'+basename+'LookAsideBuffer[3] + this.nPairs + this.individualInputValsCount' ]
     def getKernelCallIter(self):
-        return [ 'new HadoopCLIvecValueIterator(null)' ]
+        return [ 'null' ]
+        # return [ 'new HadoopCLIvecValueIterator(null)' ]
     def getOriginalInitMethod(self):
         return [ 'this.tempBuffer1 = new HadoopCLResizableIntArray();',
                  'this.tempBuffer2 = new HadoopCLResizableIntArray();' ]
@@ -826,11 +826,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getResetHelper(self):
         return [ 'List<int[]> acc = new ArrayList<int[]>();' ]
     def getAddValHelper(self):
-        return [ 'int[] vals = new int[v.size()];',
-                 'for(int i = 0; i < v.size(); i++) {',
-                 '    vals[i] = v.getArray()[i];',
-                 '}',
-                 'acc.add(vals);' ]
+        return [ 'acc.add(v.getArray());' ]
     def getJavaProcessReducerCall(self):
         return [ 'new HadoopCLIvecValueIterator(acc));' ]
     def getSpace(self, isMapper, isInput, isKey):
@@ -933,7 +929,8 @@ class FsvecVisitor(NativeTypeVisitor):
             raise RuntimeError('Unsupported key type fsvec')
         return [ 'input'+basename+'Indices, input'+basename+'Vals, input'+basename+'LookAsideBuffer[3] + this.nPairs + this.individualInputValsCount' ]
     def getKernelCallIter(self):
-        return [ 'new HadoopCLFsvecValueIterator(null, null)' ]
+        return [ 'null' ]
+        # return [ 'new HadoopCLFsvecValueIterator(null, null)' ]
     def getOriginalInitMethod(self):
         return [ 'this.tempBuffer1 = new HadoopCLResizableIntArray();',
                  'this.tempBuffer2 = new HadoopCLResizableIntArray();',
@@ -1064,14 +1061,8 @@ class FsvecVisitor(NativeTypeVisitor):
         return [ 'List<int[]> accIndices = new ArrayList<int[]>();',
                  'List<float[]> accVals = new ArrayList<float[]>();' ]
     def getAddValHelper(self):
-        return [ 'int[] indices = new int[v.size()];',
-                 'float[] vals = new float[v.size()];',
-                 'for(int i = 0; i < v.size(); i++) {',
-                 '    indices[i] = v.indices()[i];',
-                 '    vals[i] = v.vals()[i];',
-                 '}',
-                 'accIndices.add(indices);',
-                 'accVals.add(vals);' ]
+        return [ 'accIndices.add(v.indices());',
+                 'accVals.add(v.vals());' ]
     def getJavaProcessReducerCall(self):
         return [ """new HadoopCLFsvecValueIterator(
                        accIndices, accVals));""" ]
@@ -1609,12 +1600,14 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
     else:
         fp.write('        this.nKeys = 0;\n')
         fp.write('        this.nVals = 0;\n')
+        if isVariableLength(nativeInputValueType):
+          fp.write('        this.individualInputValsCount = 0;\n')
         fp.write('        this.maxInputValsPerInputKey = 0;\n')
 
     fp.write('    }\n')
     fp.write('\n')
 
-def writeIsFullMethod(fp, isMapper, nativeInputValueType):
+def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType):
     fp.write('    @Override\n')
     fp.write('    public boolean isFull(TaskInputOutputContext context) throws IOException, InterruptedException {\n')
     if isMapper:
@@ -1650,7 +1643,16 @@ def writeIsFullMethod(fp, isMapper, nativeInputValueType):
         fp.write('        for(Object v : reduceContext.getValues()) {\n')
         fp.write('            bufferInputValue(v);\n')
         fp.write('        }\n')
-        fp.write('        return (this.nKeys == this.keyCapacity || this.nVals + this.numBufferedValues() > this.valCapacity);\n')
+        if nativeInputKeyType == 'pair' or nativeInputKeyType == 'ipair':
+          keysName = 'inputKeys1'
+        else:
+          keysName = 'inputKeys'
+        if isVariableLength(nativeInputValueType):
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.individualInputValsCount + this.tempBuffer2.size() > this.inputValIndices.length);\n')
+        elif nativeInputValueType == 'pair' or nativeInputValueType == 'ipair':
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals + this.numBufferedValues() > this.inputVals1.length);\n')
+        else:
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals + this.numBufferedValues() > this.inputVals.length);\n')
 
     fp.write('    }\n')
     fp.write('\n')
@@ -1661,7 +1663,7 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     # optimal for performance, but should be better than previously. Plus,
     # this isn't an issue if we don't have combiners and I think Pi is the
     # only existing primitives benchmark that uses combiners...
-    fp.write('            context.setUsingOpenCL(false);\n')
+    # fp.write('            context.setUsingOpenCL(false);\n')
     fp.write('            if (this.memIncr[0] != 0) {\n')
     writeln(visitor(nativeOutputKeyType).getLimitSetter(), 4, fp)
     fp.write('               for(int i = 0; i < limit; i++) {\n')
@@ -1710,13 +1712,13 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     fp.write('                   } while(someLeft);\n')
     fp.write('               }\n')
     fp.write('            }\n')
-    fp.write('            context.setUsingOpenCL(true);\n')
+    # fp.write('            context.setUsingOpenCL(true);\n')
     fp.write('            return -1;\n')
 
 def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
     fp.write('    @Override\n')
-    fp.write('    public int putOutputsIntoHadoop(TaskInputOutputContext context, ReentrantLock spillLock, int soFar) throws IOException, InterruptedException {\n')
+    fp.write('    public int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar) throws IOException, InterruptedException {\n')
     fp.write('        final '+hadoopOutputKeyType+'Writable saveKey = new '+hadoopOutputKeyType+'Writable();\n')
     if nativeOutputValueType == 'svec':
         # fp.write('        HadoopCLResizableIntArray indices = new HadoopCLResizableIntArray();\n')
@@ -1728,40 +1730,33 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         fp.write('        } else {\n')
         fp.write('            count = this.memIncr[0];\n')
         fp.write('        }\n')
-        fp.write('        int j = soFar;\n')
-        fp.write('        int i = soFar;\n')
-        fp.write('        try {\n')
-        fp.write('        for (; j < count; j += this.lockingInterval) {\n')
-        fp.write('            if (!spillLock.tryLock()) {\n')
-        fp.write('                return j;\n')
-        fp.write('            }\n')
-        fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
-        fp.write('            for (i = j; i < limit; i++) {\n')
+        # fp.write('        int j = soFar;\n')
+        # fp.write('        int i = soFar;\n')
+        # fp.write('        try {\n')
+        # fp.write('        for (; j < count; j += this.lockingInterval) {\n')
+        # fp.write('            if (!spillLock.tryLock()) {\n')
+        # fp.write('                return j;\n')
+        # fp.write('            }\n')
+        # fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
+        # fp.write('            for (i = j; i < limit; i++) {\n')
+        fp.write('              for (int i = 0; i < count; i++) {\n')
         fp.write('                int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
         fp.write('                int doubleStartOffset = this.outputValDoubleLookAsideBuffer[i];\n')
         fp.write('                int length = this.outputValLengthBuffer[i];\n')
         fp.write('                saveVal.set(this.outputValIndices, intStartOffset, outputValVals, doubleStartOffset, length);\n')
-        # fp.write('                indices.ensureCapacity(length);\n')
-        # fp.write('                vals.ensureCapacity(length);\n')
-        # fp.write('                indices.reset();\n')
-        # fp.write('                vals.reset();\n')
-        # fp.write('                for(int k = 0; k < length; k++) {\n')
-        # fp.write('                    indices.add(this.outputValIndices[intStartOffset + k]);\n')
-        # fp.write('                    vals.add(this.outputValVals[doubleStartOffset + k]);\n')
-        # fp.write('                }\n')
         writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 4, fp)
         fp.write('                context.write(saveKey, saveVal);\n')
-        fp.write('            }\n')
-        fp.write('            spillLock.unlock();\n')
-        fp.write('        }\n')
-        fp.write('        } catch(RuntimeException re) {\n')
-        fp.write('            if (re.getMessage().indexOf("WOULD_BLOCK") == 0) {\n')
-        fp.write('                spillLock.unlock();\n')
-        fp.write('                return i;\n')
-        fp.write('            } else {\n')
-        fp.write('                throw re;\n')
-        fp.write('            }\n')
-        fp.write('        }\n')
+        fp.write('              }\n')
+        # fp.write('            spillLock.unlock();\n')
+        # fp.write('        }\n')
+        # fp.write('        } catch(RuntimeException re) {\n')
+        # fp.write('            if (re.getMessage().indexOf("WOULD_BLOCK") == 0) {\n')
+        # fp.write('                spillLock.unlock();\n')
+        # fp.write('                return i;\n')
+        # fp.write('            } else {\n')
+        # fp.write('                throw re;\n')
+        # fp.write('            }\n')
+        # fp.write('        }\n')
         fp.write('        return -1;\n')
     elif nativeOutputValueType == 'ivec':
         # fp.write('        HadoopCLResizableIntArray vals = new HadoopCLResizableIntArray();\n')
@@ -1772,15 +1767,16 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         fp.write('        } else {\n')
         fp.write('            count = this.memIncr[0];\n')
         fp.write('        }\n')
-        fp.write('        int j = soFar;\n')
-        fp.write('        int i = soFar;\n')
-        fp.write('        try {\n')
-        fp.write('        for (j = soFar; j < count; j += this.lockingInterval) {\n')
-        fp.write('            if (!spillLock.tryLock() {\n')
-        fp.write('                return j;\n')
-        fp.write('            }\n')
-        fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
-        fp.write('            for(i = j; i < limit; i++) {\n')
+        # fp.write('        int j = soFar;\n')
+        # fp.write('        int i = soFar;\n')
+        # fp.write('        try {\n')
+        # fp.write('        for (j = soFar; j < count; j += this.lockingInterval) {\n')
+        # fp.write('            if (!spillLock.tryLock() {\n')
+        # fp.write('                return j;\n')
+        # fp.write('            }\n')
+        # fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
+        # fp.write('            for(i = j; i < limit; i++) {\n')
+        fp.write('              for (int i = 0; i < count; i++) {\n')
         fp.write('                int startOffset = this.outputValLookAsideBuffer[i];\n')
         fp.write('                int length = this.outputValLengthBuffer[i];\n')
         fp.write('                saveVal.set(this.outputVal, startOffset, length);\n')
@@ -1791,16 +1787,16 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 4, fp)
         fp.write('                context.write(saveKey, saveVal);\n')
         fp.write('            }\n')
-        fp.write('            spillLock.unlock();\n')
-        fp.write('        }\n')
-        fp.write('        } catch(RuntimeException re) {\n')
-        fp.write('            if (re.getMessage().indexOf("WOULD_BLOCK") == 0) {\n')
-        fp.write('                spillLock.unlock();\n')
-        fp.write('                return i;\n')
-        fp.write('            } else {\n')
-        fp.write('                throw re;\n')
-        fp.write('            }\n')
-        fp.write('        }\n')
+        # fp.write('            spillLock.unlock();\n')
+        # fp.write('        }\n')
+        # fp.write('        } catch(RuntimeException re) {\n')
+        # fp.write('            if (re.getMessage().indexOf("WOULD_BLOCK") == 0) {\n')
+        # fp.write('                spillLock.unlock();\n')
+        # fp.write('                return i;\n')
+        # fp.write('            } else {\n')
+        # fp.write('                throw re;\n')
+        # fp.write('            }\n')
+        # fp.write('        }\n')
         fp.write('        return -1;\n')
     elif nativeOutputValueType == 'fsvec':
         # fp.write('        HadoopCLResizableIntArray indices = new HadoopCLResizableIntArray();\n')
@@ -1812,15 +1808,16 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         fp.write('        } else {\n')
         fp.write('            count = this.memIncr[0];\n')
         fp.write('        }\n')
-        fp.write('        int j = soFar;\n')
-        fp.write('        int i = soFar;\n')
-        fp.write('        try {\n')
-        fp.write('        for (; j < count; j += this.lockingInterval) {\n')
-        fp.write('            if (!spillLock.tryLock()) {\n')
-        fp.write('                return j;\n')
-        fp.write('            }\n')
-        fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
-        fp.write('            for (i = j; i < limit; i++) {\n')
+        # fp.write('        int j = soFar;\n')
+        # fp.write('        int i = soFar;\n')
+        # fp.write('        try {\n')
+        # fp.write('        for (; j < count; j += this.lockingInterval) {\n')
+        # fp.write('            if (!spillLock.tryLock()) {\n')
+        # fp.write('                return j;\n')
+        # fp.write('            }\n')
+        # fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
+        # fp.write('            for (i = j; i < limit; i++) {\n')
+        fp.write('              for (int i = 0; i < count; i++) {\n')
         fp.write('                int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
         fp.write('                int floatStartOffset = this.outputValFloatLookAsideBuffer[i];\n')
         fp.write('                int length = this.outputValLengthBuffer[i];\n')
@@ -1836,16 +1833,16 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 4, fp)
         fp.write('                context.write(saveKey, saveVal);\n')
         fp.write('            }\n')
-        fp.write('            spillLock.unlock();\n')
-        fp.write('        }\n')
-        fp.write('        } catch(RuntimeException re) {\n')
-        fp.write('            if (re.getMessage().indexOf("WOULD_BLOCK") == 0) {\n')
-        fp.write('                spillLock.unlock();\n')
-        fp.write('                return i;\n')
-        fp.write('            } else {\n')
-        fp.write('                throw re;\n')
-        fp.write('            }\n')
-        fp.write('        }\n')
+        # fp.write('            spillLock.unlock();\n')
+        # fp.write('        }\n')
+        # fp.write('        } catch(RuntimeException re) {\n')
+        # fp.write('            if (re.getMessage().indexOf("WOULD_BLOCK") == 0) {\n')
+        # fp.write('                spillLock.unlock();\n')
+        # fp.write('                return i;\n')
+        # fp.write('            } else {\n')
+        # fp.write('                throw re;\n')
+        # fp.write('            }\n')
+        # fp.write('        }\n')
         fp.write('        return -1;\n')
     else:
         fp.write('        final '+hadoopOutputValueType+'Writable saveVal = new '+hadoopOutputValueType+'Writable();\n')
@@ -2195,7 +2192,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     writeAddKeyMethod(input_fp, hadoopInputKeyType, nativeInputKeyType)
 
-    writeIsFullMethod(input_fp, isMapper, nativeInputValueType)
+    writeIsFullMethod(input_fp, isMapper, nativeInputKeyType, nativeInputValueType)
     writeResetMethod(input_fp, isMapper, nativeInputValueType)
 
     writeTransferBufferedValues(input_fp, isMapper)

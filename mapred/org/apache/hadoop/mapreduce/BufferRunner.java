@@ -18,8 +18,6 @@ public class BufferRunner implements Runnable {
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
     private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
 
-    private final ReentrantLock spillLock;
-
     // exclusive
     private final HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair> running;
 
@@ -30,7 +28,7 @@ public class BufferRunner implements Runnable {
             BufferManager<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
             KernelManager freeKernels,
-            HadoopOpenCLContext clContext, ReentrantLock spillLock) {
+            HadoopOpenCLContext clContext) {
         this.kernelClass = kernelClass;
         this.freeInputBuffers = freeInputBuffers;
         this.freeOutputBuffers = freeOutputBuffers;
@@ -44,7 +42,6 @@ public class BufferRunner implements Runnable {
 
         this.clContext = clContext;
         this.profiles = new LinkedList<HadoopCLBuffer.Profile>();
-        this.spillLock = spillLock;
     }
 
     public List<HadoopCLBuffer.Profile> profiles() {
@@ -55,6 +52,9 @@ public class BufferRunner implements Runnable {
         // possible if getting DONE signal from main
         if (input != null) {
             input.clearNWrites();
+        }
+        if (enableLogs) {
+          log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
         }
         this.toRun.add(input);
     }
@@ -91,14 +91,14 @@ public class BufferRunner implements Runnable {
     }
 
     private void log(String s) {
-        System.err.println(System.currentTimeMillis()+" "+s);
+        System.err.println(System.currentTimeMillis()+"|"+this.clContext.typeName()+" "+s);
     }
 
     private OutputBufferSoFar handleOutputBuffer(OutputBufferSoFar soFar) {
         try {
             soFar.buffer().getProfile().startWrite();
             int newProgress = soFar.buffer().putOutputsIntoHadoop(
-                    this.clContext.getContext(), this.spillLock, soFar.soFar());
+                    this.clContext.getContext(), soFar.soFar());
             soFar.buffer().getProfile().stopWrite();
             if (newProgress == -1) {
                 if (enableLogs) {
@@ -314,7 +314,7 @@ public class BufferRunner implements Runnable {
             // We're still using OpenCL, but we only have
             // output buffers left to process so we might as
             // well block
-            this.clContext.getContext().setUsingOpenCL(false);
+            // this.clContext.getContext().setUsingOpenCL(false);
             while (!toWrite.isEmpty()) {
                 OutputBufferSoFar soFar = toWrite.poll();
                 do {

@@ -71,6 +71,7 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     this.input = input;
     this.inputKeyCounter = inputKeyCounter;
     this.inputValueCounter = inputValueCounter;
+    System.out.println("Reduce context using comparator "+comparator.getClass().toString());
     this.comparator = comparator;
     SerializationFactory serializationFactory = new SerializationFactory(conf);
     this.keyDeserializer = serializationFactory.getDeserializer(keyClass);

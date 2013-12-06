@@ -380,6 +380,7 @@ class ReduceTask extends Task {
     codec = initCodec();
 
     boolean isLocal = "local".equals(job.get("mapred.job.tracker", "local"));
+    System.out.println("ISLOCAL = "+isLocal);
     if (!isLocal) {
       reduceCopier = new ReduceCopier(umbilical, job, reporter);
       if (!reduceCopier.fetchOutputs()) {
@@ -2428,6 +2429,7 @@ class ReduceTask extends Task {
     private RawKeyValueIterator createKVIterator(
         JobConf job, FileSystem fs, Reporter reporter) throws IOException {
 
+      System.out.println("INSIDE createKVIterator");
       // merge config params
       Class<K> keyClass = (Class<K>)job.getMapOutputKeyClass();
       Class<V> valueClass = (Class<V>)job.getMapOutputValueClass();
@@ -2439,6 +2441,7 @@ class ReduceTask extends Task {
       // segments required to vacate memory
       List<Segment<K,V>> memDiskSegments = new ArrayList<Segment<K,V>>();
       long inMemToDiskBytes = 0;
+      System.out.println("mapOutputsFilesInMemory.size() == "+mapOutputsFilesInMemory.size());
       if (mapOutputsFilesInMemory.size() > 0) {
         TaskID mapId = mapOutputsFilesInMemory.get(0).mapId;
         inMemToDiskBytes = createInMemorySegments(memDiskSegments,
@@ -2449,6 +2452,7 @@ class ReduceTask extends Task {
           // must spill to disk, but can't retain in-mem for intermediate merge
           final Path outputPath =
               mapOutputFile.getInputFileForWrite(mapId, inMemToDiskBytes);
+          System.out.println("Merging!!!");
           final RawKeyValueIterator rIter = Merger.merge(job, fs,
               keyClass, valueClass, memDiskSegments, numMemDiskSegments,
               tmpDir, comparator, reporter, spilledRecordsCounter, null);
@@ -2498,6 +2502,7 @@ class ReduceTask extends Task {
         }
       });
 
+      System.out.println("onDiskBytes="+onDiskBytes);
       // build final list of segments from merged backed by disk + in-mem
       List<Segment<K,V>> finalSegments = new ArrayList<Segment<K,V>>();
       long inMemBytes = createInMemorySegments(finalSegments, 0);
@@ -2513,11 +2518,13 @@ class ReduceTask extends Task {
             reporter, false, spilledRecordsCounter, null);
         diskSegments.clear();
         if (0 == finalSegments.size()) {
+          System.out.println("Returning diskMerge");
           return diskMerge;
         }
         finalSegments.add(new Segment<K,V>(
               new RawKVIteratorReader(diskMerge, onDiskBytes), true));
       }
+      System.out.println("Returning normally");
       return Merger.merge(job, fs, keyClass, valueClass,
                    finalSegments, finalSegments.size(), tmpDir,
                    comparator, reporter, spilledRecordsCounter, null);

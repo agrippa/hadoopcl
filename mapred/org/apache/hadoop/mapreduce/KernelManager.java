@@ -16,6 +16,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
     public TypeAlloc<HadoopCLKernel> nonBlockingAlloc() {
         TypeAlloc<HadoopCLKernel> result = this.nonBlockingAllocHelper();
         if (result != null && result.isFresh()) {
+            result.obj().id = idIncr.getAndIncrement();
             System.err.println("Allocing kernel "+result.obj().id);
             result.obj().init(this.clContext);
             result.obj().setGlobals(this.clContext.getGlobalsInd(),
@@ -31,6 +32,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
     public TypeAlloc<HadoopCLKernel> alloc() {
         TypeAlloc<HadoopCLKernel> result = this.allocHelper();
         if (result.isFresh()) {
+            result.obj().id = idIncr.getAndIncrement();
             System.err.println("Allocing kernel "+result.obj().id);
             result.obj().init(this.clContext);
             result.obj().setGlobals(this.clContext.getGlobalsInd(),

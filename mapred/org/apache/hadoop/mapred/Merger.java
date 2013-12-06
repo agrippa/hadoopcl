@@ -40,7 +40,7 @@ import org.apache.hadoop.util.PriorityQueue;
 import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 
-class Merger {  
+public class Merger {  
   private static final Log LOG = LogFactory.getLog(Merger.class);
 
   // Local directories
@@ -372,7 +372,14 @@ class Merger {
 
       return comparator.compare(key1.getData(), s1, l1, key2.getData(), s2, l2) < 0;
     }
-    
+
+    protected String getstring(Object o) {
+      DataInputBuffer key1 = ((Segment<K, V>)o).getKey();
+      int s1 = key1.getPosition();
+      int l1 = key1.getLength() - s1;
+      return comparator.getstring(key1.getData(), s1, l1);
+    }
+
     public RawKeyValueIterator merge(Class<K> keyClass, Class<V> valueClass,
                                      int factor, Path tmpDir,
                                      Counters.Counter readsCounter,
@@ -388,6 +395,7 @@ class Merger {
                                      Counters.Counter writesCounter)
         throws IOException {
       LOG.info("Merging " + segments.size() + " sorted segments");
+      System.out.println("Merger using comparator "+comparator.getClass().toString());
       
       //create the MergeStreams from the sorted map created in the constructor
       //and dump the final output to a file

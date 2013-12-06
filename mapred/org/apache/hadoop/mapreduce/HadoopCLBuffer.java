@@ -18,7 +18,8 @@ public abstract class HadoopCLBuffer {
     protected boolean initialized = false;
 
     protected final static AtomicInteger idIncr = new AtomicInteger(0);
-    public final int id = HadoopCLBuffer.idIncr.getAndIncrement();
+    public int id = -1;
+    // public final int id = HadoopCLBuffer.idIncr.getAndIncrement();
 
     // public abstract Class getKernelClass();
     // public abstract void init(int pairsPerInput, HadoopOpenCLContext clContext);

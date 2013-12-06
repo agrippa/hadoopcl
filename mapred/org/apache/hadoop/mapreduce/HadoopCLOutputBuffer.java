@@ -7,7 +7,7 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public int[] memIncr;
 
     public abstract void initBeforeKernel(int outputsPerInput, HadoopOpenCLContext clContext);
-    public abstract int putOutputsIntoHadoop(TaskInputOutputContext context, ReentrantLock spillLock, int soFar)
+    public abstract int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar)
         throws IOException, InterruptedException;
 
     public abstract void copyOverFromInput(HadoopCLInputBuffer inputBuffer);

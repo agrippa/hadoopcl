@@ -264,7 +264,7 @@ public class MultithreadedMapper<K1, V1, K2, V2>
                             new SubMapRecordWriter(), 
                             context.getOutputCommitter(),
                             new SubMapStatusReporter(),
-                            outer.getInputSplit(), context.spillLock());
+                            outer.getInputSplit());
     }
 
     public Throwable getThrowable() {
