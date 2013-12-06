@@ -369,7 +369,9 @@ public class MapTask extends Task {
     }
 
     if (useNewApi) {
+      LOG.info("Xiangyu: mapper starts");
       runNewMapper(job, splitMetaInfo, umbilical, reporter);
+      LOG.info("Xiangyu: reducer starts");
     } else {
       runOldMapper(job, splitMetaInfo, umbilical, reporter);
     }

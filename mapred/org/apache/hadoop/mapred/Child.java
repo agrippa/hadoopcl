@@ -251,7 +251,9 @@ class Child {
             try {
               // use job-specified working directory
               FileSystem.get(job).setWorkingDirectory(job.getWorkingDirectory());
+              LOG.info("Xiangyu: task starts");
               taskFinal.run(job, umbilical);        // run the task
+              LOG.info("Xiangyu: task ends");
             } finally {
               TaskLog.syncLogs
                 (logLocation, taskid, isCleanup, logIsSegmented(job));
@@ -294,6 +296,7 @@ class Child {
       }
       // Report back any failures, for diagnostic purposes
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    //System.out.println("Heap="+printHeap(1));
       exception.printStackTrace(new PrintStream(baos));
       if (taskid != null) {
         umbilical.reportDiagnosticInfo(taskid, baos.toString(), jvmContext);

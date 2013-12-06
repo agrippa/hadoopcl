@@ -414,8 +414,10 @@ class ReduceTask extends Task {
     RawComparator comparator = job.getOutputValueGroupingComparator();
 
     if (useNewApi) {
+      LOG.info("Xiangyu: reducer starts");
       runNewReducer(job, umbilical, reporter, rIter, comparator, 
                     keyClass, valueClass);
+      LOG.info("Xiangyu: reducer ends");
     } else {
       runOldReducer(job, umbilical, reporter, rIter, comparator, 
                     keyClass, valueClass);
