@@ -79,15 +79,15 @@ public class IntWritable implements WritableComparable {
                        byte[] b2, int s2, int l2) {
       int thisValue = readInt(b1, s1);
       int thatValue = readInt(b2, s2);
-      StringBuffer sb = new StringBuffer();
-      sb.append("    Comparing "+thisValue+" to "+thatValue+"\n");
-      if (thisValue == 35964 || thatValue == 35964) {
-        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-        for (StackTraceElement ele : stack) {
-          sb.append("      "+ele.toString()+"\n");
-        }
-        System.out.print(sb.toString());
-      }
+      // tStringBuffer sb = new StringBuffer();
+      // sb.append("    Comparing "+thisValue+" to "+thatValue+"\n");
+      // if (thisValue == 35964 || thatValue == 35964) {
+      //   StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+      //   for (StackTraceElement ele : stack) {
+      //     sb.append("      "+ele.toString()+"\n");
+      //   }
+      //   System.out.print(sb.toString());
+      // }
 
       return (thisValue<thatValue ? -1 : (thisValue==thatValue ? 0 : 1));
     }

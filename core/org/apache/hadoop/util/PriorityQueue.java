@@ -137,41 +137,35 @@ public abstract class PriorityQueue<T> {
             ((bytes[start+3] & 0xff)));
   }
 
-  String printHeap(int index) {
-    if (index > size) return "";
-    return Integer.toString(index)+":"+getstring(heap[index])+" "+printHeap(2*index)+" "+printHeap(2*index+1);
-  }
-
   private final void downHeap() {
-    System.out.println("Doing a downHeap size="+size);
-
-    System.out.print("Heap= ");
-    for (int i = 1; i <= size; i++) {
-      System.out.print(getstring(heap[i])+" ");
-    }
-    System.out.println();
+    // System.out.println("Doing a downHeap size="+size);
+    // System.out.print("Heap= ");
+    // for (int i = 1; i <= size; i++) {
+    //   System.out.print(getstring(heap[i])+" ");
+    // }
+    // System.out.println();
 
     int i = 1;
     T node = heap[i];			  // save top node
     int j = i << 1;				  // find smaller child
     int k = j + 1;
-    System.out.println("  Initial comparison of two root children");
+    // System.out.println("  Initial comparison of two root children");
     if (k <= size && lessThan(heap[k], heap[j])) {
       j = k;
     }
     int depth = 1;
-    System.out.println("  Checking least child at depth "+depth+" against node");
+    // System.out.println("  Checking least child at depth "+depth+" against node");
     while (j <= size && lessThan(heap[j], node)) {
       heap[i] = heap[j];			  // shift up child
       i = j;
       j = i << 1;
       k = j + 1;
-      System.out.println("  Checking children at depth "+(depth+1)+" against each other");
+      // System.out.println("  Checking children at depth "+(depth+1)+" against each other");
       if (k <= size && lessThan(heap[k], heap[j])) {
 	j = k;
       }
       depth++;
-      System.out.println("  Checking least child at depth "+depth+" against node");
+      // System.out.println("  Checking least child at depth "+depth+" against node");
     }
     heap[i] = node;				  // install saved node
   }
