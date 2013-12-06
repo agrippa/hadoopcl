@@ -2,6 +2,7 @@ package org.apache.hadoop.mapreduce;
 
 import java.util.List;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AllocManager<Type> {
     protected final int maxAllocated;
@@ -10,6 +11,7 @@ public abstract class AllocManager<Type> {
     protected final Class<? extends Type> toInstantiate;
     protected final String name;
     private long timeWaiting = 0;
+    protected final AtomicInteger idIncr = new AtomicInteger(0);
 
     public long timeWaiting() {
         return this.timeWaiting;

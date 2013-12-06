@@ -2869,6 +2869,7 @@ public class SequenceFile {
                                   msa.getKey().getLength(), msb.getKey().getData(), 0, 
                                   msb.getKey().getLength()) < 0;
       }
+      protected String getstring(Object o) { return ""; }
       public void close() throws IOException {
         SegmentDescriptor ms;                           // close inputs
         while ((ms = (SegmentDescriptor)pop()) != null) {

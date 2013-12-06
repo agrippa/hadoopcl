@@ -31,10 +31,11 @@ import com.amd.aparapi.internal.opencl.OpenCLPlatform;
 import com.amd.aparapi.device.OpenCLDevice;
 
 public class OpenCLDriver {
-  // public static final int nKernels = 1;
-  // public static final int nInputBuffers = 10;
-  // public static final int nOutputBuffers = 10;
-
+  /*
+   * Reducers require a minimum of 2 input buffers because they have to allocate
+   * one before making the other eligible for execution in order to transfer
+   * values.
+   */
   public static final int nKernels = 1;
   public static final int nInputBuffers = 2;
   public static final int nOutputBuffers = 1;
@@ -47,16 +48,13 @@ public class OpenCLDriver {
   private final Class kernelClass;
   private final HadoopOpenCLContext clContext;
   private final Configuration conf;
-  private final ReentrantLock spillLock;
 
-  public OpenCLDriver(String type, TaskInputOutputContext context, Class kernelClass,
-          ReentrantLock spillLock) {
+  public OpenCLDriver(String type, TaskInputOutputContext context, Class kernelClass) {
     this.clContext = new HadoopOpenCLContext(type, context);
     this.context = context;
     this.kernelClass = kernelClass;
     this.conf = context.getConfiguration();
-    this.spillLock = spillLock;
-    context.setUsingOpenCL(this.clContext.getDevice() != null);
+    // context.setUsingOpenCL(this.clContext.getDevice() != null);
   }
 
   public static void hadoopclLog(Configuration conf, String str) throws IOException {
@@ -196,11 +194,11 @@ public class OpenCLDriver {
                 this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
                 this.clContext.nGlobalBuckets());
 
-        inputManager = new BufferManager<HadoopCLInputBuffer>("inputs", nInputBuffers,
+        inputManager = new BufferManager<HadoopCLInputBuffer>("\""+this.clContext.typeName()+" inputs\"", nInputBuffers,
             kernel.getInputBufferClass(), globalSpace);
-        outputManager = new BufferManager<HadoopCLOutputBuffer>("outputs", nOutputBuffers,
+        outputManager = new BufferManager<HadoopCLOutputBuffer>("\""+this.clContext.typeName()+" outputs\"", nOutputBuffers,
             kernel.getOutputBufferClass(), globalSpace);
-        kernelManager = new KernelManager("kernels", nKernels,
+        kernelManager = new KernelManager("\""+this.clContext.typeName()+"kernels\"", nKernels,
                 kernelClass, this.clContext);
 
         BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
@@ -212,7 +210,7 @@ public class OpenCLDriver {
     }
 
     BufferRunner runner = new BufferRunner(kernelClass, inputManager, outputManager,
-            kernelManager, clContext, this.spillLock);
+            kernelManager, clContext);
     Thread thread = new Thread(runner);
     thread.start();
     
@@ -225,7 +223,6 @@ public class OpenCLDriver {
             if (OpenCLDriver.profileMemory) {
                 System.err.println(getDetailedSpaceStats(globalSpace));
             }
-            // printDetailedSpaceUsage(inputManager, outputManager, th0, runner, buffer);
             // long spaceEstimate = estimateSpace(inputManager,
             //     outputManager, th0, runner, buffer);
             // System.err.println("DIAGNOSTICS: OpenCLDriver estimating space usage of "+spaceEstimate+" bytes");
@@ -282,7 +279,9 @@ public class OpenCLDriver {
     OpenCLDriver.processingFinish = System.currentTimeMillis();
 
     long stop = System.currentTimeMillis();
-    System.out.println(profilesToString(stop-start, runner.profiles(), inputManager.timeWaiting(), outputManager.timeWaiting(), kernelManager.timeWaiting()));
+    System.out.println(profilesToString(stop-start, runner.profiles(),
+          inputManager.timeWaiting(), outputManager.timeWaiting(),
+          kernelManager.timeWaiting()));
   }
 
   /*

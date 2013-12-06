@@ -55,6 +55,37 @@ public class HadoopOpenCLContext {
 
     private final int nGlobalBuckets;
 
+    private int findCpu() {
+        int devicesSoFar = 0;
+        List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
+        for(OpenCLPlatform platform : platforms) {
+            for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
+              if(tmpDev.getType() == Device.TYPE.CPU) {
+                return devicesSoFar;
+              }
+              devicesSoFar++;
+            }
+        }
+        throw new RuntimeException("Failed to find CPU while searching for combiner device");
+    }
+
+    private OpenCLDevice findDevice(int id) {
+        int devicesSoFar = 0;
+        OpenCLDevice dev = null;
+        List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
+        for(OpenCLPlatform platform : platforms) {
+            for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
+              if(devicesSoFar == id) {
+                dev = tmpDev;
+                break;
+              }
+              devicesSoFar++;
+            }
+            if(dev != null) break;
+        }
+        return dev;
+    }
+
     public HadoopOpenCLContext(String contextType, TaskInputOutputContext setHadoopContext) {
         this.hadoopContext = setHadoopContext;
         Configuration conf = this.hadoopContext.getConfiguration();
@@ -68,28 +99,15 @@ public class HadoopOpenCLContext {
         }
 
         if(this.isCombiner) {
-            this.deviceId = -1;
+            this.deviceId = findCpu();
+            // this.deviceId = -1;
+            // this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
         } else if(System.getProperty("opencl.device") != null) {
             this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
         } else {
             this.deviceId = 0;
         }
-
-
-        int devicesSoFar = 0;
-        OpenCLDevice dev = null;
-        List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
-        for(OpenCLPlatform platform : platforms) {
-            for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
-                if(devicesSoFar == this.deviceId) {
-                    dev = tmpDev;
-                    break;
-                }
-                devicesSoFar++;
-            }
-            if(dev != null) break;
-        }
-        this.device = dev;
+        this.device = findDevice(this.deviceId);
 
         if(this.device == null) {
             this.deviceString = "java";

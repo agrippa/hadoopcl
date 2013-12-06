@@ -213,4 +213,6 @@ public class WritableComparator implements RawComparator {
   public static int readVInt(byte[] bytes, int start) throws IOException {
     return (int) readVLong(bytes, start);
   }
+  public String getstring(byte[] bytes, int start, int len) { return ""; }
+
 }

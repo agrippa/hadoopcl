@@ -19,6 +19,7 @@ public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManag
                 result.obj().setInUse(true);
             }
             if (result.isFresh()) {
+                result.obj().id = idIncr.getAndIncrement();
                 System.err.println("Allocating "+this.name+" buffer "+result.obj().id);
                 if (OpenCLDriver.profileMemory) {
                     synchronized(globalSpace) {
@@ -34,6 +35,7 @@ public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManag
         TypeAlloc<BufferType> result = this.allocHelper();
         result.obj().setInUse(true);
         if (result.isFresh()) {
+            result.obj().id = idIncr.getAndIncrement();
             System.err.println("Allocating "+this.name+" buffer "+result.obj().id);
             if (OpenCLDriver.profileMemory) {
                 synchronized(globalSpace) {

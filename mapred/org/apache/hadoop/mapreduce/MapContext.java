@@ -37,23 +37,16 @@ public class MapContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   extends TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
   private RecordReader<KEYIN,VALUEIN> reader;
   private InputSplit split;
-  private ReentrantLock spillLock;
-
-  public ReentrantLock spillLock() {
-      return this.spillLock;
-  }
 
   public MapContext(Configuration conf, TaskAttemptID taskid,
                     RecordReader<KEYIN,VALUEIN> reader,
                     RecordWriter<KEYOUT,VALUEOUT> writer,
                     OutputCommitter committer,
                     StatusReporter reporter,
-                    InputSplit split,
-                    ReentrantLock spillLock) {
+                    InputSplit split) {
     super(conf, taskid, writer, committer, reporter);
     this.reader = reader;
     this.split = split;
-    this.spillLock = spillLock;
   }
 
   /**

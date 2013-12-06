@@ -17,9 +17,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     public int nKeys;
     public int nVals;
 
-    protected int keyCapacity;
-    protected int valCapacity;
-
     protected HadoopCLResizableArray tempBuffer1 = null;
     protected HadoopCLResizableArray tempBuffer2 = null;
     protected HadoopCLResizableArray tempBuffer3 = null;
@@ -28,7 +25,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
 
     protected abstract void bufferInputValue(Object obj);
     protected abstract void useBufferedValues();
-	// public abstract void init(HadoopCLOutputMapperBuffer mapperBuffer);
 
     public int numBufferedValues() {
         return tempBuffer1.size();
@@ -41,8 +37,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
         this.nWrites = new int[this.clContext.getBufferSize()];
         this.nKeys = 0;
         this.nVals = 0;
-        this.keyCapacity = this.clContext.getBufferSize();
-        this.valCapacity = this.clContext.getBufferSize() * valuesPerKeyGuess;
         this.isGPU = this.clContext.isGPU();
         this.maxInputValsPerInputKey = 0;
     }
@@ -51,20 +45,17 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
         return 16;
     }
 
-    public int keyCapacity() {
-        return this.keyCapacity;
-    }
-
-    public int valCapacity() {
-        return valCapacity;
-    }
-
     public boolean hasWork() {
         return this.nKeys > 0;
     }
 
     public boolean completedAll() {
-        for(int i = 0; i < nWrites.length; i++) {
+        // int count = 0;
+        // for (int i = 0; i < this.nKeys; i++) {
+        //   if (nWrites[i] == -1) count++;
+        // }
+        // System.out.println("Did not complete "+count);
+        for(int i = 0; i < this.nKeys; i++) {
             if(nWrites[i] == -1) return false;
         }
         return true;

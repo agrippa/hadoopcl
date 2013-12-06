@@ -109,9 +109,8 @@ public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
                    OutputCommitter committer,
                    StatusReporter reporter,
                    InputSplit split, int[] outputKeys, 
-                   float[] outputVals,
-                   ReentrantLock spillLock) throws IOException, InterruptedException {
-      super(conf, taskid, reader, writer, committer, reporter, split, spillLock);
+                   float[] outputVals) throws IOException, InterruptedException {
+      super(conf, taskid, reader, writer, committer, reporter, split);
       this.outputKeys = outputKeys;
       this.outputVals = outputVals;
     }
@@ -121,9 +120,9 @@ public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
                    RecordWriter<KEYOUT,VALUEOUT> writer,
                    OutputCommitter committer,
                    StatusReporter reporter,
-                   InputSplit split, ReentrantLock spillLock) 
+                   InputSplit split) 
             throws IOException, InterruptedException {
-      super(conf, taskid, reader, writer, committer, reporter, split, spillLock);
+      super(conf, taskid, reader, writer, committer, reporter, split);
       this.outputKeys = null;
       this.outputVals = null;
     }
@@ -159,59 +158,6 @@ public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
                          ) throws IOException, InterruptedException {
     // NOTHING
   }
-/*
-  private doOpenCLMap(Context context) {
-    context.nextKeyValue();
-    KEYIN key = context.getCurrentKey();
-    VALUEIN val = context.getCurrentValue();
-    ResizableArray keyArr = null;
-    ResizableArray valArr = null;
-    if(key instanceof LongWritable) {
-        keyArr = new LongResizableArray();
-    }
-    if(val instanceof Text) {
-        String[] valTokens = val.toString().split(" ");
-        try {
-            Float.parseFloat(valTokens[0]);
-            valArr = new FloatResizableArray();
-        } catch(NumberFormatException n) {
-        }
-    }
-
-    do {
-        key = context.getCurrentKey();
-        val = context.getCurrentValue();
-        int startingValLength = val.length();
-        if(val instanceof Text) {
-            String[] valTokens = val.toString().split(" ");
-            for(String token : valTokens) {
-                valArr.add(token);
-            }
-        }
-        int endingValLength = val.length();
-
-    } while(context.nextKeyValue());
-    if(key instanceof LongWritable && value instanceof Text) {
-        LongResizableArray keyArr = new LongResizableArray();
-        String[] valTokens = val.toString().split(" ");
-        FloatResizableArray valArr = new FloatResizableArray();
-        do {
-            key = context.getCurrentKey();
-            val = context.getCurrentValue();
-            boolean isFloats = false;
-            try {
-                Float.parseFloat(valTokens[0]);
-            } catch(NumberFormatException n) {
-                isFloats = true;
-            }
-            if(isFloats) {
-            }
-            if(valTokens[0]
-        } while(context.nextKeyValue());
-
-    }
-
-  }*/
   
   /**
    * Expert users can override this method for more complete control over the

@@ -47,6 +47,12 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
     @Override
     public void run(Context context) throws IOException, InterruptedException {
         setup(context);
+
+        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+        System.out.println("Calling a reducer from:");
+        for (StackTraceElement ele : stack) {
+          System.out.println("  "+ele.toString());
+        }
         
         String keyClass = context.getMapOutputKeyClassString();
         String valueClass = context.getMapOutputValueClassString();
@@ -62,12 +68,14 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
         OpenCLDriver driver = null;
         try {
             boolean isCombiner = context.getTaskAttemptID().isMap();
-            driver = new OpenCLDriver("reducer", context, isCombiner ? context.getOCLCombinerClass() : context.getOCLReducerClass(), null);
+            driver = new OpenCLDriver("reducer", context, isCombiner ? context.getOCLCombinerClass() : context.getOCLReducerClass());
         } catch(java.lang.ClassNotFoundException ce) {
             throw new RuntimeException("Failed to load reducer kernel class");
         }
 
         driver.run();
+        driver = null;
+        System.gc();
 
         cleanup(context);
     }
