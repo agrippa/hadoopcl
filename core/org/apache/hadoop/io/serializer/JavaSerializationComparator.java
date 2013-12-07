@@ -42,6 +42,5 @@ public class JavaSerializationComparator<T extends Serializable&Comparable<T>>
   public int compare(T o1, T o2) {
     return o1.compareTo(o2);
   }
-  public String getstring(byte[] bytes, int start, int len) { return ""; }
 
 }

@@ -128,10 +128,6 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
     return value;
   }
 
-  public long getTotal() throws IOException {
-      return end-start;
-  }
-
   /**
    * Get the progress within the split
    */

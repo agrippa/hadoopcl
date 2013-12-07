@@ -162,10 +162,6 @@ public class MultithreadedMapper<K1, V1, K2, V2>
     public void close() throws IOException {
     }
 
-    public long getTotal() {
-        return 0;
-    }
-
     @Override
     public float getProgress() throws IOException, InterruptedException {
       return 0;

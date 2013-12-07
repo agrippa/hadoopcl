@@ -208,10 +208,6 @@ public class DBRecordReader<T extends DBWritable> extends
     return nextKeyValue();
   }
 
-  public long getTotal() throws IOException { 
-      return split.getLength();
-  }
-
   /** {@inheritDoc} */
   public float getProgress() throws IOException {
     return pos / (float)split.getLength();

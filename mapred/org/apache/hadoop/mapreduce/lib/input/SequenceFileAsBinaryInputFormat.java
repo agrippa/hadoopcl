@@ -138,10 +138,6 @@ public class SequenceFileAsBinaryInputFormat
       in.close();
     }
 
-    public long getTotal() throws IOException {
-        return end-start;
-    }
-
     /**
      * Return the progress within the input split
      * @return 0.0 to 1.0 of the input byte range

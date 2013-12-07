@@ -89,10 +89,6 @@ public class CombineFileRecordReader<K, V> extends RecordReader<K, V> {
     }
   }
 
-  public long getTotal() throws IOException {
-      return split.getLength();
-  }
-  
   /**
    * return progress based on the amount of data processed so far.
    */

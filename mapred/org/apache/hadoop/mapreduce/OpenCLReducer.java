@@ -47,12 +47,6 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
     @Override
     public void run(Context context) throws IOException, InterruptedException {
         setup(context);
-
-        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-        System.out.println("Calling a reducer from:");
-        for (StackTraceElement ele : stack) {
-          System.out.println("  "+ele.toString());
-        }
         
         String keyClass = context.getMapOutputKeyClassString();
         String valueClass = context.getMapOutputValueClassString();

@@ -85,10 +85,6 @@ public class SequenceFileAsTextRecordReader
     return true;
   }
 
-  public long getTotal() throws IOException {
-      return sequenceFileRecordReader.getTotal();
-  }
-  
   public float getProgress() throws IOException,  InterruptedException {
     return sequenceFileRecordReader.getProgress();
   }

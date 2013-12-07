@@ -27,6 +27,7 @@ import static org.apache.hadoop.mapred.Task.Counter.MAP_INPUT_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.MAP_OUTPUT_BYTES;
 import static org.apache.hadoop.mapred.Task.Counter.MAP_OUTPUT_MATERIALIZED_BYTES;
 import static org.apache.hadoop.mapred.Task.Counter.MAP_OUTPUT_RECORDS;
+import org.apache.hadoop.io.IntWritable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -492,8 +493,6 @@ public class MapTask extends Task {
       long bytesInCurr = getInputBytes(fsStats);
       fileInputByteCounter.increment(bytesInCurr - bytesInPrev);
     }
-
-    public long getTotal() throws IOException { return real.getTotal(); }
 
     public org.apache.hadoop.mapreduce.RecordReader getReal() {
         return real;
@@ -1056,7 +1055,6 @@ public class MapTask extends Task {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
-          // System.err.println(System.currentTimeMillis()+" kvfull="+kvfull);
           if (kvfull) {
             // if (usingOpenCL) {
             //     // spillLock is unlocked below in the finally clause
@@ -1076,7 +1074,6 @@ public class MapTask extends Task {
           }
         } while (kvfull);
       } finally {
-        // System.err.println(System.currentTimeMillis()+" Unlocking spillLock in collect");
         spillLock.unlock();
       }
 
@@ -1364,26 +1361,21 @@ public class MapTask extends Task {
             while (kvstart == kvend) {
               spillReady.await();
             }
-            // System.err.println(System.currentTimeMillis()+" SPILLTHREAD released!");
             try {
               spillLock.unlock();
               sortAndSpill();
             } catch (Exception e) {
-              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD encoutered exception");
               sortSpillException = e;
             } catch (Throwable t) {
-              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD encoutered throwable");
               sortSpillException = t;
               String logMsg = "Task " + getTaskID() + " failed : " 
                               + StringUtils.stringifyException(t);
               reportFatalError(getTaskID(), t, logMsg);
             } finally {
-              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD waiting for spillLock");
               spillLock.lock();
               if (bufend < bufindex && bufindex < bufstart) {
                 bufvoid = kvbuffer.length;
               }
-              // System.err.println(System.currentTimeMillis()+" SPILLTHREAD Setting kvstart to "+kvend);
               kvstart = kvend;
               bufstart = bufend;
             }
@@ -1521,8 +1513,8 @@ public class MapTask extends Task {
         final int endPosition = (kvend > kvstart)
           ? kvend
           : kvoffsets.length + kvend;
-        System.out.println("Sorting from "+kvstart+" to "+endPosition+" before combinerRunner="+combinerRunner);
         sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
+
         int spindex = kvstart;
         IndexRecord rec = new IndexRecord();
         InMemValBytes value = new InMemValBytes();
@@ -1612,7 +1604,6 @@ public class MapTask extends Task {
               // Note: we would like to avoid the combiner if we've fewer
               // than some threshold of records for a partition
               if (spstart != spindex) {
-                System.out.println("  writer="+writer);
                 combineCollector.setWriter(writer);
                 RawKeyValueIterator kvIter =
                   new MRResultIterator(spstart, spindex);
@@ -1811,7 +1802,6 @@ public class MapTask extends Task {
       final Path[] filename = new Path[numSpills];
       final TaskAttemptID mapId = getTaskID();
 
-      System.out.println("Executing mergeParts with numSpills="+numSpills);
       for(int i = 0; i < numSpills; i++) {
         filename[i] = mapOutputFile.getSpillFile(i);
         finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
@@ -1878,7 +1868,6 @@ public class MapTask extends Task {
           for(int i = 0; i < numSpills; i++) {
             IndexRecord indexRecord = indexCacheList.get(i).getIndex(parts);
 
-            System.out.println("Creating segment for spill="+i+" from "+indexRecord.startOffset+" with length "+indexRecord.partLength+" in file="+filename[i]);
             Segment<K,V> s =
               new Segment<K,V>(job, rfs, filename[i], indexRecord.startOffset,
                                indexRecord.partLength, codec, true);
@@ -1890,8 +1879,6 @@ public class MapTask extends Task {
                   indexRecord.rawLength + ", " + indexRecord.partLength + ")");
             }
           }
-
-          System.out.println("Merging from numSpills="+numSpills);
 
           //merge
           @SuppressWarnings("unchecked")

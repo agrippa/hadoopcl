@@ -395,6 +395,13 @@ class ReduceTask extends Task {
     statusUpdate(umbilical);
 
     final FileSystem rfs = FileSystem.getLocal(job).getRaw();
+    System.out.println("isLocal = "+isLocal);
+    if (isLocal) {
+      System.out.println("Merging map files:");
+      for (Path p : getMapFiles(rfs, true)) {
+        System.out.println("  "+p.toString());
+      }
+    }
     RawKeyValueIterator rIter = isLocal
       ? Merger.merge(job, rfs, job.getMapOutputKeyClass(),
           job.getMapOutputValueClass(), codec, getMapFiles(rfs, true),
@@ -548,9 +555,7 @@ class ReduceTask extends Task {
     private final org.apache.hadoop.mapreduce.Counter outputRecordCounter;
     private final org.apache.hadoop.mapreduce.Counter fileOutputByteCounter;
     private final Statistics fsStats;
-        
-    public void setUsingOpenCL(boolean val) { }
-  
+
     NewTrackingRecordWriter(org.apache.hadoop.mapreduce.Counter recordCounter,
         JobConf job, TaskReporter reporter,
         org.apache.hadoop.mapreduce.TaskAttemptContext taskContext)
