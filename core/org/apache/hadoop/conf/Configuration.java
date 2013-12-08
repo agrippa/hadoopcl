@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.conf;
 
+import org.apache.hadoop.io.ReadArrayUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import java.nio.IntBuffer;
 import java.nio.FloatBuffer;
@@ -1550,29 +1551,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       return buckets;
   }
 
-  private void dumpIntArray(FSDataOutputStream output, int[] arr) throws IOException {
-    ByteBuffer byteBuffer = ByteBuffer.allocate(arr.length * 4);
-    IntBuffer intBuffer = byteBuffer.asIntBuffer();
-    intBuffer.put(arr);
-    byte[] binary = byteBuffer.array();
-    output.write(binary, 0, binary.length);
-  }
-
-  private void dumpFloatArray(FSDataOutputStream output, float[] arr) throws IOException {
-    ByteBuffer byteBuffer = ByteBuffer.allocate(arr.length * 4);
-    FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();
-    floatBuffer.put(arr);
-    byte[] binary = byteBuffer.array();
-    output.write(binary, 0, binary.length);
-  }
-
-  private void dumpDoubleArray(FSDataOutputStream output, double[] arr) throws IOException {
-    ByteBuffer byteBuffer = ByteBuffer.allocate(arr.length * 8);
-    DoubleBuffer doubleBuffer = byteBuffer.asDoubleBuffer();
-    doubleBuffer.put(arr);
-    byte[] binary = byteBuffer.array();
-    output.write(binary, 0, binary.length);
-  }
 
   List<int[]> globalIndices = new LinkedList<int[]>();
   List<double[]> globalVals = new LinkedList<double[]>();
@@ -1640,15 +1618,15 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           FSDataOutputStream output = fs.create(new Path(filename));
 
           int[] metadata = new int[] { countGlobals, totalGlobals };
-          dumpIntArray(output, metadata);
-          dumpIntArray(output, globalOffsets);
-          dumpIntArray(output, globalsInd);
-          dumpDoubleArray(output, globalsVal);
-          dumpFloatArray(output, globalsFval);
-          dumpIntArray(output, globalsMapInd);
-          dumpDoubleArray(output, globalsMapVal);
-          dumpFloatArray(output, globalsMapFval);
-          dumpIntArray(output, globalsMap);
+          ReadArrayUtils.dumpIntArray(output, metadata);
+          ReadArrayUtils.dumpIntArray(output, globalOffsets);
+          ReadArrayUtils.dumpIntArray(output, globalsInd);
+          ReadArrayUtils.dumpDoubleArray(output, globalsVal);
+          ReadArrayUtils.dumpFloatArray(output, globalsFval);
+          ReadArrayUtils.dumpIntArray(output, globalsMapInd);
+          ReadArrayUtils.dumpDoubleArray(output, globalsMapVal);
+          ReadArrayUtils.dumpFloatArray(output, globalsMapFval);
+          ReadArrayUtils.dumpIntArray(output, globalsMap);
 
           output.close();
       } catch(IOException io) {

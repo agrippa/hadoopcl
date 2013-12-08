@@ -109,18 +109,13 @@ public class NewSparseVectorWritable implements WritableComparable {
 
     public void readFields(DataInput in) throws IOException {
         int len = in.readInt();
-        this.indices = new int[len];
-        this.vals = new double[len];
+        this.indices = ReadArrayUtils.readIntArray(in, len);
+        this.vals = ReadArrayUtils.readDoubleArray(in, len);
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = -1;
         this.overrideIndicesOffset = -1;
         this.overrideValsOffset = -1;
-
-        for (int i = 0; i < len; i++) {
-            this.indices[i] = in.readInt();
-            this.vals[i] = in.readDouble();
-        }
     }
 
     private int indicesOffset() {
@@ -134,22 +129,8 @@ public class NewSparseVectorWritable implements WritableComparable {
 
     public void write(DataOutput out) throws IOException {
         out.writeInt(this.size());
-        int indicesOffset = indicesOffset();
-        int valsOffset = valsOffset();
-        if(this.indices != null) {
-            for(int i = 0; i < this.size(); i++) {
-                out.writeInt(this.indices[indicesOffset + i]);
-                out.writeDouble(this.vals[valsOffset + i]);
-            }
-        } else {
-            int[] privateIndices = (int[])this.indicesRes.getArray();
-            double[] privateVals = (double[])this.valsRes.getArray();
-
-            for(int i = 0; i < this.size(); i++) {
-                out.writeInt(privateIndices[indicesOffset + i]);
-                out.writeDouble(privateVals[valsOffset + i]);
-            }
-        }
+        ReadArrayUtils.dumpIntArray(out, this.indices(), this.size());
+        ReadArrayUtils.dumpDoubleArray(out, this.vals(), this.size());
     }
 
     private boolean elementEqual(NewSparseVectorWritable other, int index) {
