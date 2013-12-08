@@ -15,6 +15,7 @@ import org.apache.hadoop.conf.Configuration;
 import java.util.ArrayList;
 import java.io.IOException;
 
+import org.apache.hadoop.io.ReadArrayUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SparseVectorWritable;
 import org.apache.hadoop.io.ArrayPrimitiveWritable;
@@ -56,73 +57,30 @@ public class GlobalsWrapper {
 
             FSDataInputStream input = FileSystem.get(conf).open(
                 new Path(conf.get("opencl.properties.globalsfile")));
-            int[] metadata = readIntArray(input, 2);
+            int[] metadata = ReadArrayUtils.readIntArray(input, 2);
             int countGlobals = metadata[0];
             int totalGlobals = metadata[1];
 
             this.nGlobals = countGlobals;
-            this.globalIndices = readIntArray(input, countGlobals);
-            this.globalsInd = readIntArray(input, totalGlobals);
-            this.globalsVal = readDoubleArray(input, totalGlobals);
-            this.globalsFval = readFloatArray(input, totalGlobals);
-            this.globalsMapInd = readIntArray(input, totalGlobals);
-            this.globalsMapVal = readDoubleArray(input, totalGlobals);
-            this.globalsMapFval = readFloatArray(input, totalGlobals);
-            this.globalsMap = readIntArray(input, this.nGlobalBuckets * countGlobals);
+            this.globalIndices = ReadArrayUtils.readIntArray(input,
+                    countGlobals);
+            this.globalsInd = ReadArrayUtils.readIntArray(input, totalGlobals);
+            this.globalsVal = ReadArrayUtils.readDoubleArray(input,
+                    totalGlobals);
+            this.globalsFval = ReadArrayUtils.readFloatArray(input,
+                    totalGlobals);
+            this.globalsMapInd = ReadArrayUtils.readIntArray(input,
+                    totalGlobals);
+            this.globalsMapVal = ReadArrayUtils.readDoubleArray(input,
+                    totalGlobals);
+            this.globalsMapFval = ReadArrayUtils.readFloatArray(input,
+                    totalGlobals);
+            this.globalsMap = ReadArrayUtils.readIntArray(input,
+                    this.nGlobalBuckets * countGlobals);
             input.close();
 
         } catch(IOException io) {
             throw new RuntimeException(io);
         }
     }
-
-
-    private int[] readIntArray(FSDataInputStream input, final int len) throws IOException {
-      final int totalBytes = len * 4;
-      ByteBuffer byteBuffer = ByteBuffer.allocate(totalBytes);
-      int nRead = 0;
-      while (nRead < totalBytes) {
-        int current = input.read(byteBuffer.array(), nRead, totalBytes - nRead);
-        if (current < 0) {
-          throw new RuntimeException("Error reading stream during readIntArray");
-        }
-        nRead += current;
-      }
-      int[] result = new int[len];
-      byteBuffer.asIntBuffer().get(result);
-      return result;
-    }
-
-    private float[] readFloatArray(FSDataInputStream input, final int len) throws IOException {
-      final int totalBytes = len * 4;
-      ByteBuffer byteBuffer = ByteBuffer.allocate(totalBytes);
-      int nRead = 0;
-      while (nRead < totalBytes) {
-        int current = input.read(byteBuffer.array(), nRead, totalBytes - nRead);
-        if (current < 0) {
-          throw new RuntimeException("Error reading stream during readFloatArray");
-        }
-        nRead += current;
-      }
-      float[] result = new float[len];
-      byteBuffer.asFloatBuffer().get(result);
-      return result;
-    }
-
-    private double[] readDoubleArray(FSDataInputStream input, final int len) throws IOException {
-      final int totalBytes = len * 8;
-      ByteBuffer byteBuffer = ByteBuffer.allocate(totalBytes);
-      int nRead = 0;
-      while (nRead < totalBytes) {
-        int current = input.read(byteBuffer.array(), nRead, totalBytes - nRead);
-        if (current < 0) {
-          throw new RuntimeException("Error reading stream during readDoubleArray");
-        }
-        nRead += current;
-      }
-      double[] result = new double[len];
-      byteBuffer.asDoubleBuffer().get(result);
-      return result;
-    }
-
 }
