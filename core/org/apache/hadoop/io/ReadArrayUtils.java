@@ -1,5 +1,6 @@
 package org.apache.hadoop.io;
 
+import java.io.DataOutput;
 import java.io.IOException;
 import java.io.DataInput;
 import java.nio.IntBuffer;
@@ -36,11 +37,11 @@ public class ReadArrayUtils {
       return result;
     }
 
-    private void dumpIntArray(DataOutput output, int[] arr) throws IOException {
+    public static void dumpIntArray(DataOutput output, int[] arr) throws IOException {
         dumpIntArray(output, arr, arr.length);
     }
 
-    private void dumpIntArray(DataOutput output, int[] arr, int len) throws IOException {
+    public static void dumpIntArray(DataOutput output, int[] arr, int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 4);
         IntBuffer intBuffer = byteBuffer.asIntBuffer();
         intBuffer.put(arr, 0, len);
@@ -48,11 +49,11 @@ public class ReadArrayUtils {
         output.write(binary, 0, binary.length);
     }
 
-    private void dumpFloatArray(DataOutput output, float[] arr) throws IOException {
+    public static void dumpFloatArray(DataOutput output, float[] arr) throws IOException {
         dumpFloatArray(output, arr, arr.length);
     }
 
-    private void dumpFloatArray(DataOutput output, float[] arr, int len) throws IOException {
+    public static void dumpFloatArray(DataOutput output, float[] arr, int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 4);
         FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();
         floatBuffer.put(arr, 0, len);
@@ -60,16 +61,15 @@ public class ReadArrayUtils {
         output.write(binary, 0, binary.length);
     }
 
-    private void dumpDoubleArray(DataOutput output, double[] arr) throws IOException {
+    public static void dumpDoubleArray(DataOutput output, double[] arr) throws IOException {
         dumpDoubleArray(output, arr, arr.length);
     }
 
-    private void dumpDoubleArray(DataOutput output, double[] arr, int len) throws IOException {
+    public static void dumpDoubleArray(DataOutput output, double[] arr, int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 8);
         DoubleBuffer doubleBuffer = byteBuffer.asDoubleBuffer();
         doubleBuffer.put(arr, 0, len);
         byte[] binary = byteBuffer.array();
         output.write(binary, 0, binary.length);
     }
-
 }
