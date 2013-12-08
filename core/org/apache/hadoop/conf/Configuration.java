@@ -18,6 +18,11 @@
 
 package org.apache.hadoop.conf;
 
+import org.apache.hadoop.fs.FSDataOutputStream;
+import java.nio.IntBuffer;
+import java.nio.FloatBuffer;
+import java.nio.DoubleBuffer;
+import java.nio.ByteBuffer;
 import java.io.BufferedInputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -57,6 +62,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.hadoop.io.ArrayPrimitiveWritable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
@@ -74,7 +80,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
-import org.apache.hadoop.mapreduce.HadoopOpenCLContext;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SparseVectorWritable;
@@ -147,6 +152,17 @@ import org.apache.hadoop.io.SequenceFile;
  */
 public class Configuration implements Iterable<Map.Entry<String,String>>,
                                       Writable {
+
+  public static final int GLOBAL_META_ID      = 0;
+  public static final int GLOBAL_OFFSET_ID    = 1;
+  public static final int GLOBAL_IND_ID       = 2;
+  public static final int GLOBAL_VAL_ID       = 3;
+  public static final int GLOBAL_FVAL_ID      = 4;
+  public static final int GLOBAL_MAP_IND_ID   = 5;
+  public static final int GLOBAL_MAP_VAL_ID   = 6;
+  public static final int GLOBAL_MAP_FVAL_ID  = 7;
+  public static final int GLOBAL_MAP_ID       = 8;
+
   private static final Log LOG =
     LogFactory.getLog(Configuration.class);
 
@@ -1534,18 +1550,38 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       return buckets;
   }
 
+  private void dumpIntArray(FSDataOutputStream output, int[] arr) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(arr.length * 4);
+    IntBuffer intBuffer = byteBuffer.asIntBuffer();
+    intBuffer.put(arr);
+    byte[] binary = byteBuffer.array();
+    output.write(binary, 0, binary.length);
+  }
+
+  private void dumpFloatArray(FSDataOutputStream output, float[] arr) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(arr.length * 4);
+    FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();
+    floatBuffer.put(arr);
+    byte[] binary = byteBuffer.array();
+    output.write(binary, 0, binary.length);
+  }
+
+  private void dumpDoubleArray(FSDataOutputStream output, double[] arr) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(arr.length * 8);
+    DoubleBuffer doubleBuffer = byteBuffer.asDoubleBuffer();
+    doubleBuffer.put(arr);
+    byte[] binary = byteBuffer.array();
+    output.write(binary, 0, binary.length);
+  }
+
   List<int[]> globalIndices = new LinkedList<int[]>();
   List<double[]> globalVals = new LinkedList<double[]>();
 
   public void sendGlobalsToHDFS(String pre) {
       String filename = pre+".hadoopcl.globals";
 
-      System.out.println("Sending "+globalIndices.size()+" to HDFS");
-      SequenceFile.Writer writer;
+      long start = System.currentTimeMillis();
       try {
-          writer = SequenceFile.createWriter(FileSystem.get(this), this, new Path(filename),
-                  IntWritable.class, ArrayPrimitiveWritable.class);
-
           final int nGlobalBuckets = this.getInt("opencl.global.buckets", -1);
           if (nGlobalBuckets == -1) {
               throw new RuntimeException("# of global buckets must be set");
@@ -1570,18 +1606,19 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
               constructEmptyBuckets(nGlobalBuckets);
           int globalIndex = 0;
           int globalCount = 0;
+          // For each global vector
           for (int vector = 0; vector < globalIndices.size(); vector++) {
               int[] currentIndices = this.globalIndices.get(vector);
               double[] currentVals = this.globalVals.get(vector);
 
               clearBuckets(buckets);
-              this.globalOffsets[globalCount] = globalIndex;
+              globalOffsets[globalCount] = globalIndex;
               for (int i = 0; i < currentIndices.length; i++) {
                   buckets.get(currentIndices[i] % nGlobalBuckets).add(
                           new IntDoublePair(currentIndices[i], currentVals[i]));
-                  this.globalsInd[globalIndex] = currentIndices[i];
-                  this.globalsVal[globalIndex] = currentVals[i];
-                  this.globalsFval[globalIndex] = (float)currentVals[i];
+                  globalsInd[globalIndex] = currentIndices[i];
+                  globalsVal[globalIndex] = currentVals[i];
+                  globalsFval[globalIndex] = (float)currentVals[i];
                   globalIndex++;
               }
 
@@ -1592,39 +1629,35 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                   for (IntDoublePair element : buckets.get(bucket)) {
                       globalsMapInd[tmpGlobalIndex] = element.i;
                       globalsMapVal[tmpGlobalIndex] = element.d;
-                      this.globalsMapFval[tmpGlobalIndex] = (float)element.d;
+                      globalsMapFval[tmpGlobalIndex] = (float)element.d;
                       tmpGlobalIndex++;
                   }
               }
               globalCount++;
           }
 
-          int[] metadata = new int[] { countGlobals, totalGlobals };
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_META_ID),
-              new ArrayPrimitiveWritable(metadata));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_OFFSET_ID),
-              new ArrayPrimitiveWritable(globalOffsets));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_IND_ID),
-              new ArrayPrimitiveWritable(globalsInd));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_VAL_ID),
-              new ArrayPrimitiveWritable(globalsVal));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_FVAL_ID),
-              new ArrayPrimitiveWritable(globalsFval));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_IND_ID),
-              new ArrayPrimitiveWritable(globalsMapInd));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_VAL_ID),
-              new ArrayPrimitiveWritable(globalsMapVal));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_FVAL_ID),
-              new ArrayPrimitiveWritable(globalsMapFval));
-          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_ID),
-              new ArrayPrimitiveWritable(globalsMap));
+          FileSystem fs = FileSystem.get(this);
+          FSDataOutputStream output = fs.create(new Path(filename));
 
-          writer.close();
+          int[] metadata = new int[] { countGlobals, totalGlobals };
+          dumpIntArray(output, metadata);
+          dumpIntArray(output, globalOffsets);
+          dumpIntArray(output, globalsInd);
+          dumpDoubleArray(output, globalsVal);
+          dumpFloatArray(output, globalsFval);
+          dumpIntArray(output, globalsMapInd);
+          dumpDoubleArray(output, globalsMapVal);
+          dumpFloatArray(output, globalsMapFval);
+          dumpIntArray(output, globalsMap);
+
+          output.close();
       } catch(IOException io) {
           throw new RuntimeException(io);
       }
 
       this.set("opencl.properties.globalsfile", filename);
+      long stop = System.currentTimeMillis();
+      System.out.println("Sending "+globalIndices.size()+" to HDFS took "+(stop-start)+" ms");
   }
 
   private int minInt(int[] arr, int start) {

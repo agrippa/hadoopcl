@@ -23,49 +23,34 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FSDataInputStream;
+import java.nio.IntBuffer;
+import java.nio.FloatBuffer;
+import java.nio.DoubleBuffer;
+import java.nio.ByteBuffer;
 
 public class HadoopOpenCLContext {
-    public static final int GLOBAL_META_ID      = 0;
-    public static final int GLOBAL_OFFSET_ID    = 1;
-    public static final int GLOBAL_IND_ID       = 2;
-    public static final int GLOBAL_VAL_ID       = 3;
-    public static final int GLOBAL_FVAL_ID      = 4;
-    public static final int GLOBAL_MAP_IND_ID   = 5;
-    public static final int GLOBAL_MAP_VAL_ID   = 6;
-    public static final int GLOBAL_MAP_FVAL_ID  = 7;
-    public static final int GLOBAL_MAP_ID       = 8;
 
-    private final TaskInputOutputContext hadoopContext;
-    private final String type;
-    private final int ngroups;
-    private final int threadsPerGroup;
-    private final OpenCLDevice device;
-    private final int deviceId;
-    private final int isGPU;
-    private final Range r;
-    private final int bufferSize;
-    private final int preallocLength;
-    private final String deviceString;
-    private final int nVectorsToBuffer;
+    private TaskInputOutputContext hadoopContext;
+    private String type;
+    private int ngroups;
+    private int threadsPerGroup;
+    private OpenCLDevice device;
+    private int deviceId;
+    private int isGPU;
+    private Range r;
+    private int bufferSize;
+    private int preallocLength;
+    private String deviceString;
+    private int nVectorsToBuffer;
 
-    private final int[] globalsInd;
-    private final double[] globalsVal;
-    private final float[] globalsFval;
-    private final int[] globalIndices;
-    private final int nGlobals;
-
-    private final int[] globalsMapInd;
-    private final double[] globalsMapVal;
-    private final float[] globalsMapFval;
-    private final int[] globalsMap;
-
-    private final boolean isCombiner;
+    private boolean isCombiner;
 
     private HadoopCLMapperKernel mapperKernel;
     private HadoopCLReducerKernel reducerKernel;
     private HadoopCLReducerKernel combinerKernel;
 
-    private final int nGlobalBuckets;
+    private GlobalsWrapper globals;
 
     private int findDeviceWithType(Device.TYPE type) {
         int devicesSoFar = 0;
@@ -78,7 +63,7 @@ public class HadoopOpenCLContext {
               devicesSoFar++;
             }
         }
-        throw new RuntimeException("Failed to find CPU while searching for combiner device");
+        return -1;
     }
 
     private OpenCLDevice findDevice(int id) {
@@ -98,9 +83,20 @@ public class HadoopOpenCLContext {
         return dev;
     }
 
-    public HadoopOpenCLContext(String contextType, TaskInputOutputContext setHadoopContext) {
+    public HadoopOpenCLContext(String contextType,
+        TaskInputOutputContext setHadoopContext, GlobalsWrapper globals) {
+      init(contextType, setHadoopContext, globals);
+    }
+
+    public void init(String contextType, TaskInputOutputContext setHadoopContext,
+            GlobalsWrapper globals) {
         this.hadoopContext = setHadoopContext;
         Configuration conf = this.hadoopContext.getConfiguration();
+
+        this.globals = globals;
+        synchronized(this.globals) {
+          this.globals.init(conf);
+        }
 
         if(contextType.equals("reducer") && this.hadoopContext.getTaskAttemptID().isMap()) {
             this.isCombiner = true;
@@ -112,9 +108,8 @@ public class HadoopOpenCLContext {
 
         if(this.isCombiner) {
             final Device.TYPE combinerType;
-            if (System.getProperty("opencl.combiner.device") != null) {
-              final String combinerTypeString =
-                System.getProperty("opencl.combiner.device");
+            if (!conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL").equals("FAIL")) {
+              final String combinerTypeString = conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL");
               EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
               Device.TYPE result = null;
               for (Device.TYPE t : allTypes) {
@@ -189,62 +184,11 @@ public class HadoopOpenCLContext {
             this.preallocLength = 1048576;
         }
 
-        this.nGlobalBuckets = conf.getInt("opencl.global.buckets", 4096);
-
         String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
         if (vectorsToBufferStr != null) {
             this.nVectorsToBuffer = Integer.parseInt(vectorsToBufferStr);
         } else {
             this.nVectorsToBuffer = 65536;
-        }
-
-        List<SparseVectorWritable> bufferGlobals =
-            new LinkedList<SparseVectorWritable>();
-        int totalGlobals = 0;
-        int countGlobals = 0;
-
-        SequenceFile.Reader reader;
-        try {
-            reader = new SequenceFile.Reader(FileSystem.get(conf),
-                    new Path(conf.get("opencl.properties.globalsfile")), conf);
-
-            final IntWritable key = new IntWritable();
-            final ArrayPrimitiveWritable val = new ArrayPrimitiveWritable();
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_META_ID);
-            int[] metadata = (int[])val.get();
-
-            int countGlobals = metadata[0];
-            int totalGlobals = metadata[1];
-
-            this.nGlobals = countGlobals;
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_OFFSET_ID);
-            this.globalIndices = (int[])val.get();
-
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_IND_ID);
-            this.globalsInd = (int[])val.get();
-
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_VAL_ID);
-            this.globalsVal = (double[])val.get();
-
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_FVAL_ID);
-            this.globalsFval = (float[])val.get();
-
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_IND_ID);
-            this.globalsMapInd = (int[])val.get();
-
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_VAL_ID);
-            this.globalsMapVal = (double[])val.get();
-
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_FVAL_ID);
-            this.globalsMapFval = (float[])val.get();
-
-            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_ID);
-            this.globalsMap = (int[])val.get();
-
-            reader.close();
-
-        } catch(IOException io) {
-            throw new RuntimeException(io);
         }
 
         try {
@@ -259,7 +203,7 @@ public class HadoopOpenCLContext {
                 this.getGlobalIndices(), this.getNGlobals(),
                 this.getGlobalsMapInd(), this.getGlobalsMapVal(),
                 this.getGlobalsMapFval(), this.getGlobalsMap(),
-                this.nGlobalBuckets);
+                this.globals.nGlobalBuckets);
 
             this.reducerKernel = (HadoopCLReducerKernel)reducerClass.newInstance();
             this.reducerKernel.init(this);
@@ -268,7 +212,7 @@ public class HadoopOpenCLContext {
                 this.getGlobalIndices(), this.getNGlobals(),
                 this.getGlobalsMapInd(), this.getGlobalsMapVal(),
                 this.getGlobalsMapFval(), this.getGlobalsMap(),
-                this.nGlobalBuckets);
+                this.globals.nGlobalBuckets);
 
             if(combinerClass != null) {
                 this.combinerKernel = (HadoopCLReducerKernel)combinerClass.newInstance();
@@ -278,7 +222,7 @@ public class HadoopOpenCLContext {
                     this.getGlobalIndices(), this.getNGlobals(),
                     this.getGlobalsMapInd(), this.getGlobalsMapVal(),
                     this.getGlobalsMapFval(), this.getGlobalsMap(),
-                    this.nGlobalBuckets);
+                    this.globals.nGlobalBuckets);
             }
         } catch(Exception ex) {
             throw new RuntimeException(ex);
@@ -286,27 +230,16 @@ public class HadoopOpenCLContext {
 
     }
 
-    private void forceNext(SequenceFile.Reader reader, IntWritable key,
-            ArrayPrimitiveWritable val, int expected) throws IOException {
-        if (reader.next(key, val) = false) {
-            throw new RuntimeException("Unexpected next failure in forceNext");
-        }
-        if (expected != key.get()) {
-            throw new RuntimeException("Expected vector id of "+expected+
-                    " but got "+key.get());
-        }
-    }
-
-    public int[] getGlobalIndices() { return this.globalIndices; }
-    public double[] getGlobalsVal() { return this.globalsVal; }
-    public float[] getGlobalsFval() { return this.globalsFval; }
-    public int[] getGlobalsInd() { return this.globalsInd; }
-    public double[] getGlobalsMapVal() { return this.globalsMapVal; }
-    public float[] getGlobalsMapFval() { return this.globalsMapFval; }
-    public int[] getGlobalsMapInd() { return this.globalsMapInd; }
-    public int[] getGlobalsMap() { return this.globalsMap; }
-    public int nGlobalBuckets() { return this.nGlobalBuckets; }
-    public int getNGlobals() { return this.nGlobals; }
+    public int[] getGlobalIndices() { return this.globals.globalIndices; }
+    public double[] getGlobalsVal() { return this.globals.globalsVal; }
+    public float[] getGlobalsFval() { return this.globals.globalsFval; }
+    public int[] getGlobalsInd() { return this.globals.globalsInd; }
+    public double[] getGlobalsMapVal() { return this.globals.globalsMapVal; }
+    public float[] getGlobalsMapFval() { return this.globals.globalsMapFval; }
+    public int[] getGlobalsMapInd() { return this.globals.globalsMapInd; }
+    public int[] getGlobalsMap() { return this.globals.globalsMap; }
+    public int nGlobalBuckets() { return this.globals.nGlobalBuckets; }
+    public int getNGlobals() { return this.globals.nGlobals; }
     
     public boolean isCombiner() {
         return this.isCombiner;

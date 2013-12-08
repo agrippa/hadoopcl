@@ -224,7 +224,7 @@ abstract class TaskRunner extends Thread {
       
       //  Build exec child JVM args.
       Vector<String> vargs = getVMArgs(taskid, workDir, classPaths, logSize,
-          tip.getAssignedDevice(), tip.getCombinerDeviceType());
+          tip.getAssignedDevice());
       
       tracker.addToMemoryManager(t.getTaskID(), t.isMapTask(), conf);
 
@@ -375,8 +375,7 @@ abstract class TaskRunner extends Thread {
    * @throws IOException
    */
   private Vector<String> getVMArgs(TaskAttemptID taskid, File workDir,
-      List<String> classPaths, long logSize, int assignedDevice,
-      Device.TYPE combinerDeviceType)
+      List<String> classPaths, long logSize, int assignedDevice)
       throws IOException {
     Vector<String> vargs = new Vector<String>(8);
     File jvm =                                  // use same jvm as parent
@@ -385,7 +384,6 @@ abstract class TaskRunner extends Thread {
 
     vargs.add(jvm.toString());
     vargs.add("-Dopencl.device="+assignedDevice);
-    vargs.add("-Dopencl.combiner.device="+combinerDeviceType.toString());
 
     // Add child (task) java-vm options.
     //

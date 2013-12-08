@@ -4,6 +4,7 @@ primitives = [ 'int', 'float', 'double', 'long' ]
 nonprimitives = [ 'pair', 'ipair' ]
 variablelength = [ 'svec', 'ivec', 'fsvec' ]
 supportedTypes = primitives + nonprimitives + variablelength
+profileMemoryUtilization = False
 
 def typeToSize(t):
     if t == 'int':
@@ -23,6 +24,12 @@ def writeln(arr, indent, fp):
     indent_str = '    ' * indent
     for token in arr:
         fp.write(indent_str+token+'\n')
+
+def write_without_last_ln(arr, indent, fp):
+    indent_str = '    ' * indent
+    for token in arr[:len(arr)-1]:
+        fp.write(indent_str+token+'\n')
+    fp.write(indent_str+arr[len(arr)-1])
 
 def write(arr, indent, fp):
     indent_str = '    ' * indent
@@ -98,6 +105,10 @@ class NativeTypeVisitor:
     def getJavaProcessReducerCall(self):
         raise NotImplementedError()
     def getSpace(self, isMapper, isInput, isKey):
+        raise NotImplementedError()
+    def getOutputLength(self, core, count):
+        raise NotImplementedError()
+    def getInputLength(self, core, isMapper):
         raise NotImplementedError()
 
 #################################################################################
@@ -182,6 +193,17 @@ class PrimitiveVisitor(NativeTypeVisitor):
         else:
             space = space + ';'
         return [ space ]
+    def getOutputLength(self, core, count):
+        return [ count+'+"/"+this.output'+core+'s.length+" '+core.lower()+'"' ]
+    def getInputLength(self, core, isMapper):
+        if isMapper:
+            return [ 'this.nPairs+"/"+this.input'+core+'s.length+" '+core.lower()+'s"' ]
+        else:
+            if core == 'Key':
+                return [ 'this.nKeys+"/"+this.input'+core+'s.length+" '+core.lower()+'s"' ]
+            else:
+                return [ 'this.nVals+"/"+this.input'+core+'s.length+" '+core.lower()+'s"' ]
+
 
 #################################################################################
 ########################## Visitor for Pair type ################################
@@ -281,6 +303,16 @@ class PairVisitor(NativeTypeVisitor):
         else:
             return [ '('+base+'1.length * 8) +',
                      '('+base+'2.length * 8);' ]
+    def getOutputLength(self, core, count):
+        return [ count+'+"/"+this.output'+core+'s1.length+" pair '+core.lower()+'"' ]
+    def getInputLength(self, core, isMapper):
+        if isMapper:
+            return [ 'this.nPairs+"/"+this.input'+core+'s1.length+" '+core.lower()+'s"' ]
+        else:
+            if core == 'Key':
+                return [ 'this.nKeys+"/"+this.input'+core+'s1.length+" '+core.lower()+'s"' ]
+            else:
+                return [ 'this.nVals+"/"+this.input'+core+'s1.length+" '+core.lower()+'s"' ]
 
 #################################################################################
 ########################## Visitor for Ipair type ###############################
@@ -402,6 +434,16 @@ class IpairVisitor(NativeTypeVisitor):
             return [ '('+base+'s1.length * 8) +',
                      '('+base+'s2.length * 8) +',
                      '('+base+'Ids.length * 4);' ]
+    def getOutputLength(self, core, count):
+        return [ count+'+"/"+this.output'+core+'s1.length+" ipair '+core.lower()+'"' ]
+    def getInputLength(self, core, isMapper):
+        if isMapper:
+            return [ 'this.nPairs+"/"+this.input'+core+'s1.length+" '+core.lower()+'s"' ]
+        else:
+            if core == 'Key':
+                return [ 'this.nKeys+"/"+this.input'+core+'s1.length+" '+core.lower()+'s"' ]
+            else:
+                return [ 'this.nVals+"/"+this.input'+core+'s1.length+" '+core.lower()+'s"' ]
 
 #################################################################################
 ########################## Visitor for Svec type ################################
@@ -649,6 +691,15 @@ class SvecVisitor(NativeTypeVisitor):
                      '(bufferOutputVals == null ? 0 : bufferOutputVals.length * 8) +',
                      '(memAuxIntIncr.length * 4) +',
                      '(memAuxDoubleIncr.length * 4);' ]
+    def getOutputLength(self, core, count):
+        return [ '(this.output'+core+'IntLookAsideBuffer['+count+'-1]+',
+                 'this.output'+core+'LengthBuffer['+count+'-1])+"/"+',
+                 'this.output'+core+'Indices.length+" int memory, and "+',
+                 '(this.output'+core+'DoubleLookAsideBuffer['+count+'-1]+'
+                 'this.output'+core+'LengthBuffer['+count+'-1])+"/"+',
+                 'this.output'+core+'Vals.length+" double memory"' ]
+    def getInputLength(self, core, isMapper):
+        return [ 'this.individualInputValsCount+"/"+this.input'+core+'Indices.length+" '+core.lower()+'s elements"' ]
 
 #################################################################################
 ########################## Visitor for Ivec type ################################
@@ -840,6 +891,12 @@ class IvecVisitor(NativeTypeVisitor):
                      '(bufferOutputVals == null ? 0 : bufferOutputVals.length * 8) +',
                      '(memAuxIntIncr.length * 4) +',
                      '(memAuxDoubleIncr.length * 4);' ]
+    def getOutputLength(self, core, count):
+        return [ '(this.output'+core+'IntLookAsideBuffer['+count+'-1]+',
+                 'this.output'+core+'LengthBuffer['+count+'-1])+"/"+',
+                 'this.output'+core+'Indices.length+" int memory "' ]
+    def getInputLength(self, core, isMapper):
+        return [ 'this.individualInputValsCount+"/"+this.input'+core+'.length+" '+core.lower()+'s elements"' ]
 
 #################################################################################
 ########################## Visitor for Fsvec type ###############################
@@ -1087,6 +1144,15 @@ class FsvecVisitor(NativeTypeVisitor):
                      '(bufferOutputVals == null ? 0 : bufferOutputVals.length * 8) +',
                      '(memAuxIntIncr.length * 4) +',
                      '(memAuxFloatIncr.length * 4);' ]
+    def getOutputLength(self, core, count):
+        return [ '(this.output'+core+'IntLookAsideBuffer['+count+'-1]+',
+                 'this.output'+core+'LengthBuffer['+count+'-1])+"/"+',
+                 'this.output'+core+'Indices.length+" int memory, and "+',
+                 '(this.output'+core+'FloatLookAsideBuffer['+count+'-1]+'
+                 'this.output'+core+'LengthBuffer['+count+'-1])+"/"+',
+                 'this.output'+core+'Vals.length+" float memory"' ]
+    def getInputLength(self, core, isMapper):
+        return [ 'this.individualInputValsCount+"/"+this.input'+core+'Indices.length+" '+core.lower()+'s elements"' ]
 
 
 #################################################################################
@@ -1528,6 +1594,15 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
         fp.write('        this.memAuxFloatIncr[0] = 0;\n')
         fp.write('\n')
 
+    if profileMemoryUtilization:
+        fp.write('        System.out.println("'+('Mapper' if isMapper else 'Reducer')+': Output using "+\n')
+        write_without_last_ln(visitor(nativeInputKeyType).getInputLength('Key', isMapper), 3, fp)
+        fp.write('+", "+\n')
+        write_without_last_ln(visitor(nativeInputValueType).getInputLength('Val', isMapper), 3, fp)
+        fp.write(');\n')
+        fp.write('\n')
+
+
     fp.write('    }\n')
     fp.write('\n')
     fp.write('    @Override\n')
@@ -1730,6 +1805,14 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         fp.write('        } else {\n')
         fp.write('            count = this.memIncr[0];\n')
         fp.write('        }\n')
+        if profileMemoryUtilization:
+          fp.write('        System.out.println("'+('Mapper' if isMapper else 'Reducer')+': Output using "+\n')
+          write_without_last_ln(visitor(nativeOutputKeyType).getOutputLength('Key', 'count'), 3, fp)
+          fp.write('+", "+\n')
+          write_without_last_ln(visitor(nativeOutputValueType).getOutputLength('Val', 'count'), 3, fp)
+          fp.write(');\n')
+          fp.write('\n')
+
         # fp.write('        int j = soFar;\n')
         # fp.write('        int i = soFar;\n')
         # fp.write('        try {\n')
@@ -1739,14 +1822,14 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         # fp.write('            }\n')
         # fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
         # fp.write('            for (i = j; i < limit; i++) {\n')
-        fp.write('              for (int i = 0; i < count; i++) {\n')
-        fp.write('                int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
-        fp.write('                int doubleStartOffset = this.outputValDoubleLookAsideBuffer[i];\n')
-        fp.write('                int length = this.outputValLengthBuffer[i];\n')
-        fp.write('                saveVal.set(this.outputValIndices, intStartOffset, outputValVals, doubleStartOffset, length);\n')
-        writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 4, fp)
-        fp.write('                context.write(saveKey, saveVal);\n')
-        fp.write('              }\n')
+        fp.write('        for (int i = 0; i < count; i++) {\n')
+        fp.write('            int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
+        fp.write('            int doubleStartOffset = this.outputValDoubleLookAsideBuffer[i];\n')
+        fp.write('            int length = this.outputValLengthBuffer[i];\n')
+        fp.write('            saveVal.set(this.outputValIndices, intStartOffset, outputValVals, doubleStartOffset, length);\n')
+        writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 3, fp)
+        fp.write('            context.write(saveKey, saveVal);\n')
+        fp.write('        }\n')
         # fp.write('            spillLock.unlock();\n')
         # fp.write('        }\n')
         # fp.write('        } catch(RuntimeException re) {\n')
