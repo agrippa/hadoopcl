@@ -34,7 +34,6 @@ public class HadoopOpenCLContext {
     private final int bufferSize;
     private final int preallocLength;
     private final String deviceString;
-    private final int nBuffs;
     private final int nVectorsToBuffer;
 
     private final int[] globalsInd;
@@ -183,13 +182,6 @@ public class HadoopOpenCLContext {
           this.nGlobalBuckets = Integer.parseInt(bucketsStr);
         } else {
           this.nGlobalBuckets = 16;
-        }
-
-        String nBuffsStr = System.getProperty("opencl."+contextType+".buffers."+this.deviceString);
-        if(nBuffsStr != null) {
-            this.nBuffs = Integer.parseInt(nBuffsStr);
-        } else {
-            this.nBuffs = 3;
         }
 
         String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
@@ -357,9 +349,6 @@ public class HadoopOpenCLContext {
         return this.type;
     }
 
-    public int getNBuffs() {
-        return this.nBuffs;
-    }
 
     public int getNVectorsToBuffer() {
         return this.nVectorsToBuffer;
