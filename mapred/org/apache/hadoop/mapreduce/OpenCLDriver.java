@@ -37,7 +37,7 @@ public class OpenCLDriver {
    * values.
    */
   public static final int nKernels = 1;
-  public static final int nInputBuffers = 2;
+  public static final int nInputBuffers = 3;
   public static final int nOutputBuffers = 1;
   public static final boolean profileMemory = false;
 
