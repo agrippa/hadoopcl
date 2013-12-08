@@ -16,13 +16,25 @@ import org.apache.hadoop.conf.Configuration;
 import java.util.ArrayList;
 import java.io.IOException;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SparseVectorWritable;
+import org.apache.hadoop.io.ArrayPrimitiveWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 public class HadoopOpenCLContext {
+    public static final int GLOBAL_META_ID      = 0;
+    public static final int GLOBAL_OFFSET_ID    = 1;
+    public static final int GLOBAL_IND_ID       = 2;
+    public static final int GLOBAL_VAL_ID       = 3;
+    public static final int GLOBAL_FVAL_ID      = 4;
+    public static final int GLOBAL_MAP_IND_ID   = 5;
+    public static final int GLOBAL_MAP_VAL_ID   = 6;
+    public static final int GLOBAL_MAP_FVAL_ID  = 7;
+    public static final int GLOBAL_MAP_ID       = 8;
+
     private final TaskInputOutputContext hadoopContext;
     private final String type;
     private final int ngroups;
@@ -177,12 +189,7 @@ public class HadoopOpenCLContext {
             this.preallocLength = 1048576;
         }
 
-        String bucketsStr = System.getProperty("opencl.global.buckets");
-        if (bucketsStr != null) {
-          this.nGlobalBuckets = Integer.parseInt(bucketsStr);
-        } else {
-          this.nGlobalBuckets = 16;
-        }
+        this.nGlobalBuckets = conf.getInt("opencl.global.buckets", 4096);
 
         String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
         if (vectorsToBufferStr != null) {
@@ -191,7 +198,8 @@ public class HadoopOpenCLContext {
             this.nVectorsToBuffer = 65536;
         }
 
-        List<SparseVectorWritable> bufferGlobals = new LinkedList<SparseVectorWritable>();
+        List<SparseVectorWritable> bufferGlobals =
+            new LinkedList<SparseVectorWritable>();
         int totalGlobals = 0;
         int countGlobals = 0;
 
@@ -201,60 +209,40 @@ public class HadoopOpenCLContext {
                     new Path(conf.get("opencl.properties.globalsfile")), conf);
 
             final IntWritable key = new IntWritable();
-            SparseVectorWritable val = new SparseVectorWritable();
-            while(reader.next(key, val)) {
-                bufferGlobals.add(val);
-                countGlobals++;
-                totalGlobals += val.size();
-                val = new SparseVectorWritable();
-            }
+            final ArrayPrimitiveWritable val = new ArrayPrimitiveWritable();
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_META_ID);
+            int[] metadata = (int[])val.get();
+
+            int countGlobals = metadata[0];
+            int totalGlobals = metadata[1];
+
+            this.nGlobals = countGlobals;
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_OFFSET_ID);
+            this.globalIndices = (int[])val.get();
+
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_IND_ID);
+            this.globalsInd = (int[])val.get();
+
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_VAL_ID);
+            this.globalsVal = (double[])val.get();
+
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_FVAL_ID);
+            this.globalsFval = (float[])val.get();
+
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_IND_ID);
+            this.globalsMapInd = (int[])val.get();
+
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_VAL_ID);
+            this.globalsMapVal = (double[])val.get();
+
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_FVAL_ID);
+            this.globalsMapFval = (float[])val.get();
+
+            forceNext(reader, key, val, HadoopOpenCLContext.GLOBAL_MAP_ID);
+            this.globalsMap = (int[])val.get();
 
             reader.close();
 
-            final HashMap<Integer, List<IntDoublePair>> buckets =
-              constructEmptyBuckets(this.nGlobalBuckets);
-            this.globalIndices = new int[countGlobals];
-            this.nGlobals = countGlobals;
-
-            this.globalsInd = new int[totalGlobals];
-            this.globalsVal = new double[totalGlobals];
-            this.globalsFval = new float[totalGlobals];
-
-            this.globalsMapInd = new int[totalGlobals];
-            this.globalsMapVal = new double[totalGlobals];
-            this.globalsMapFval = new float[totalGlobals];
-            this.globalsMap = new int[this.nGlobalBuckets * countGlobals];
-
-            int globalIndex = 0;
-            int globalCount = 0;
-            for(SparseVectorWritable g : bufferGlobals) {
-                clearBuckets(buckets);
-                this.globalIndices[globalCount] = globalIndex;
-                for(int i = 0 ; i < g.size(); i++) {
-                    buckets.get(g.indices()[i] % this.nGlobalBuckets).add(
-                        new IntDoublePair(g.indices()[i], g.vals()[i]));
-                    this.globalsInd[globalIndex] = g.indices()[i];
-                    this.globalsVal[globalIndex] = g.vals()[i];
-                    this.globalsFval[globalIndex] = (float)g.vals()[i];
-                    globalIndex = globalIndex + 1;
-                }
-
-                int tmpGlobalIndex = this.globalIndices[globalCount];
-                for (int bucket = 0; bucket < this.nGlobalBuckets; bucket++) {
-                  this.globalsMap[globalCount * this.nGlobalBuckets + bucket] = tmpGlobalIndex;
-                  // System.out.println("Global bucket "+(globalCount+bucket)+" at offset "+tmpGlobalIndex);
-                  for (IntDoublePair element : buckets.get(bucket)) {
-                    this.globalsMapInd[tmpGlobalIndex] = element.i;
-                    this.globalsMapVal[tmpGlobalIndex] = element.d;
-                    this.globalsMapFval[tmpGlobalIndex] = (float)element.d;
-                    // System.out.print(this.globalsMapInd[tmpGlobalIndex]+":"+this.globalsMapVal[tmpGlobalIndex]+" ");
-                    tmpGlobalIndex++;
-                  }
-                  // System.out.println();
-                }
-
-                globalCount = globalCount + 1;
-            }
         } catch(IOException io) {
             throw new RuntimeException(io);
         }
@@ -298,28 +286,15 @@ public class HadoopOpenCLContext {
 
     }
 
-    private static class IntDoublePair {
-      public final int i;
-      public final double d;
-
-      public IntDoublePair(int setI, double setD) {
-        this.i = setI;
-        this.d = setD;
-      }
-    }
-
-    private HashMap<Integer, List<IntDoublePair>> constructEmptyBuckets(int nBuckets) {
-      HashMap<Integer, List<IntDoublePair>> buckets = new HashMap<Integer, List<IntDoublePair>>();
-      for (int i = 0 ; i < nBuckets; i++) {
-        buckets.put(i, new LinkedList<IntDoublePair>());
-      }
-      return buckets;
-    }
-
-    private void clearBuckets(HashMap<Integer, List<IntDoublePair>> buckets) {
-      for (Map.Entry<Integer, List<IntDoublePair>> entry : buckets.entrySet()) {
-        entry.getValue().clear();
-      }
+    private void forceNext(SequenceFile.Reader reader, IntWritable key,
+            ArrayPrimitiveWritable val, int expected) throws IOException {
+        if (reader.next(key, val) = false) {
+            throw new RuntimeException("Unexpected next failure in forceNext");
+        }
+        if (expected != key.get()) {
+            throw new RuntimeException("Expected vector id of "+expected+
+                    " but got "+key.get());
+        }
     }
 
     public int[] getGlobalIndices() { return this.globalIndices; }

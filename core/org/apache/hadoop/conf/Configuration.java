@@ -74,6 +74,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
+import org.apache.hadoop.mapreduce.HadoopOpenCLContext;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SparseVectorWritable;
@@ -1508,6 +1509,31 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     return result;
   }
 
+  private static class IntDoublePair {
+      public final int i;
+      public final double d;
+
+      public IntDoublePair(int setI, double setD) {
+          this.i = setI;
+          this.d = setD;
+      }
+  }
+
+  private void clearBuckets(HashMap<Integer, List<IntDoublePair>> buckets) {
+      for (Map.Entry<Integer, List<IntDoublePair>> entry : buckets.entrySet()) {
+          entry.getValue().clear();
+      }
+  }
+
+  private HashMap<Integer, List<IntDoublePair>> constructEmptyBuckets(int nBuckets) {
+      HashMap<Integer, List<IntDoublePair>> buckets = new HashMap<Integer,
+          List<IntDoublePair>>();
+      for (int i = 0 ; i < nBuckets; i++) {
+          buckets.put(i, new LinkedList<IntDoublePair>());
+      }
+      return buckets;
+  }
+
   List<int[]> globalIndices = new LinkedList<int[]>();
   List<double[]> globalVals = new LinkedList<double[]>();
 
@@ -1518,15 +1544,80 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       SequenceFile.Writer writer;
       try {
           writer = SequenceFile.createWriter(FileSystem.get(this), this, new Path(filename),
-                  IntWritable.class, SparseVectorWritable.class);
+                  IntWritable.class, ArrayPrimitiveWritable.class);
 
-          final IntWritable key = new IntWritable();
-          final SparseVectorWritable val = new SparseVectorWritable();
-          for (int i = 0; i < globalIndices.size(); i++) {
-              key.set(i);
-              val.set(this.globalIndices.get(i), this.globalVals.get(i));
-              writer.append(key, val);
+          final int nGlobalBuckets = this.getInt("opencl.global.buckets", -1);
+          if (nGlobalBuckets == -1) {
+              throw new RuntimeException("# of global buckets must be set");
           }
+          int countGlobals = globalIndices.size();
+          int totalGlobals = 0;
+          for (int i = 0; i < globalIndices.size(); i++) {
+              totalGlobals += globalIndices.get(i).length;
+          }
+
+          int[] globalOffsets = new int[countGlobals];
+          int[] globalsInd = new int[totalGlobals];
+          double[] globalsVal = new double[totalGlobals];
+          float[] globalsFval = new float[totalGlobals];
+
+          int[] globalsMapInd = new int[totalGlobals];
+          double[] globalsMapVal = new double[totalGlobals];
+          float[] globalsMapFval = new float[totalGlobals];
+          int[] globalsMap = new int[nGlobalBuckets * countGlobals];
+
+          final HashMap<Integer, List<IntDoublePair>> buckets =
+              constructEmptyBuckets(nGlobalBuckets);
+          int globalIndex = 0;
+          int globalCount = 0;
+          for (int vector = 0; vector < globalIndices.size(); vector++) {
+              int[] currentIndices = this.globalIndices.get(vector);
+              double[] currentVals = this.globalVals.get(vector);
+
+              clearBuckets(buckets);
+              this.globalOffsets[globalCount] = globalIndex;
+              for (int i = 0; i < currentIndices.length; i++) {
+                  buckets.get(currentIndices[i] % nGlobalBuckets).add(
+                          new IntDoublePair(currentIndices[i], currentVals[i]));
+                  this.globalsInd[globalIndex] = currentIndices[i];
+                  this.globalsVal[globalIndex] = currentVals[i];
+                  this.globalsFval[globalIndex] = (float)currentVals[i];
+                  globalIndex++;
+              }
+
+              int tmpGlobalIndex = globalOffsets[globalCount];
+              for (int bucket = 0; bucket < nGlobalBuckets; bucket++) {
+                  globalsMap[globalCount * nGlobalBuckets + bucket] =
+                      tmpGlobalIndex;
+                  for (IntDoublePair element : buckets.get(bucket)) {
+                      globalsMapInd[tmpGlobalIndex] = element.i;
+                      globalsMapVal[tmpGlobalIndex] = element.d;
+                      this.globalsMapFval[tmpGlobalIndex] = (float)element.d;
+                      tmpGlobalIndex++;
+                  }
+              }
+              globalCount++;
+          }
+
+          int[] metadata = new int[] { countGlobals, totalGlobals };
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_META_ID),
+              new ArrayPrimitiveWritable(metadata));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_OFFSET_ID),
+              new ArrayPrimitiveWritable(globalOffsets));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_IND_ID),
+              new ArrayPrimitiveWritable(globalsInd));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_VAL_ID),
+              new ArrayPrimitiveWritable(globalsVal));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_FVAL_ID),
+              new ArrayPrimitiveWritable(globalsFval));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_IND_ID),
+              new ArrayPrimitiveWritable(globalsMapInd));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_VAL_ID),
+              new ArrayPrimitiveWritable(globalsMapVal));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_FVAL_ID),
+              new ArrayPrimitiveWritable(globalsMapFval));
+          writer.append(new IntWritable(HadoopOpenCLContext.GLOBAL_MAP_ID),
+              new ArrayPrimitiveWritable(globalsMap));
 
           writer.close();
       } catch(IOException io) {
