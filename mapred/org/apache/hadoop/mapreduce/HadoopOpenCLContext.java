@@ -219,7 +219,8 @@ public class HadoopOpenCLContext {
 
             reader.close();
 
-            final HashMap<Integer, List<IntDoublePair>> buckets = constructEmptyBuckets(this.nGlobalBuckets);
+            final HashMap<Integer, List<IntDoublePair>> buckets =
+              constructEmptyBuckets(this.nGlobalBuckets);
             this.globalIndices = new int[countGlobals];
             this.nGlobals = countGlobals;
 
