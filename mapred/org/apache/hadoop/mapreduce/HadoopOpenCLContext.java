@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.LinkedList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.EnumSet;
 import com.amd.aparapi.Range;
 import com.amd.aparapi.internal.opencl.OpenCLPlatform;
 import com.amd.aparapi.device.OpenCLDevice;
@@ -55,12 +56,12 @@ public class HadoopOpenCLContext {
 
     private final int nGlobalBuckets;
 
-    private int findCpu() {
+    private int findDeviceWithType(Device.TYPE type) {
         int devicesSoFar = 0;
         List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
         for(OpenCLPlatform platform : platforms) {
             for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
-              if(tmpDev.getType() == Device.TYPE.CPU) {
+              if(tmpDev.getType() == type) {
                 return devicesSoFar;
               }
               devicesSoFar++;
@@ -99,7 +100,28 @@ public class HadoopOpenCLContext {
         }
 
         if(this.isCombiner) {
-            this.deviceId = findCpu();
+            final Device.TYPE combinerType;
+            if (System.getProperty("opencl.combiner.device") != null) {
+              final String combinerTypeString =
+                System.getProperty("opencl.combiner.device");
+              EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
+              Device.TYPE result = null;
+              for (Device.TYPE t : allTypes) {
+                if (t.toString().equals(combinerTypeString)) {
+                  result = t;
+                  break;
+                }
+              }
+              if (result == null) {
+                combinerType = Device.TYPE.CPU;
+              } else {
+                combinerType = result;
+              }
+            } else {
+              combinerType = Device.TYPE.CPU;
+            }
+
+            this.deviceId = findDeviceWithType(combinerType);
             // this.deviceId = -1;
             // this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
         } else if(System.getProperty("opencl.device") != null) {

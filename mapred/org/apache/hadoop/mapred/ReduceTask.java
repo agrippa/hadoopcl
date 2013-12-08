@@ -395,13 +395,6 @@ class ReduceTask extends Task {
     statusUpdate(umbilical);
 
     final FileSystem rfs = FileSystem.getLocal(job).getRaw();
-    System.out.println("isLocal = "+isLocal);
-    if (isLocal) {
-      System.out.println("Merging map files:");
-      for (Path p : getMapFiles(rfs, true)) {
-        System.out.println("  "+p.toString());
-      }
-    }
     RawKeyValueIterator rIter = isLocal
       ? Merger.merge(job, rfs, job.getMapOutputKeyClass(),
           job.getMapOutputValueClass(), codec, getMapFiles(rfs, true),

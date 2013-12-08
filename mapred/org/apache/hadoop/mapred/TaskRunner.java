@@ -47,6 +47,8 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
 
+import com.amd.aparapi.device.Device;
+
 /** Base class that runs a task in a separate process.  Tasks are run in a
  * separate process in order to isolate the map/reduce system code from bugs in
  * user supplied map and reduce functions.
@@ -221,7 +223,8 @@ abstract class TaskRunner extends Thread {
       long logSize = TaskLog.getTaskLogLength(conf);
       
       //  Build exec child JVM args.
-      Vector<String> vargs = getVMArgs(taskid, workDir, classPaths, logSize, tip.getAssignedDevice());
+      Vector<String> vargs = getVMArgs(taskid, workDir, classPaths, logSize,
+          tip.getAssignedDevice(), tip.getCombinerDeviceType());
       
       tracker.addToMemoryManager(t.getTaskID(), t.isMapTask(), conf);
 
@@ -372,7 +375,8 @@ abstract class TaskRunner extends Thread {
    * @throws IOException
    */
   private Vector<String> getVMArgs(TaskAttemptID taskid, File workDir,
-      List<String> classPaths, long logSize, int assignedDevice)
+      List<String> classPaths, long logSize, int assignedDevice,
+      Device.TYPE combinerDeviceType)
       throws IOException {
     Vector<String> vargs = new Vector<String>(8);
     File jvm =                                  // use same jvm as parent
@@ -381,6 +385,7 @@ abstract class TaskRunner extends Thread {
 
     vargs.add(jvm.toString());
     vargs.add("-Dopencl.device="+assignedDevice);
+    vargs.add("-Dopencl.combiner.device="+combinerDeviceType.toString());
 
     // Add child (task) java-vm options.
     //
