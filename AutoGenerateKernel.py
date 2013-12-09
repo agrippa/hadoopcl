@@ -2,7 +2,7 @@ import sys
 
 primitives = [ 'int', 'float', 'double', 'long' ]
 nonprimitives = [ 'pair', 'ipair' ]
-variablelength = [ 'svec', 'ivec', 'fsvec' ]
+variablelength = [ 'bsvec', 'svec', 'ivec', 'fsvec' ]
 supportedTypes = primitives + nonprimitives + variablelength
 profileMemoryUtilization = False
 
@@ -565,33 +565,27 @@ class SvecVisitor(NativeTypeVisitor):
                  '        newList.add(wrapper);',
                  '        this.sortedVals.put(actual.size(), newList);',
                  '    }',
-                 # '    this.inputValIndices.ensureCapacity( (this.nPairs +',
-                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
-                 # '    this.inputValVals.ensureCapacity( (this.nPairs +',
-                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
-                 # '    for (int i = 0; i < actual.size(); i++) {',
-                 # '        this.inputValIndices.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
-                 # '            actual.indices()[i]);',
-                 # '        this.inputValVals.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
-                 # '            actual.vals()[i]);',
-                 # '    }',
                  '} else {',
                  '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
                  '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.indices()[i]);',
-                 '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.vals()[i]);',
-                 '    }',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
-                 'for(int i = 0 ; i < actual.size(); i++) {',
-                 '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 '}',
+                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
+                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
+                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
+                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -655,7 +649,7 @@ class SvecVisitor(NativeTypeVisitor):
     def getUseBufferedValues(self):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
-                 '}'
+                 '}',
                  'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputValIndices, this.individualInputValsCount, this.tempBuffer2.size());',
                  'System.arraycopy(this.tempBuffer3.getArray(), 0, this.inputValVals, this.individualInputValsCount, this.tempBuffer3.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
@@ -803,17 +797,19 @@ class IvecVisitor(NativeTypeVisitor):
                  # '    }',
                  '} else {',
                  '    this.inputVal.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputVal.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.vals()[i]);',
-                 '    }',
+                 '    System.arraycopy(actual.vals(), 0, this.inputVal.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputVal.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
-                 'for(int i = 0 ; i < actual.size(); i++) {',
-                 '    this.inputVal[this.individualInputValsCount + i] = actual.getArray()[i];',
-                 '}',
+                 'System.arraycopy(this.inputVal, this.individualInputValsCount, actual.getArray(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputVal[this.individualInputValsCount + i] = actual.getArray()[i];',
+                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -869,7 +865,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getUseBufferedValues(self):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
-                 '}'
+                 '}',
                  'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputVal, this.individualInputValsCount, this.tempBuffer2.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
     def getBufferedInit(self):
@@ -1031,20 +1027,24 @@ class FsvecVisitor(NativeTypeVisitor):
                  '} else {',
                  '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
                  '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.indices()[i]);',
-                 '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.vals()[i]);',
-                 '    }',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
-                 'for(int i = 0 ; i < actual.size(); i++) {',
-                 '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 '}',
+                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
+                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
+                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
+                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1108,7 +1108,7 @@ class FsvecVisitor(NativeTypeVisitor):
     def getUseBufferedValues(self):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
-                 '}'
+                 '}',
                  'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputValIndices, this.individualInputValsCount, this.tempBuffer2.size());',
                  'System.arraycopy(this.tempBuffer3.getArray(), 0, this.inputValVals, this.individualInputValsCount, this.tempBuffer3.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
@@ -1154,6 +1154,264 @@ class FsvecVisitor(NativeTypeVisitor):
     def getInputLength(self, core, isMapper):
         return [ 'this.individualInputValsCount+"/"+this.input'+core+'Indices.length+" '+core.lower()+'s elements"' ]
 
+#################################################################################
+########################## Visitor for Bsvec type ###############################
+#################################################################################
+class BsvecVisitor(NativeTypeVisitor):
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
+        buf = [ ]
+        if isInput:
+            buf.append('public int[] '+basename+'LookAsideBuffer;')
+            if not isKernel and isMapper:
+                buf.append('public HadoopCLResizableIntArray '+basename+'Indices;')
+                buf.append('public HadoopCLResizableDoubleArray '+basename+'Vals;')
+            else:
+                buf.append('public int[] '+basename+'Indices;')
+                buf.append('public double[] '+basename+'Vals;')
+        else:
+            buf.append('public int[] '+basename+'IntLookAsideBuffer;')
+            buf.append('public int[] '+basename+'DoubleLookAsideBuffer;')
+            buf.append('public int[] '+basename+'Indices;')
+            buf.append('public double[] '+basename+'Vals;')
+
+        if not isInput:
+            buf.append('private int[] bufferOutputIndices = null;')
+            buf.append('private double[] bufferOutputVals = null;')
+            buf.append('public int[] outputValLengthBuffer;')
+        return buf
+
+    def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
+        buf = [ ]
+        if forceNull:
+            if isInput:
+                buf.append(basename+'LookAsideBuffer = null;')
+            else:
+                buf.append(basename+'IntLookAsideBuffer = null;')
+                buf.append(basename+'DoubleLookAsideBuffer = null;')
+            buf.append(basename+'Indices = null;')
+            buf.append(basename+'Vals = null;')
+        else:
+            if isInput:
+                buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
+                if isMapper:
+                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * 5);\n')
+                    buf.append(basename+'Vals = new HadoopCLResizableDoubleArray(('+size+') * 5);\n')
+                else:
+                    buf.append(basename+'Indices = new int[('+size+') * 5];\n')
+                    buf.append(basename+'Vals = new double[('+size+') * 5];\n')
+            else:
+                buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
+                buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
+                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+'Indices = new int[bigger];\n')
+                buf.append(basename+'Vals = new double[bigger];\n')
+        if not isKey and isInput:
+            buf.append('this.individualInputValsCount = 0;')
+            buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
+        # if isMapper and not isInput and not isKey:
+        if not isInput and not isKey:
+            buf.append('outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
+            buf.append('memAuxIntIncr = new int[1];')
+            buf.append('memAuxDoubleIncr = new int[1];')
+        return buf
+    def getKeyValSetup(self, basename, isInput, isKey):
+        buf = [ ]
+        if isInput:
+            buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
+        else:
+            buf.append('this.'+basename+'IntLookAsideBuffer = set'+basename.capitalize()+'IntLookAsideBuffer;')
+            buf.append('this.'+basename+'DoubleLookAsideBuffer = set'+basename.capitalize()+'DoubleLookAsideBuffer;')
+        buf.append('this.'+basename+'Indices = set'+basename.capitalize()+'Indices;')
+        buf.append('this.'+basename+'Vals = set'+basename.capitalize()+'Vals;')
+        if not isKey and not isInput:
+            buf.append('this.outputValLengthBuffer = setOutputValLengthBuffer;')
+        return buf
+#    def getKeyValSet(basename, indexStr):
+    def getSig(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupport key type bsvec')
+        return [ 'int[] '+basename+'Indices, double[] '+basename+'Vals, int len' ]
+    def getWriteMethodBody(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupported key type bsvec')
+        return [ basename+'Obj.set('+basename+'Indices, '+basename+'Vals, len);' ]
+    def getIterArg(self):
+        return [ 'HadoopCLSvecValueIterator valIter' ]
+    def getKernelCall(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupported key type bsvec')
+        return [ 'input'+basename+'Indices, input'+basename+'Vals, input'+basename+'LookAsideBuffer[3] + this.nPairs + this.individualInputValsCount' ]
+    def getKernelCallIter(self):
+        return [ 'null' ]
+    def getOriginalInitMethod(self):
+        return [ 'this.tempBuffer1 = new HadoopCLResizableIntArray();',
+                 'this.tempBuffer2 = new HadoopCLResizableIntArray();',
+                 'this.tempBuffer3 = new HadoopCLResizableDoubleArray();' ]
+    def getSetupParameter(self, basename, isInput, isKey):
+        buf = [ ]
+        if isInput:
+            buf.append('int[] set'+basename.capitalize()+'LookAsideBuffer, ')
+        else:
+            buf.append('int[] set'+basename.capitalize()+'IntLookAsideBuffer, ')
+            buf.append('int[] set'+basename.capitalize()+'DoubleLookAsideBuffer, ')
+        buf.append('int[] set'+basename.capitalize()+'Indices, ')
+        buf.append('double[] set'+basename.capitalize()+'Vals')
+        if not isInput and not isKey:
+            buf.append(', int[] setOutputValLengthBuffer')
+        return buf
+    def getSetLengths(self):
+        return [ 'this.outputLength = outputValIntLookAsideBuffer.length;',
+                 'this.outputAuxLength = outputValIndices.length;' ]
+    def getAddValueMethodMapper(self):
+        return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
+                 'if (this.enableStriding) {',
+                 '    IndValWrapper wrapper = new IndValWrapper(actual.indices(), actual.vals(), actual.size());',
+                 '    if (this.sortedVals.containsKey(actual.size())) {',
+                 '        this.sortedVals.get(actual.size()).add(wrapper);',
+                 '    } else {',
+                 '        LinkedList<IndValWrapper> newList = new LinkedList<IndValWrapper>();',
+                 '        newList.add(wrapper);',
+                 '        this.sortedVals.put(actual.size(), newList);',
+                 '    }',
+                 # '    this.inputValIndices.ensureCapacity( (this.nPairs +',
+                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
+                 # '    this.inputValVals.ensureCapacity( (this.nPairs +',
+                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
+                 # '            actual.vals()[i]);',
+                 # '    }',
+                 '} else {',
+                 '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
+                 '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
+                 '}',
+                 'this.individualInputValsCount += actual.size();' ]
+    def getAddValueMethodReducer(self):
+        return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
+                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
+                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
+                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
+                 # '}',
+                 'this.individualInputValsCount += actual.size();' ]
+#    def getAddKeyMethod(self, index):
+#    def getLimitSetter():
+#    def getCloneIncompleteMapperKey():
+    def getCloneIncompleteMapperValue(self):
+        return [ 'newBuffer.inputValLookAsideBuffer[newBuffer.nPairs] = newBuffer.individualInputValsCount;',
+                 'int length;',
+                 'if (this.enableStriding) {',
+                 '    length = (i == this.nPairs-1 ? this.individualInputValsCount : this.inputValLookAsideBuffer[i+1]) - this.inputValLookAsideBuffer[i];',
+                 '    for (int j = 0; j < length; j++) {',
+                 '        newBuffer.inputValIndices.unsafeSet(',
+                 '            newBuffer.nPairs + (j * nRestarts),',
+                 '            this.inputValIndices.get(i + (j * this.nPairs)));',
+                 '        newBuffer.inputValVals.unsafeSet(',
+                 '            newBuffer.nPairs + (j * nRestarts),',
+                 '            this.inputValVals.get(i + (j * this.nPairs)));',
+                 '    }',
+                 '} else {',
+                 '    int baseOffset = this.inputValLookAsideBuffer[i];',
+                 '    int topOffset = i == this.nPairs-1 ? this.individualInputValsCount : this.inputValLookAsideBuffer[i+1];',
+                 '    length = topOffset - baseOffset;',
+                 '    System.arraycopy((int[])(this.inputValIndices.getArray()),',
+                 '        baseOffset, (int[])(newBuffer.inputValIndices.getArray()),',
+                 '        newBuffer.inputValLookAsideBuffer[newBuffer.nPairs], topOffset-baseOffset);',
+                 '    System.arraycopy((double[])(this.inputValVals.getArray()),',
+                 '        baseOffset, (double[])(newBuffer.inputValVals.getArray()),',
+                 '        newBuffer.inputValLookAsideBuffer[newBuffer.nPairs], topOffset-baseOffset);',
+                 '}',
+                 'newBuffer.individualInputValsCount += length;' ]
+#    def getCloneIncompleteReducerKey():
+    def getCloneIncompleteReducerValue(self):
+        return [ 'for(int j = baseValOffset; j < topValOffset; j++) {',
+                 '    int offsetInNewBuffer = newBuffer.nVals + j-baseValOffset;',
+                 '    newBuffer.inputValLookAsideBuffer[offsetInNewBuffer] = newBuffer.individualInputValsCount;',
+                 '    int baseOffset = this.inputValLookAsideBuffer[j];',
+                 '    int topOffset = j == this.nVals-1 ? this.individualInputValsCount : this.inputValLookAsideBuffer[j+1];',
+                 '    System.arraycopy(this.inputValIndices, baseOffset, newBuffer.inputValIndices, newBuffer.inputValLookAsideBuffer[offsetInNewBuffer], topOffset-baseOffset);',
+                 '    System.arraycopy(this.inputValVals, baseOffset, newBuffer.inputValVals, newBuffer.inputValLookAsideBuffer[offsetInNewBuffer], topOffset-baseOffset);',
+                 '    newBuffer.individualInputValsCount += (topOffset - baseOffset);',
+                 '}' ]
+    def getFillParameter(self, basename, isInput, isMapper):
+        buf = [ ]
+        if isInput:
+            if isMapper:
+                buf.append(basename+'LookAsideBuffer, (int[])('+basename+'Indices.getArray()), (double[])('+basename+'Vals.getArray())')
+            else:
+                buf.append(basename+'LookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
+        else:
+            buf.append(basename+'IntLookAsideBuffer, '+basename+'DoubleLookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
+        return buf
+    def getMapArguments(self, varName):
+        return [ varName+'.indices(), '+varName+'.vals(), '+varName+'.size()' ]
+    def getBufferedDecl(self):
+        return [ ]
+    def getBufferInputValue(self):
+        return [ '((HadoopCLResizableIntArray)this.tempBuffer1).add(this.tempBuffer2.size());',
+                 'for(int i = 0; i < actual.size(); i++) {',
+                 '    ((HadoopCLResizableIntArray)this.tempBuffer2).add(actual.indices()[i]);',
+                 '    ((HadoopCLResizableDoubleArray)this.tempBuffer3).add(actual.vals()[i]);',
+                 '}' ]
+    def getUseBufferedValues(self):
+        return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
+                 '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
+                 '}',
+                 'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputValIndices, this.individualInputValsCount, this.tempBuffer2.size());',
+                 'System.arraycopy(this.tempBuffer3.getArray(), 0, this.inputValVals, this.individualInputValsCount, this.tempBuffer3.size());',
+                 'this.individualInputValsCount += this.tempBuffer2.size();' ]
+    def getBufferedInit(self):
+        return [ ]
+    def getResetHelper(self):
+        return [ 'List<int[]> accIndices = new ArrayList<int[]>();',
+                 'List<double[]> accVals = new ArrayList<double[]>();' ]
+    def getAddValHelper(self):
+        return [ 'accIndices.add(v.indices());',
+                 'accVals.add(v.vals());' ]
+    def getJavaProcessReducerCall(self):
+        return [ """new HadoopCLSvecValueIterator(
+                       accIndices, accVals));""" ]
+    def getSpace(self, isMapper, isInput, isKey):
+        # Can't be a key, so isKey always == False
+        if isInput:
+            if isMapper:
+                return [ '(inputValLookAsideBuffer.length * 4) +',
+                         '(inputValIndices.length() * 4) +',
+                         '(inputValVals.length() * 8);' ]
+            else:
+                return [ '(inputValLookAsideBuffer.length * 4) +',
+                         '(inputValIndices.length * 4) +',
+                         '(inputValVals.length * 8);' ]
+        else:
+            return [ '(outputValIntLookAsideBuffer.length * 4) +',
+                     '(outputValDoubleLookAsideBuffer.length * 4) +',
+                     '(outputValIndices.length * 4) +',
+                     '(outputValVals.length * 8) +',
+                     '(outputValLengthBuffer.length * 4) +',
+                     '(bufferOutputIndices == null ? 0 : bufferOutputIndices.length * 4) +',
+                     '(bufferOutputVals == null ? 0 : bufferOutputVals.length * 8) +',
+                     '(memAuxIntIncr.length * 4) +',
+                     '(memAuxDoubleIncr.length * 4);' ]
+    def getOutputLength(self, core, count):
+        return [ '(this.output'+core+'IntLookAsideBuffer['+count+'-1]+',
+                 'this.output'+core+'LengthBuffer['+count+'-1])+"/"+',
+                 'this.output'+core+'Indices.length+" int memory, and "+',
+                 '(this.output'+core+'DoubleLookAsideBuffer['+count+'-1]+'
+                 'this.output'+core+'LengthBuffer['+count+'-1])+"/"+',
+                 'this.output'+core+'Vals.length+" double memory"' ]
+    def getInputLength(self, core, isMapper):
+        return [ 'this.individualInputValsCount+"/"+this.input'+core+'Indices.length+" '+core.lower()+'s elements"' ]
 
 #################################################################################
 ########################## End of visitors ######################################
@@ -1167,7 +1425,8 @@ visitorsMap = { 'int': PrimitiveVisitor('int'),
                 'ipair': IpairVisitor(),
                 'svec': SvecVisitor(),
                 'ivec': IvecVisitor(),
-                'fsvec': FsvecVisitor() }
+                'fsvec': FsvecVisitor(),
+                'bsvec': BsvecVisitor() }
 
 def visitor(nativeTyp):
     return visitorsMap[nativeTyp]
@@ -1197,11 +1456,15 @@ def compactHadoopName(name):
         return 'Ivec'
     elif name == 'FSparseVector':
         return 'Fsvec'
+    elif name == 'BSparseVector':
+        return 'Bsvec'
     else:
         return name
 
 def isPrimitiveHadoopType(typeName):
-    if typeName == 'Pair' or typeName == 'UniquePair' or typeName == 'SparseVector' or typeName == 'IntegerVector' or typeName == 'FSparseVector':
+    if typeName == 'Pair' or typeName == 'UniquePair' or typeName == 'SparseVector' or \
+            typeName == 'IntegerVector' or typeName == 'FSparseVector' or \
+            typeName == 'BSparseVector':
         return False
     return True
 
@@ -1221,6 +1484,8 @@ def typeNameForWritable(t):
         return 'IntegerVector'
     elif t == 'fsvec':
         return 'FSparseVector'
+    elif t == 'bsvec':
+        return 'BSparseVector'
     else:
         return t.capitalize()
 
@@ -1539,7 +1804,7 @@ def writeSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType
     if isVariableLength(nativeInputValueType):
         fp.write(', int setIndividualInputValsCount')
 
-    if nativeOutputValueType == 'svec':
+    if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
         fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxDoubleIncr')
     elif nativeOutputValueType == 'ivec':
         fp.write(', int[] setMemAuxIncr')
@@ -1578,7 +1843,7 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
         fp.write('        this.individualInputValsCount = setIndividualInputValsCount;\n')
         fp.write('\n')
 
-    if nativeOutputValueType == 'svec':
+    if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
         fp.write('        this.memAuxIntIncr = setMemAuxIntIncr;\n')
         fp.write('        this.memAuxDoubleIncr = setMemAuxDoubleIncr;\n')
         fp.write('        this.memAuxIntIncr[0] = 0;\n')
@@ -1658,7 +1923,7 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
     fp.write('    public void reset() {\n')
     if isMapper:
         fp.write('        this.nPairs = 0;\n')
-        if nativeInputValueType == 'svec':
+        if nativeInputValueType == 'svec' or nativeInputValueType == 'bsvec':
             fp.write('        this.individualInputValsCount = 0;\n')
             fp.write('        this.inputValIndices.reset();\n')
             fp.write('        this.inputValVals.reset();\n')
@@ -1688,6 +1953,13 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType):
     if isMapper:
         if nativeInputValueType == 'svec':
             fp.write('        SparseVectorWritable curr = (SparseVectorWritable)((Context)context).getCurrentValue();\n')
+            fp.write('        if (this.enableStriding) {\n')
+            fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('        } else {\n')
+            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length();\n')
+            fp.write('        }\n')
+        elif nativeInputValueType == 'bsvec':
+            fp.write('        BSparseVectorWritable curr = (BSparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('        if (this.enableStriding) {\n')
             fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
             fp.write('        } else {\n')
@@ -1795,7 +2067,7 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
     fp.write('    @Override\n')
     fp.write('    public int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar) throws IOException, InterruptedException {\n')
     fp.write('        final '+hadoopOutputKeyType+'Writable saveKey = new '+hadoopOutputKeyType+'Writable();\n')
-    if nativeOutputValueType == 'svec':
+    if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
         # fp.write('        HadoopCLResizableIntArray indices = new HadoopCLResizableIntArray();\n')
         # fp.write('        HadoopCLResizableDoubleArray vals = new HadoopCLResizableDoubleArray();\n')
         fp.write('        final '+hadoopOutputValueType+'Writable saveVal = new '+hadoopOutputValueType+'Writable();\n')
@@ -2028,15 +2300,15 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('                while (pairsIter.hasNext()) {\n')
         fp.write('                    IndValWrapper curr = pairsIter.next();\n')
         fp.write('                    inputBuffer.inputValLookAsideBuffer[index] = inputBuffer.individualInputValsCount;\n')
-        if nativeInputValType == 'svec' or nativeInputValType == 'fsvec':
+        if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
             fp.write('                    inputBuffer.inputValIndices.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
             fp.write('                    inputBuffer.inputValVals.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
         else:
             fp.write('                    inputBuffer.inputVal.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
         fp.write('                    for (int i = 0; i < curr.length; i++) {\n')
-        if nativeInputValType == 'svec' or nativeInputValType == 'fsvec':
+        if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
             fp.write('                        inputBuffer.inputValIndices.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.indices[i]);\n')
-            prefix = 'd' if nativeInputValType == 'svec' else 'f'
+            prefix = 'd' if (nativeInputValType == 'svec' or nativeInputValType == 'bsvec') else 'f'
             fp.write('                        inputBuffer.inputValVals.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.'+prefix+'vals[i]);\n')
         else:
             fp.write('                        inputBuffer.inputVal.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.indices[i]);\n')
@@ -2078,7 +2350,7 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     if isVariableLength(nativeInputValType):
         fp.write(', inputBuffer.individualInputValsCount')
 
-    if nativeOutputValType == 'svec':
+    if nativeOutputValType == 'svec' or nativeOutputValType == 'bsvec':
         fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxDoubleIncr')
     elif nativeOutputValType == 'ivec':
         fp.write(', outputBuffer.memAuxIncr')
@@ -2156,7 +2428,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         writeln(visitor(nativeInputValueType).getBufferedDecl(), 1, kernelfp)
 
     kernelfp.write('\n')
-    if nativeInputValueType == 'svec' or nativeInputValueType == 'fsvec':
+    if nativeInputValueType == 'svec' or nativeInputValueType == 'fsvec' or nativeInputValueType == 'bsvec':
         input_fp.write('    protected int individualInputValsCount;\n')
         kernelfp.write('    protected int individualInputValsCount;\n')
         if isMapper:
@@ -2171,7 +2443,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
         input_fp.write('    public int nVectorsToBuffer;\n')
 
-    if nativeOutputValueType == 'svec':
+    if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')
         output_fp.write('    protected int[] memAuxDoubleIncr;\n')
         kernelfp.write('    protected int[] memAuxIntIncr;\n')

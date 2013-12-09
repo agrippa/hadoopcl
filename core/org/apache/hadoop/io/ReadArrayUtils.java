@@ -10,66 +10,57 @@ import java.nio.ByteBuffer;
 
 public class ReadArrayUtils {
 
+    private static byte[] readBytes(DataInput input, final int total) throws IOException {
+      byte[] arr = new byte[total];
+      input.readFully(arr, 0, total);
+      return arr;
+    }
+
     public static int[] readIntArray(DataInput input, final int len) throws IOException {
-      final int totalBytes = len * 4;
-      ByteBuffer byteBuffer = ByteBuffer.allocate(totalBytes);
-      input.readFully(byteBuffer.array(), 0, totalBytes);
+      byte[] arr = readBytes(input, len * 4);
       int[] result = new int[len];
-      byteBuffer.asIntBuffer().get(result);
+      ByteBuffer.wrap(arr).asIntBuffer().get(result);
       return result;
     }
 
     public static float[] readFloatArray(DataInput input, final int len) throws IOException {
-      final int totalBytes = len * 4;
-      ByteBuffer byteBuffer = ByteBuffer.allocate(totalBytes);
-      input.readFully(byteBuffer.array(), 0, totalBytes);
+      byte[] arr = readBytes(input, len * 4);
       float[] result = new float[len];
-      byteBuffer.asFloatBuffer().get(result);
+      ByteBuffer.wrap(arr).asFloatBuffer().get(result);
       return result;
     }
 
     public static double[] readDoubleArray(DataInput input, final int len) throws IOException {
-      final int totalBytes = len * 8;
-      ByteBuffer byteBuffer = ByteBuffer.allocate(totalBytes);
-      input.readFully(byteBuffer.array(), 0, totalBytes);
+      byte[] arr = readBytes(input, len * 8);
       double[] result = new double[len];
-      byteBuffer.asDoubleBuffer().get(result);
+      ByteBuffer.wrap(arr).asDoubleBuffer().get(result);
       return result;
     }
 
-    public static void dumpIntArray(DataOutput output, int[] arr) throws IOException {
-        dumpIntArray(output, arr, arr.length);
-    }
-
-    public static void dumpIntArray(DataOutput output, int[] arr, int len) throws IOException {
+    public static void dumpIntArray(DataOutput output, int[] arr, int offset,
+            int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 4);
         IntBuffer intBuffer = byteBuffer.asIntBuffer();
-        intBuffer.put(arr, 0, len);
+        intBuffer.put(arr, offset, len);
         byte[] binary = byteBuffer.array();
-        output.write(binary, 0, binary.length);
+        output.write(binary, 0, len * 4);
     }
 
-    public static void dumpFloatArray(DataOutput output, float[] arr) throws IOException {
-        dumpFloatArray(output, arr, arr.length);
-    }
-
-    public static void dumpFloatArray(DataOutput output, float[] arr, int len) throws IOException {
+    public static void dumpFloatArray(DataOutput output, float[] arr, int offset,
+            int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 4);
         FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();
-        floatBuffer.put(arr, 0, len);
+        floatBuffer.put(arr, offset, len);
         byte[] binary = byteBuffer.array();
-        output.write(binary, 0, binary.length);
+        output.write(binary, 0, len * 4);
     }
 
-    public static void dumpDoubleArray(DataOutput output, double[] arr) throws IOException {
-        dumpDoubleArray(output, arr, arr.length);
-    }
-
-    public static void dumpDoubleArray(DataOutput output, double[] arr, int len) throws IOException {
+    public static void dumpDoubleArray(DataOutput output, double[] arr, int offset,
+            int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 8);
         DoubleBuffer doubleBuffer = byteBuffer.asDoubleBuffer();
-        doubleBuffer.put(arr, 0, len);
+        doubleBuffer.put(arr, offset, len);
         byte[] binary = byteBuffer.array();
-        output.write(binary, 0, binary.length);
+        output.write(binary, 0, len * 8);
     }
 }
