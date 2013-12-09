@@ -41,18 +41,13 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
         supportedValues.add("org.apache.hadoop.io.PairWritable");
         supportedValues.add("org.apache.hadoop.io.UniquePairWritable");
         supportedValues.add("org.apache.hadoop.io.SparseVectorWritable");
+        supportedValues.add("org.apache.hadoop.io.NewSparseVectorWritable");
         supportedValues.add("org.apache.hadoop.io.FSparseVectorWritable");
     }
 
     @Override
     public void run(Context context) throws IOException, InterruptedException {
         setup(context);
-
-        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-        System.out.println("Calling a reducer from:");
-        for (StackTraceElement ele : stack) {
-          System.out.println("  "+ele.toString());
-        }
         
         String keyClass = context.getMapOutputKeyClassString();
         String valueClass = context.getMapOutputValueClassString();

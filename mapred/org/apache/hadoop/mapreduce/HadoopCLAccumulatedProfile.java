@@ -85,7 +85,7 @@ public class HadoopCLAccumulatedProfile {
     @Override
     public String toString() {
         StringBuffer sb = new StringBuffer();
-        sb.append("overallTime=");
+        sb.append("runTime=");
         sb.append(this.overallTime);
         sb.append(" ms, readTime=");
         sb.append(this.accumRead);

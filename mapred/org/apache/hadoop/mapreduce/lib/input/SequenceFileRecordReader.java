@@ -117,10 +117,6 @@ public class SequenceFileRecordReader<K, V> extends RecordReader<K, V> {
     return new BinaryKeyValues(raw, total_read);
   }
 
-  public long getTotal() { 
-      return end-start;
-  }
-  
   /**
    * Return the progress within the input split
    * @return 0.0 to 1.0 of the input byte range

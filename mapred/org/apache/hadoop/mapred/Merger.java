@@ -34,7 +34,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.mapred.IFile.Reader;
+import org.apache.hadoop.mapred.IFile;
 import org.apache.hadoop.mapred.IFile.Writer;
 import org.apache.hadoop.util.PriorityQueue;
 import org.apache.hadoop.util.Progress;
@@ -163,7 +163,7 @@ public class Merger {
 }
 
   public static class Segment<K extends Object, V extends Object> {
-    Reader<K, V> reader = null;
+    MergeReader<K, V> reader = null;
     DataInputBuffer key = new DataInputBuffer();
     DataInputBuffer value = new DataInputBuffer();
     
@@ -174,6 +174,8 @@ public class Merger {
     CompressionCodec codec = null;
     long segmentOffset = 0;
     long segmentLength = -1;
+
+    public Path getPath() { return this.file; }
     
     public Segment(Configuration conf, FileSystem fs, Path file,
                    CompressionCodec codec, boolean preserve) throws IOException {
@@ -193,34 +195,38 @@ public class Merger {
       this.segmentLength = segmentLength;
     }
     
-    public Segment(Reader<K, V> reader, boolean preserve) {
+    public Segment(MergeReader<K, V> reader, boolean preserve) {
       this.reader = reader;
       this.preserve = preserve;
       
       this.segmentLength = reader.getLength();
     }
 
-    private void init(Counters.Counter readsCounter) throws IOException {
+    public void init(Counters.Counter readsCounter,
+        RawComparator comparator) throws IOException {
       if (reader == null) {
         FSDataInputStream in = fs.open(file);
         in.seek(segmentOffset);
-        reader = new Reader<K, V>(conf, in, segmentLength, codec, readsCounter);
+        // reader = new IFile.Reader<K, V>(conf, in, segmentLength, codec,
+        //     readsCounter);
+        reader = new SortedReader<K, V>(conf, in, segmentLength, codec,
+            readsCounter, comparator);
       }
     }
     
-    DataInputBuffer getKey() { return key; }
-    DataInputBuffer getValue() { return value; }
+    public DataInputBuffer getKey() { return key; }
+    public DataInputBuffer getValue() { return value; }
 
-    long getLength() { 
+    public long getLength() { 
       return (reader == null) ?
         segmentLength : reader.getLength();
     }
     
-    boolean next() throws IOException {
+    public boolean next() throws IOException {
       return reader.next(key, value);
     }
     
-    void close() throws IOException {
+    public void close() throws IOException {
       reader.close();
       
       if (!preserve && fs != null) {
@@ -373,13 +379,6 @@ public class Merger {
       return comparator.compare(key1.getData(), s1, l1, key2.getData(), s2, l2) < 0;
     }
 
-    protected String getstring(Object o) {
-      DataInputBuffer key1 = ((Segment<K, V>)o).getKey();
-      int s1 = key1.getPosition();
-      int l1 = key1.getLength() - s1;
-      return comparator.getstring(key1.getData(), s1, l1);
-    }
-
     public RawKeyValueIterator merge(Class<K> keyClass, Class<V> valueClass,
                                      int factor, Path tmpDir,
                                      Counters.Counter readsCounter,
@@ -395,7 +394,6 @@ public class Merger {
                                      Counters.Counter writesCounter)
         throws IOException {
       LOG.info("Merging " + segments.size() + " sorted segments");
-      System.out.println("Merger using comparator "+comparator.getClass().toString());
       
       //create the MergeStreams from the sorted map created in the constructor
       //and dump the final output to a file
@@ -423,7 +421,7 @@ public class Merger {
           for (Segment<K, V> segment : mStream) {
             // Initialize the segment at the last possible moment;
             // this helps in ensuring we don't use buffers until we need them
-            segment.init(readsCounter);
+            segment.init(readsCounter, comparator);
             long startPos = segment.getPosition();
             boolean hasNext = segment.next();
             long endPos = segment.getPosition();

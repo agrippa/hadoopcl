@@ -74,7 +74,6 @@ public abstract class RecordReader<KEYIN, VALUEIN> implements Closeable {
    * @throws InterruptedException
    */
   public abstract float getProgress() throws IOException, InterruptedException;
-  public abstract long getTotal() throws IOException;
   
   /**
    * Close the record reader.

@@ -73,10 +73,6 @@ public class DelegatingRecordReader<K, V> extends RecordReader<K, V> {
     return originalRR.getCurrentValue();
   }
 
-  public long getTotal() throws IOException {
-      return originalRR.getTotal();
-  }
-
   @Override
   public float getProgress() throws IOException, InterruptedException {
     return originalRR.getProgress();

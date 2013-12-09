@@ -54,6 +54,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.EnumSet;
 
 import javax.crypto.SecretKey;
 import javax.servlet.ServletContext;
@@ -860,6 +861,20 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
                 fConf.getClassByName("org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler"));
         this.mapScheduler = (HadoopCLScheduler)mapSchedulerClass.newInstance();
         this.reduceScheduler = (HadoopCLScheduler)reduceSchedulerClass.newInstance();
+
+        String type = fConf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "CPU");
+        EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
+        Device.TYPE combinerDeviceType = null;
+        for (Device.TYPE t : allTypes) {
+          if (t.toString().equals(type)) {
+            combinerDeviceType = t;
+            break;
+          }
+        }
+        if (combinerDeviceType == null) {
+          throw new RuntimeException("Invalid combiner device type "+type+" specified");
+        }
+        this.combinerDeviceType = combinerDeviceType;
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
@@ -2329,7 +2344,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     //that estimate isn't currently being passed down to the TaskTrackers    
     return biggestSeenSoFar;
   }
-   
+  
+  private Device.TYPE combinerDeviceType;
   private HadoopCLScheduler mapScheduler;
   private HadoopCLScheduler reduceScheduler;
   private TaskLauncher mapLauncher;
@@ -2476,7 +2492,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     LOG.info("LaunchTaskAction (registerTask): " + t.getTaskID() +
              " task's state:" + t.getState());
     TaskInProgress tip = new TaskInProgress(t, this.fConf, 
-            (t.isMapTask() ? this.mapScheduler : this.reduceScheduler), launcher);
+            (t.isMapTask() ? this.mapScheduler : this.reduceScheduler),
+            this.combinerDeviceType, launcher);
     synchronized (this) {
       tasks.put(t.getTaskID(), tip);
       runningTasks.put(t.getTaskID(), tip);
@@ -2638,6 +2655,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     private volatile boolean slotTaken = false;
     private TaskLauncher launcher;
     private int assignedDevice = -1;
+    private Device.TYPE combinerDeviceType;
     private int numDevices = -1;
     private boolean isSpeculative = false;
     private final HadoopCLScheduler scheduler;
@@ -2654,6 +2672,14 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
     public int getAssignedDevice() {
         return assignedDevice;
+    }
+
+    public void setCombinerDeviceType(Device.TYPE type) {
+      this.combinerDeviceType = type;
+    }
+
+    public Device.TYPE getCombinerDeviceType() {
+      return combinerDeviceType;
     }
 
     public void setIsSpeculative(boolean set) {
@@ -2678,15 +2704,19 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
     /**
      */
-    public TaskInProgress(Task task, JobConf conf, HadoopCLScheduler setScheduler) {
-      this(task, conf, setScheduler, null);
+    public TaskInProgress(Task task, JobConf conf, HadoopCLScheduler setScheduler,
+        Device.TYPE combinerDeviceType) {
+      this(task, conf, setScheduler, combinerDeviceType, null);
     }
     
-    public TaskInProgress(Task task, JobConf conf, HadoopCLScheduler setScheduler, TaskLauncher launcher) {
+    public TaskInProgress(Task task, JobConf conf,
+        HadoopCLScheduler setScheduler, Device.TYPE combinerDeviceType,
+        TaskLauncher launcher) {
       this.task = task;
       this.launcher = launcher;
       this.lastProgressReport = System.currentTimeMillis();
       this.scheduler = setScheduler;
+      this.combinerDeviceType = combinerDeviceType;
       this.ttConf = conf;
       this.occupancyHistory = new ArrayList<int[]>();
       localJobConf = null;
@@ -2781,6 +2811,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
                 " to device "+assignment.device()+", "+(assignment.speculative() ? "speculative" : "non-speculative")+", took "+(stop-start)+" ms");
 
         this.setAssignedDevice(assignment.device(), this.scheduler.numDevices());
+        this.setCombinerDeviceType(Device.TYPE.CPU);
         this.setIsSpeculative(assignment.speculative());
 
         if (this.taskStatus.getRunState() == TaskStatus.State.UNASSIGNED) {

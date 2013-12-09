@@ -28,7 +28,6 @@ public abstract class PriorityQueue<T> {
   /** Determines the ordering of objects in this priority queue.  Subclasses
       must define this one method. */
   protected abstract boolean lessThan(Object a, Object b);
-  protected abstract String getstring(Object o);
 
   /** Subclass constructors must call this. */
   @SuppressWarnings("unchecked")
@@ -129,43 +128,25 @@ public abstract class PriorityQueue<T> {
   }
 
 
-  /** Parse an integer from a byte array. */
-  private static int readInt(byte[] bytes, int start) {
-    return (((bytes[start  ] & 0xff) << 24) +
-            ((bytes[start+1] & 0xff) << 16) +
-            ((bytes[start+2] & 0xff) <<  8) +
-            ((bytes[start+3] & 0xff)));
-  }
-
   private final void downHeap() {
-    // System.out.println("Doing a downHeap size="+size);
-    // System.out.print("Heap= ");
-    // for (int i = 1; i <= size; i++) {
-    //   System.out.print(getstring(heap[i])+" ");
-    // }
-    // System.out.println();
 
     int i = 1;
     T node = heap[i];			  // save top node
     int j = i << 1;				  // find smaller child
     int k = j + 1;
-    // System.out.println("  Initial comparison of two root children");
     if (k <= size && lessThan(heap[k], heap[j])) {
       j = k;
     }
     int depth = 1;
-    // System.out.println("  Checking least child at depth "+depth+" against node");
     while (j <= size && lessThan(heap[j], node)) {
       heap[i] = heap[j];			  // shift up child
       i = j;
       j = i << 1;
       k = j + 1;
-      // System.out.println("  Checking children at depth "+(depth+1)+" against each other");
       if (k <= size && lessThan(heap[k], heap[j])) {
 	j = k;
       }
       depth++;
-      // System.out.println("  Checking least child at depth "+depth+" against node");
     }
     heap[i] = node;				  // install saved node
   }

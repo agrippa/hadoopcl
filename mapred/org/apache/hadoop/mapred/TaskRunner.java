@@ -47,6 +47,8 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
 
+import com.amd.aparapi.device.Device;
+
 /** Base class that runs a task in a separate process.  Tasks are run in a
  * separate process in order to isolate the map/reduce system code from bugs in
  * user supplied map and reduce functions.
@@ -221,7 +223,8 @@ abstract class TaskRunner extends Thread {
       long logSize = TaskLog.getTaskLogLength(conf);
       
       //  Build exec child JVM args.
-      Vector<String> vargs = getVMArgs(taskid, workDir, classPaths, logSize, tip.getAssignedDevice());
+      Vector<String> vargs = getVMArgs(taskid, workDir, classPaths, logSize,
+          tip.getAssignedDevice());
       
       tracker.addToMemoryManager(t.getTaskID(), t.isMapTask(), conf);
 

@@ -88,7 +88,6 @@ class CompareUtils {
     public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
       return WritableComparator.compareBytes(b1, s1, l1, b2, s2, l2);
     }
-    public String getstring(byte[] bytes, int start, int len) { return ""; }
 
     @Override
     public int compare(Object o1, Object o2) {

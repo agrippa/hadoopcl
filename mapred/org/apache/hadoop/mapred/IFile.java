@@ -46,7 +46,7 @@ import org.apache.hadoop.io.serializer.Serializer;
  * There is a <code>Writer</code> to write out map-outputs in this format and 
  * a <code>Reader</code> to read files of this format.
  */
-class IFile {
+public class IFile {
 
   private static final int EOF_MARKER = -1;
   
@@ -236,7 +236,7 @@ class IFile {
   /**
    * <code>IFile.Reader</code> to read intermediate map-outputs. 
    */
-  public static class Reader<K extends Object, V extends Object> {
+  public static class Reader<K extends Object, V extends Object> implements MergeReader<K, V> {
     private static final int DEFAULT_BUFFER_SIZE = 128*1024;
     private static final int MAX_VINT_SIZE = 9;
 

@@ -18,6 +18,12 @@
 
 package org.apache.hadoop.conf;
 
+import org.apache.hadoop.io.ReadArrayUtils;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import java.nio.IntBuffer;
+import java.nio.FloatBuffer;
+import java.nio.DoubleBuffer;
+import java.nio.ByteBuffer;
 import java.io.BufferedInputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -57,6 +63,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.hadoop.io.ArrayPrimitiveWritable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
@@ -146,6 +153,17 @@ import org.apache.hadoop.io.SequenceFile;
  */
 public class Configuration implements Iterable<Map.Entry<String,String>>,
                                       Writable {
+
+  public static final int GLOBAL_META_ID      = 0;
+  public static final int GLOBAL_OFFSET_ID    = 1;
+  public static final int GLOBAL_IND_ID       = 2;
+  public static final int GLOBAL_VAL_ID       = 3;
+  public static final int GLOBAL_FVAL_ID      = 4;
+  public static final int GLOBAL_MAP_IND_ID   = 5;
+  public static final int GLOBAL_MAP_VAL_ID   = 6;
+  public static final int GLOBAL_MAP_FVAL_ID  = 7;
+  public static final int GLOBAL_MAP_ID       = 8;
+
   private static final Log LOG =
     LogFactory.getLog(Configuration.class);
 
@@ -1508,32 +1526,116 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     return result;
   }
 
+  private static class IntDoublePair {
+      public final int i;
+      public final double d;
+
+      public IntDoublePair(int setI, double setD) {
+          this.i = setI;
+          this.d = setD;
+      }
+  }
+
+  private void clearBuckets(HashMap<Integer, List<IntDoublePair>> buckets) {
+      for (Map.Entry<Integer, List<IntDoublePair>> entry : buckets.entrySet()) {
+          entry.getValue().clear();
+      }
+  }
+
+  private HashMap<Integer, List<IntDoublePair>> constructEmptyBuckets(int nBuckets) {
+      HashMap<Integer, List<IntDoublePair>> buckets = new HashMap<Integer,
+          List<IntDoublePair>>();
+      for (int i = 0 ; i < nBuckets; i++) {
+          buckets.put(i, new LinkedList<IntDoublePair>());
+      }
+      return buckets;
+  }
+
+
   List<int[]> globalIndices = new LinkedList<int[]>();
   List<double[]> globalVals = new LinkedList<double[]>();
 
   public void sendGlobalsToHDFS(String pre) {
       String filename = pre+".hadoopcl.globals";
 
-      System.out.println("Sending "+globalIndices.size()+" to HDFS");
-      SequenceFile.Writer writer;
+      long start = System.currentTimeMillis();
       try {
-          writer = SequenceFile.createWriter(FileSystem.get(this), this, new Path(filename),
-                  IntWritable.class, SparseVectorWritable.class);
-
-          final IntWritable key = new IntWritable();
-          final SparseVectorWritable val = new SparseVectorWritable();
+          final int nGlobalBuckets = this.getInt("opencl.global.buckets", -1);
+          if (nGlobalBuckets == -1) {
+              throw new RuntimeException("# of global buckets must be set");
+          }
+          int countGlobals = globalIndices.size();
+          int totalGlobals = 0;
           for (int i = 0; i < globalIndices.size(); i++) {
-              key.set(i);
-              val.set(this.globalIndices.get(i), this.globalVals.get(i));
-              writer.append(key, val);
+              totalGlobals += globalIndices.get(i).length;
           }
 
-          writer.close();
+          int[] globalOffsets = new int[countGlobals];
+          int[] globalsInd = new int[totalGlobals];
+          double[] globalsVal = new double[totalGlobals];
+          float[] globalsFval = new float[totalGlobals];
+
+          int[] globalsMapInd = new int[totalGlobals];
+          double[] globalsMapVal = new double[totalGlobals];
+          float[] globalsMapFval = new float[totalGlobals];
+          int[] globalsMap = new int[nGlobalBuckets * countGlobals];
+
+          final HashMap<Integer, List<IntDoublePair>> buckets =
+              constructEmptyBuckets(nGlobalBuckets);
+          int globalIndex = 0;
+          int globalCount = 0;
+          // For each global vector
+          for (int vector = 0; vector < globalIndices.size(); vector++) {
+              int[] currentIndices = this.globalIndices.get(vector);
+              double[] currentVals = this.globalVals.get(vector);
+
+              clearBuckets(buckets);
+              globalOffsets[globalCount] = globalIndex;
+              for (int i = 0; i < currentIndices.length; i++) {
+                  buckets.get(currentIndices[i] % nGlobalBuckets).add(
+                          new IntDoublePair(currentIndices[i], currentVals[i]));
+                  globalsInd[globalIndex] = currentIndices[i];
+                  globalsVal[globalIndex] = currentVals[i];
+                  globalsFval[globalIndex] = (float)currentVals[i];
+                  globalIndex++;
+              }
+
+              int tmpGlobalIndex = globalOffsets[globalCount];
+              for (int bucket = 0; bucket < nGlobalBuckets; bucket++) {
+                  globalsMap[globalCount * nGlobalBuckets + bucket] =
+                      tmpGlobalIndex;
+                  for (IntDoublePair element : buckets.get(bucket)) {
+                      globalsMapInd[tmpGlobalIndex] = element.i;
+                      globalsMapVal[tmpGlobalIndex] = element.d;
+                      globalsMapFval[tmpGlobalIndex] = (float)element.d;
+                      tmpGlobalIndex++;
+                  }
+              }
+              globalCount++;
+          }
+
+          FileSystem fs = FileSystem.get(this);
+          FSDataOutputStream output = fs.create(new Path(filename));
+
+          int[] metadata = new int[] { countGlobals, totalGlobals };
+          ReadArrayUtils.dumpIntArray(output, metadata);
+          ReadArrayUtils.dumpIntArray(output, globalOffsets);
+          ReadArrayUtils.dumpIntArray(output, globalsInd);
+          ReadArrayUtils.dumpDoubleArray(output, globalsVal);
+          ReadArrayUtils.dumpFloatArray(output, globalsFval);
+          ReadArrayUtils.dumpIntArray(output, globalsMapInd);
+          ReadArrayUtils.dumpDoubleArray(output, globalsMapVal);
+          ReadArrayUtils.dumpFloatArray(output, globalsMapFval);
+          ReadArrayUtils.dumpIntArray(output, globalsMap);
+
+          output.close();
       } catch(IOException io) {
           throw new RuntimeException(io);
       }
 
       this.set("opencl.properties.globalsfile", filename);
+      long stop = System.currentTimeMillis();
+      System.out.println("Sending "+globalIndices.size()+" to HDFS took "+(stop-start)+" ms");
   }
 
   private int minInt(int[] arr, int start) {

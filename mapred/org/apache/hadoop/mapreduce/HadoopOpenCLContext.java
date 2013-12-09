@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.LinkedList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.EnumSet;
 import com.amd.aparapi.Range;
 import com.amd.aparapi.internal.opencl.OpenCLPlatform;
 import com.amd.aparapi.device.OpenCLDevice;
@@ -15,58 +16,54 @@ import org.apache.hadoop.conf.Configuration;
 import java.util.ArrayList;
 import java.io.IOException;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SparseVectorWritable;
+import org.apache.hadoop.io.ArrayPrimitiveWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FSDataInputStream;
+import java.nio.IntBuffer;
+import java.nio.FloatBuffer;
+import java.nio.DoubleBuffer;
+import java.nio.ByteBuffer;
 
 public class HadoopOpenCLContext {
-    private final TaskInputOutputContext hadoopContext;
-    private final String type;
-    private final int ngroups;
-    private final int threadsPerGroup;
-    private final OpenCLDevice device;
-    private final int deviceId;
-    private final int isGPU;
-    private final Range r;
-    private final int bufferSize;
-    private final int preallocLength;
-    private final String deviceString;
-    private final int nBuffs;
-    private final int nVectorsToBuffer;
 
-    private final int[] globalsInd;
-    private final double[] globalsVal;
-    private final float[] globalsFval;
-    private final int[] globalIndices;
-    private final int nGlobals;
+    private TaskInputOutputContext hadoopContext;
+    private String type;
+    private int ngroups;
+    private int threadsPerGroup;
+    private OpenCLDevice device;
+    private int deviceId;
+    private int isGPU;
+    private Range r;
+    private int bufferSize;
+    private int preallocLength;
+    private String deviceString;
+    private int nVectorsToBuffer;
 
-    private final int[] globalsMapInd;
-    private final double[] globalsMapVal;
-    private final float[] globalsMapFval;
-    private final int[] globalsMap;
-
-    private final boolean isCombiner;
+    private boolean isCombiner;
 
     private HadoopCLMapperKernel mapperKernel;
     private HadoopCLReducerKernel reducerKernel;
     private HadoopCLReducerKernel combinerKernel;
 
-    private final int nGlobalBuckets;
+    private GlobalsWrapper globals;
 
-    private int findCpu() {
+    private int findDeviceWithType(Device.TYPE type) {
         int devicesSoFar = 0;
         List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
         for(OpenCLPlatform platform : platforms) {
             for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
-              if(tmpDev.getType() == Device.TYPE.CPU) {
+              if(tmpDev.getType() == type) {
                 return devicesSoFar;
               }
               devicesSoFar++;
             }
         }
-        throw new RuntimeException("Failed to find CPU while searching for combiner device");
+        return -1;
     }
 
     private OpenCLDevice findDevice(int id) {
@@ -86,9 +83,20 @@ public class HadoopOpenCLContext {
         return dev;
     }
 
-    public HadoopOpenCLContext(String contextType, TaskInputOutputContext setHadoopContext) {
+    public HadoopOpenCLContext(String contextType,
+        TaskInputOutputContext setHadoopContext, GlobalsWrapper globals) {
+      init(contextType, setHadoopContext, globals);
+    }
+
+    public void init(String contextType, TaskInputOutputContext setHadoopContext,
+            GlobalsWrapper globals) {
         this.hadoopContext = setHadoopContext;
         Configuration conf = this.hadoopContext.getConfiguration();
+
+        this.globals = globals;
+        synchronized(this.globals) {
+          this.globals.init(conf);
+        }
 
         if(contextType.equals("reducer") && this.hadoopContext.getTaskAttemptID().isMap()) {
             this.isCombiner = true;
@@ -99,7 +107,27 @@ public class HadoopOpenCLContext {
         }
 
         if(this.isCombiner) {
-            this.deviceId = findCpu();
+            final Device.TYPE combinerType;
+            if (!conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL").equals("FAIL")) {
+              final String combinerTypeString = conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL");
+              EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
+              Device.TYPE result = null;
+              for (Device.TYPE t : allTypes) {
+                if (t.toString().equals(combinerTypeString)) {
+                  result = t;
+                  break;
+                }
+              }
+              if (result == null) {
+                combinerType = Device.TYPE.CPU;
+              } else {
+                combinerType = result;
+              }
+            } else {
+              combinerType = Device.TYPE.CPU;
+            }
+
+            this.deviceId = findDeviceWithType(combinerType);
             // this.deviceId = -1;
             // this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
         } else if(System.getProperty("opencl.device") != null) {
@@ -156,92 +184,11 @@ public class HadoopOpenCLContext {
             this.preallocLength = 1048576;
         }
 
-        String bucketsStr = System.getProperty("opencl.global.buckets");
-        if (bucketsStr != null) {
-          this.nGlobalBuckets = Integer.parseInt(bucketsStr);
-        } else {
-          this.nGlobalBuckets = 16;
-        }
-
-        String nBuffsStr = System.getProperty("opencl."+contextType+".buffers."+this.deviceString);
-        if(nBuffsStr != null) {
-            this.nBuffs = Integer.parseInt(nBuffsStr);
-        } else {
-            this.nBuffs = 3;
-        }
-
         String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
         if (vectorsToBufferStr != null) {
             this.nVectorsToBuffer = Integer.parseInt(vectorsToBufferStr);
         } else {
             this.nVectorsToBuffer = 65536;
-        }
-
-        List<SparseVectorWritable> bufferGlobals = new LinkedList<SparseVectorWritable>();
-        int totalGlobals = 0;
-        int countGlobals = 0;
-
-        SequenceFile.Reader reader;
-        try {
-            reader = new SequenceFile.Reader(FileSystem.get(conf),
-                    new Path(conf.get("opencl.properties.globalsfile")), conf);
-
-            final IntWritable key = new IntWritable();
-            SparseVectorWritable val = new SparseVectorWritable();
-            while(reader.next(key, val)) {
-                bufferGlobals.add(val);
-                countGlobals++;
-                totalGlobals += val.size();
-                val = new SparseVectorWritable();
-            }
-
-            reader.close();
-
-            final HashMap<Integer, List<IntDoublePair>> buckets = constructEmptyBuckets(this.nGlobalBuckets);
-            this.globalIndices = new int[countGlobals];
-            this.nGlobals = countGlobals;
-
-            this.globalsInd = new int[totalGlobals];
-            this.globalsVal = new double[totalGlobals];
-            this.globalsFval = new float[totalGlobals];
-
-            this.globalsMapInd = new int[totalGlobals];
-            this.globalsMapVal = new double[totalGlobals];
-            this.globalsMapFval = new float[totalGlobals];
-            this.globalsMap = new int[this.nGlobalBuckets * countGlobals];
-
-            int globalIndex = 0;
-            int globalCount = 0;
-            for(SparseVectorWritable g : bufferGlobals) {
-                clearBuckets(buckets);
-                this.globalIndices[globalCount] = globalIndex;
-                for(int i = 0 ; i < g.size(); i++) {
-                    buckets.get(g.indices()[i] % this.nGlobalBuckets).add(
-                        new IntDoublePair(g.indices()[i], g.vals()[i]));
-                    this.globalsInd[globalIndex] = g.indices()[i];
-                    this.globalsVal[globalIndex] = g.vals()[i];
-                    this.globalsFval[globalIndex] = (float)g.vals()[i];
-                    globalIndex = globalIndex + 1;
-                }
-
-                int tmpGlobalIndex = this.globalIndices[globalCount];
-                for (int bucket = 0; bucket < this.nGlobalBuckets; bucket++) {
-                  this.globalsMap[globalCount * this.nGlobalBuckets + bucket] = tmpGlobalIndex;
-                  // System.out.println("Global bucket "+(globalCount+bucket)+" at offset "+tmpGlobalIndex);
-                  for (IntDoublePair element : buckets.get(bucket)) {
-                    this.globalsMapInd[tmpGlobalIndex] = element.i;
-                    this.globalsMapVal[tmpGlobalIndex] = element.d;
-                    this.globalsMapFval[tmpGlobalIndex] = (float)element.d;
-                    // System.out.print(this.globalsMapInd[tmpGlobalIndex]+":"+this.globalsMapVal[tmpGlobalIndex]+" ");
-                    tmpGlobalIndex++;
-                  }
-                  // System.out.println();
-                }
-
-                globalCount = globalCount + 1;
-            }
-        } catch(IOException io) {
-            throw new RuntimeException(io);
         }
 
         try {
@@ -256,7 +203,7 @@ public class HadoopOpenCLContext {
                 this.getGlobalIndices(), this.getNGlobals(),
                 this.getGlobalsMapInd(), this.getGlobalsMapVal(),
                 this.getGlobalsMapFval(), this.getGlobalsMap(),
-                this.nGlobalBuckets);
+                this.globals.nGlobalBuckets);
 
             this.reducerKernel = (HadoopCLReducerKernel)reducerClass.newInstance();
             this.reducerKernel.init(this);
@@ -265,7 +212,7 @@ public class HadoopOpenCLContext {
                 this.getGlobalIndices(), this.getNGlobals(),
                 this.getGlobalsMapInd(), this.getGlobalsMapVal(),
                 this.getGlobalsMapFval(), this.getGlobalsMap(),
-                this.nGlobalBuckets);
+                this.globals.nGlobalBuckets);
 
             if(combinerClass != null) {
                 this.combinerKernel = (HadoopCLReducerKernel)combinerClass.newInstance();
@@ -275,7 +222,7 @@ public class HadoopOpenCLContext {
                     this.getGlobalIndices(), this.getNGlobals(),
                     this.getGlobalsMapInd(), this.getGlobalsMapVal(),
                     this.getGlobalsMapFval(), this.getGlobalsMap(),
-                    this.nGlobalBuckets);
+                    this.globals.nGlobalBuckets);
             }
         } catch(Exception ex) {
             throw new RuntimeException(ex);
@@ -283,40 +230,16 @@ public class HadoopOpenCLContext {
 
     }
 
-    private static class IntDoublePair {
-      public final int i;
-      public final double d;
-
-      public IntDoublePair(int setI, double setD) {
-        this.i = setI;
-        this.d = setD;
-      }
-    }
-
-    private HashMap<Integer, List<IntDoublePair>> constructEmptyBuckets(int nBuckets) {
-      HashMap<Integer, List<IntDoublePair>> buckets = new HashMap<Integer, List<IntDoublePair>>();
-      for (int i = 0 ; i < nBuckets; i++) {
-        buckets.put(i, new LinkedList<IntDoublePair>());
-      }
-      return buckets;
-    }
-
-    private void clearBuckets(HashMap<Integer, List<IntDoublePair>> buckets) {
-      for (Map.Entry<Integer, List<IntDoublePair>> entry : buckets.entrySet()) {
-        entry.getValue().clear();
-      }
-    }
-
-    public int[] getGlobalIndices() { return this.globalIndices; }
-    public double[] getGlobalsVal() { return this.globalsVal; }
-    public float[] getGlobalsFval() { return this.globalsFval; }
-    public int[] getGlobalsInd() { return this.globalsInd; }
-    public double[] getGlobalsMapVal() { return this.globalsMapVal; }
-    public float[] getGlobalsMapFval() { return this.globalsMapFval; }
-    public int[] getGlobalsMapInd() { return this.globalsMapInd; }
-    public int[] getGlobalsMap() { return this.globalsMap; }
-    public int nGlobalBuckets() { return this.nGlobalBuckets; }
-    public int getNGlobals() { return this.nGlobals; }
+    public int[] getGlobalIndices() { return this.globals.globalIndices; }
+    public double[] getGlobalsVal() { return this.globals.globalsVal; }
+    public float[] getGlobalsFval() { return this.globals.globalsFval; }
+    public int[] getGlobalsInd() { return this.globals.globalsInd; }
+    public double[] getGlobalsMapVal() { return this.globals.globalsMapVal; }
+    public float[] getGlobalsMapFval() { return this.globals.globalsMapFval; }
+    public int[] getGlobalsMapInd() { return this.globals.globalsMapInd; }
+    public int[] getGlobalsMap() { return this.globals.globalsMap; }
+    public int nGlobalBuckets() { return this.globals.nGlobalBuckets; }
+    public int getNGlobals() { return this.globals.nGlobals; }
     
     public boolean isCombiner() {
         return this.isCombiner;
@@ -334,9 +257,6 @@ public class HadoopOpenCLContext {
         return this.type;
     }
 
-    public int getNBuffs() {
-        return this.nBuffs;
-    }
 
     public int getNVectorsToBuffer() {
         return this.nVectorsToBuffer;

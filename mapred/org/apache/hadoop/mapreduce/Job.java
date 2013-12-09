@@ -30,6 +30,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
 
+import com.amd.aparapi.device.Device;
 /**
  * The job submitter's view of the Job. It allows the user to configure the
  * job, submit it, control its execution, and query the state. The set methods
@@ -143,6 +144,11 @@ public class Job extends JobContext {
   public void setOCLMapperClass(Class cls) throws IllegalStateException {
       ensureState(JobState.DEFINE);
       conf.setClass(OCL_MAP_CLASS_ATTR, cls);
+  }
+
+  public void setOCLCombinerDeviceType(Device.TYPE t) throws IllegalStateException {
+    ensureState(JobState.DEFINE);
+    conf.set(OCL_COMBINER_DEVICE_TYPE, t.toString());
   }
 
   public void setOCLReducerClass(Class cls) throws IllegalStateException {

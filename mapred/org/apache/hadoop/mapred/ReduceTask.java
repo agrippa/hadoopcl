@@ -550,9 +550,7 @@ class ReduceTask extends Task {
     private final org.apache.hadoop.mapreduce.Counter outputRecordCounter;
     private final org.apache.hadoop.mapreduce.Counter fileOutputByteCounter;
     private final Statistics fsStats;
-        
-    public void setUsingOpenCL(boolean val) { }
-  
+
     NewTrackingRecordWriter(org.apache.hadoop.mapreduce.Counter recordCounter,
         JobConf job, TaskReporter reporter,
         org.apache.hadoop.mapreduce.TaskAttemptContext taskContext)
