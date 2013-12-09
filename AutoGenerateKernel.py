@@ -565,33 +565,27 @@ class SvecVisitor(NativeTypeVisitor):
                  '        newList.add(wrapper);',
                  '        this.sortedVals.put(actual.size(), newList);',
                  '    }',
-                 # '    this.inputValIndices.ensureCapacity( (this.nPairs +',
-                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
-                 # '    this.inputValVals.ensureCapacity( (this.nPairs +',
-                 # '        ((actual.size() - 1) * nVectorsToBuffer)) + 1);',
-                 # '    for (int i = 0; i < actual.size(); i++) {',
-                 # '        this.inputValIndices.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
-                 # '            actual.indices()[i]);',
-                 # '        this.inputValVals.unsafeSet(this.nPairs + (i * nVectorsToBuffer),',
-                 # '            actual.vals()[i]);',
-                 # '    }',
                  '} else {',
                  '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
                  '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.indices()[i]);',
-                 '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.vals()[i]);',
-                 '    }',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
-                 'for(int i = 0 ; i < actual.size(); i++) {',
-                 '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 '}',
+                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
+                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
+                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
+                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -655,7 +649,7 @@ class SvecVisitor(NativeTypeVisitor):
     def getUseBufferedValues(self):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
-                 '}'
+                 '}',
                  'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputValIndices, this.individualInputValsCount, this.tempBuffer2.size());',
                  'System.arraycopy(this.tempBuffer3.getArray(), 0, this.inputValVals, this.individualInputValsCount, this.tempBuffer3.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
@@ -803,17 +797,19 @@ class IvecVisitor(NativeTypeVisitor):
                  # '    }',
                  '} else {',
                  '    this.inputVal.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputVal.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.vals()[i]);',
-                 '    }',
+                 '    System.arraycopy(actual.vals(), 0, this.inputVal.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputVal.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
-                 'for(int i = 0 ; i < actual.size(); i++) {',
-                 '    this.inputVal[this.individualInputValsCount + i] = actual.getArray()[i];',
-                 '}',
+                 'System.arraycopy(this.inputVal, this.individualInputValsCount, actual.getArray(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputVal[this.individualInputValsCount + i] = actual.getArray()[i];',
+                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -869,7 +865,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getUseBufferedValues(self):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
-                 '}'
+                 '}',
                  'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputVal, this.individualInputValsCount, this.tempBuffer2.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
     def getBufferedInit(self):
@@ -1031,20 +1027,24 @@ class FsvecVisitor(NativeTypeVisitor):
                  '} else {',
                  '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
                  '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.indices()[i]);',
-                 '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.vals()[i]);',
-                 '    }',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
-                 'for(int i = 0 ; i < actual.size(); i++) {',
-                 '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 '}',
+                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
+                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
+                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
+                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1108,7 +1108,7 @@ class FsvecVisitor(NativeTypeVisitor):
     def getUseBufferedValues(self):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
-                 '}'
+                 '}',
                  'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputValIndices, this.individualInputValsCount, this.tempBuffer2.size());',
                  'System.arraycopy(this.tempBuffer3.getArray(), 0, this.inputValVals, this.individualInputValsCount, this.tempBuffer3.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
@@ -1286,20 +1286,24 @@ class BsvecVisitor(NativeTypeVisitor):
                  '} else {',
                  '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
                  '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    for (int i = 0; i < actual.size(); i++) {',
-                 '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.indices()[i]);',
-                 '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
-                 '            actual.vals()[i]);',
-                 '    }',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 # '    for (int i = 0; i < actual.size(); i++) {',
+                 # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.indices()[i]);',
+                 # '        this.inputValVals.unsafeSet(this.individualInputValsCount + i,',
+                 # '            actual.vals()[i]);',
+                 # '    }',
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
-                 'for(int i = 0 ; i < actual.size(); i++) {',
-                 '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 '}',
+                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
+                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 # 'for(int i = 0 ; i < actual.size(); i++) {',
+                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
+                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
+                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1363,7 +1367,7 @@ class BsvecVisitor(NativeTypeVisitor):
     def getUseBufferedValues(self):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
-                 '}'
+                 '}',
                  'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputValIndices, this.individualInputValsCount, this.tempBuffer2.size());',
                  'System.arraycopy(this.tempBuffer3.getArray(), 0, this.inputValVals, this.individualInputValsCount, this.tempBuffer3.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
