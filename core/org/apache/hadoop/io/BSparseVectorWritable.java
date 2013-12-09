@@ -1,12 +1,13 @@
 package org.apache.hadoop.io;
 
+import java.nio.*;
 import java.io.*;
 
 /*
  * Identical to SparseVectorWritable except for the way it serialized and
  * deserializes itself.
  */
-public class NewSparseVectorWritable implements WritableComparable {
+public class BSparseVectorWritable implements WritableComparable {
     private int[] indices;
     private double[] vals;
     private int overrideIndicesOffset;
@@ -15,7 +16,20 @@ public class NewSparseVectorWritable implements WritableComparable {
     private HadoopCLResizableIntArray indicesRes;
     private HadoopCLResizableDoubleArray valsRes;
 
-    public NewSparseVectorWritable() {
+    public BSparseVectorWritable(SparseVectorWritable other) {
+      this.indices = new int[other.size()];
+      this.vals = new double[other.size()];
+      System.arraycopy(other.indices(), 0, this.indices, 0, other.size());
+      System.arraycopy(other.vals(), 0, this.vals, 0, other.size());
+
+      this.indicesRes = null;
+      this.valsRes = null;
+      this.overrideLength = -1;
+      this.overrideIndicesOffset = -1;
+      this.overrideValsOffset = -1;
+    }
+
+    public BSparseVectorWritable() {
         this.indices = null;
         this.vals = null;
         this.indicesRes = null;
@@ -25,7 +39,7 @@ public class NewSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
-    public NewSparseVectorWritable(int[] indices, double[] vals) {
+    public BSparseVectorWritable(int[] indices, double[] vals) {
         this.indices = indices;
         this.vals = vals;
         this.indicesRes = null;
@@ -35,7 +49,7 @@ public class NewSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
-    public NewSparseVectorWritable(HadoopCLResizableIntArray indices,
+    public BSparseVectorWritable(HadoopCLResizableIntArray indices,
             HadoopCLResizableDoubleArray vals) {
         this.indicesRes = indices;
         this.valsRes = vals;
@@ -129,11 +143,11 @@ public class NewSparseVectorWritable implements WritableComparable {
 
     public void write(DataOutput out) throws IOException {
         out.writeInt(this.size());
-        ReadArrayUtils.dumpIntArray(out, this.indices(), this.size());
-        ReadArrayUtils.dumpDoubleArray(out, this.vals(), this.size());
+        ReadArrayUtils.dumpIntArray(out, this.indices(), this.indicesOffset(), this.size());
+        ReadArrayUtils.dumpDoubleArray(out, this.vals(), this.valsOffset(), this.size());
     }
 
-    private boolean elementEqual(NewSparseVectorWritable other, int index) {
+    private boolean elementEqual(BSparseVectorWritable other, int index) {
 
         int thisIndex = this.indices()[this.indicesOffset() + index];
         double thisVal = this.vals()[this.valsOffset() + index];
@@ -146,8 +160,8 @@ public class NewSparseVectorWritable implements WritableComparable {
 
     public boolean equals(Object o) {
 
-        if(o instanceof NewSparseVectorWritable) {
-            NewSparseVectorWritable other = (NewSparseVectorWritable)o;
+        if(o instanceof BSparseVectorWritable) {
+            BSparseVectorWritable other = (BSparseVectorWritable)o;
             if(this.size() == other.size()) {
                 for(int i = 0; i < this.size(); i++) {
                     if(!this.elementEqual(other, i)) {
@@ -174,7 +188,7 @@ public class NewSparseVectorWritable implements WritableComparable {
     }
 
     public int compareTo(Object o) {
-        NewSparseVectorWritable other = (NewSparseVectorWritable)o;
+        BSparseVectorWritable other = (BSparseVectorWritable)o;
         double thisDist = this.distFromOrigin();
         double otherDist = other.distFromOrigin();
         if(thisDist < otherDist) {
@@ -222,7 +236,7 @@ public class NewSparseVectorWritable implements WritableComparable {
         return str.toString();
     }
 
-    public NewSparseVectorWritable cloneSparse() {
+    public BSparseVectorWritable cloneSparse() {
         int[] newIndices = new int[this.size()];
         double[] newVals = new double[this.size()];
 
@@ -233,35 +247,34 @@ public class NewSparseVectorWritable implements WritableComparable {
             newIndices[i] = this.indices()[indicesOffset + i];
             newVals[i] = this.vals()[valsOffset + i];
         }
-        return new NewSparseVectorWritable(newIndices, newVals);
+        return new BSparseVectorWritable(newIndices, newVals);
     }
 
     public static class Comparator extends WritableComparator {
         public Comparator() {
-            super(NewSparseVectorWritable.class);
+            super(BSparseVectorWritable.class);
         }
 
         public int compare(byte[] b1, int s1, int l1,
                 byte[] b2, int s2, int l2) {
             int length1 = readInt(b1, s1);
             int length2 = readInt(b2, s2);
-            s1 += 4; // increment for length reads
-            s2 += 4;
+
+            int startOfVals1 = s1 + 4 + (length1 * 4);
+            int startOfVals2 = s2 + 4 + (length2 * 4);
+            double[] vals1 = new double[length1];
+            double[] vals2 = new double[length2];
+
+            ByteBuffer.wrap(b1, startOfVals1, length1 * 8).asDoubleBuffer().
+              get(vals1);
+            ByteBuffer.wrap(b2, startOfVals2, length2 * 8).asDoubleBuffer().
+              get(vals2);
 
             double sum1 = 0.0;
             double sum2 = 0.0;
-            for(int i = 0; i < length1; i++) {
-                s1 += 4; // don't really need the index
-                double curr = readDouble(b1, s1);
-                s1 += 8;
-                sum1 = sum1 + (curr * curr);
-            }
-            for(int i = 0; i < length2; i++) {
-                s2 += 4;
-                double curr = readDouble(b2, s2);
-                s2 += 8;
-                sum2 = sum2 + (curr * curr);
-            }
+
+            for (int i = 0; i < length1; i++) sum1 += (vals1[i] * vals1[i]);
+            for (int i = 0; i < length2; i++) sum2 += (vals2[i] * vals2[i]);
 
             if(sum1 > sum2) {
                 return 1;
@@ -274,7 +287,7 @@ public class NewSparseVectorWritable implements WritableComparable {
     }
 
     static {
-        WritableComparator.define(NewSparseVectorWritable.class,
+        WritableComparator.define(BSparseVectorWritable.class,
                 new Comparator());
     }
 }
