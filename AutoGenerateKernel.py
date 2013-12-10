@@ -2301,17 +2301,17 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('                    IndValWrapper curr = pairsIter.next();\n')
         fp.write('                    inputBuffer.inputValLookAsideBuffer[index] = inputBuffer.individualInputValsCount;\n')
         if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
-            fp.write('                    inputBuffer.inputValIndices.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
-            fp.write('                    inputBuffer.inputValVals.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
+            fp.write('                    inputBuffer.inputValIndices.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
+            fp.write('                    inputBuffer.inputValVals.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
         else:
-            fp.write('                    inputBuffer.inputVal.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nVectorsToBuffer)) + 1);\n')
+            fp.write('                    inputBuffer.inputVal.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
         fp.write('                    for (int i = 0; i < curr.length; i++) {\n')
         if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
-            fp.write('                        inputBuffer.inputValIndices.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.indices[i]);\n')
+            fp.write('                        inputBuffer.inputValIndices.unsafeSet(index + (i * inputBuffer.nPairs), curr.indices[i]);\n')
             prefix = 'd' if (nativeInputValType == 'svec' or nativeInputValType == 'bsvec') else 'f'
-            fp.write('                        inputBuffer.inputValVals.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.'+prefix+'vals[i]);\n')
+            fp.write('                        inputBuffer.inputValVals.unsafeSet(index + (i * inputBuffer.nPairs), curr.'+prefix+'vals[i]);\n')
         else:
-            fp.write('                        inputBuffer.inputVal.unsafeSet(index + (i * inputBuffer.nVectorsToBuffer), curr.indices[i]);\n')
+            fp.write('                        inputBuffer.inputVal.unsafeSet(index + (i * inputBuffer.nPairs), curr.indices[i]);\n')
         fp.write('                    }\n')
         fp.write('                    inputBuffer.individualInputValsCount += curr.length;\n')
         fp.write('                    index++;\n')
