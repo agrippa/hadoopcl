@@ -36,9 +36,9 @@ public class OpenCLDriver {
    * one before making the other eligible for execution in order to transfer
    * values.
    */
-  public static final int nKernels = 1;
-  public static final int nInputBuffers = 3;
-  public static final int nOutputBuffers = 1;
+  private final int nKernels;
+  private final int nInputBuffers;
+  private final int nOutputBuffers;
   public static final boolean profileMemory = false;
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
@@ -58,6 +58,10 @@ public class OpenCLDriver {
     this.context = context;
     this.kernelClass = kernelClass;
     this.conf = context.getConfiguration();
+
+    this.nKernels = this.clContext.getNKernels();
+    this.nInputBuffers = this.clContext.getNInputBuffers();
+    this.nOutputBuffers = this.clContext.getNOutputBuffers();
   }
 
   public static void hadoopclLog(Configuration conf, String str) throws IOException {
