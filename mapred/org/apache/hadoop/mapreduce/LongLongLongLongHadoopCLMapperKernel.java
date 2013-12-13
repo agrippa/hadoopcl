@@ -1,0 +1,102 @@
+package org.apache.hadoop.mapreduce;
+
+import java.io.IOException;
+import java.lang.InterruptedException;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext;
+import com.amd.aparapi.Range;
+import com.amd.aparapi.Kernel;
+import org.apache.hadoop.io.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.TreeMap;
+import java.util.LinkedList;
+import java.util.Iterator;
+import org.apache.hadoop.mapreduce.Mapper.Context;
+
+public abstract class LongLongLongLongHadoopCLMapperKernel extends HadoopCLMapperKernel {
+    protected int outputLength;
+
+
+    public long[] inputKeys;
+    public long[] inputVals;
+    public long[] outputKeys;
+    public long[] outputVals;
+    final private LongWritable keyObj = new LongWritable();
+    final private LongWritable valObj = new LongWritable();
+
+    protected abstract void map(long key, long val);
+
+    public void setup(long[] setInputkeys, long[] setInputvals, long[] setOutputkeys, long[] setOutputvals, int[] setNWrites, int setNPairs, int[] setMemIncr, int setOutputsPerInput) {
+        this.inputKeys = setInputkeys;
+        this.inputVals = setInputvals;
+        this.outputKeys = setOutputkeys;
+        this.outputVals = setOutputvals;
+        this.nWrites = setNWrites;
+        this.nPairs = setNPairs;
+
+        this.memIncr = setMemIncr;
+        this.memIncr[0] = 0;
+        this.outputsPerInput = setOutputsPerInput;
+
+        this.outputLength = outputVals.length;
+    }
+
+    @Override
+    public void init(HadoopOpenCLContext clContext) {
+        baseInit(clContext);
+        this.setStrided(false);
+    }
+
+    public Class<? extends HadoopCLInputBuffer> getInputBufferClass() { return LongLongHadoopCLInputMapperBuffer.class; }
+    public Class<? extends HadoopCLOutputBuffer> getOutputBufferClass() { return LongLongHadoopCLOutputMapperBuffer.class; }
+
+    @Override
+    public void fill(HadoopCLInputBuffer genericInputBuffer, HadoopCLOutputBuffer genericOutputBuffer) {
+        LongLongHadoopCLInputMapperBuffer inputBuffer = (LongLongHadoopCLInputMapperBuffer)genericInputBuffer;
+        LongLongHadoopCLOutputMapperBuffer outputBuffer = (LongLongHadoopCLOutputMapperBuffer)genericOutputBuffer;
+        this.setup(inputBuffer.inputKeys, inputBuffer.inputVals, outputBuffer.outputKeys, outputBuffer.outputVals, inputBuffer.nWrites, inputBuffer.nPairs, outputBuffer.memIncr, this.outputsPerInput);
+    }
+
+    @Override
+    public boolean equalInputOutputTypes() {
+        return true;
+    }
+    protected boolean write(long key, long val) {
+        this.javaProfile.stopKernel();
+        this.javaProfile.startWrite();
+        keyObj.set(key);
+        valObj.set(val);
+        try { clContext.getContext().write(keyObj, valObj); } catch(Exception ex) { throw new RuntimeException(ex); }
+        this.javaProfile.stopWrite();
+        this.javaProfile.startKernel();
+        return true;
+    }
+
+    @Override
+    protected void callMap() {
+        map(inputKeys[3], inputVals[3]);
+    }
+    @Override
+    public HadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException {
+        Context ctx = (Context)context;
+        this.javaProfile = new HadoopCLAccumulatedProfile();
+        this.javaProfile.startOverall();
+        while(ctx.nextKeyValue()) {
+            this.javaProfile.startRead();
+            LongWritable key = (LongWritable)ctx.getCurrentKey();
+            LongWritable val = (LongWritable)ctx.getCurrentValue();
+            this.javaProfile.stopRead();
+            this.javaProfile.startKernel();
+            map(key.get()
+, val.get()
+);
+            this.javaProfile.stopKernel();
+            OpenCLDriver.inputsRead++;
+        }
+        this.javaProfile.stopOverall();
+        return this.javaProfile;
+    }
+}
+
