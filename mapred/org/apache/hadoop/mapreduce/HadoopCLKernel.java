@@ -16,6 +16,7 @@ public abstract class HadoopCLKernel extends Kernel {
     // protected final static AtomicInteger idIncr = new AtomicInteger(0);
     // public final int id = HadoopCLKernel.idIncr.getAndIncrement();
     public int id = -1;
+    public HadoopCLGlobalId tracker;
 
     protected HadoopOpenCLContext clContext;
     protected HadoopCLAccumulatedProfile javaProfile;

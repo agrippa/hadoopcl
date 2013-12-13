@@ -16,6 +16,7 @@ public abstract class HadoopCLBuffer {
     public int[] nWrites;
     private boolean inUse;
     protected boolean initialized = false;
+    public HadoopCLGlobalId tracker;
 
     protected final static AtomicInteger idIncr = new AtomicInteger(0);
     public int id = -1;
@@ -106,7 +107,7 @@ public abstract class HadoopCLBuffer {
         return maxLength;
     }
 
-    public static class Profile {
+    class Profile {
         private long startRead;
         private long stopRead;
         private final List<Long> kernelStarts = new ArrayList<Long>();
@@ -120,10 +121,14 @@ public abstract class HadoopCLBuffer {
         }
 
         public void startRead() {
+            OpenCLDriver.logger.log("starting read of "+HadoopCLBuffer.this.tracker.toString(),
+                HadoopCLBuffer.this.clContext);
             this.startRead = System.currentTimeMillis();
         }
 
         public void stopRead() {
+            OpenCLDriver.logger.log("finishing read of "+HadoopCLBuffer.this.tracker.toString(),
+                HadoopCLBuffer.this.clContext);
             this.stopRead = System.currentTimeMillis();
         }
         
@@ -136,10 +141,14 @@ public abstract class HadoopCLBuffer {
         }
 
         public void startWrite() {
+            OpenCLDriver.logger.log("starting write of "+HadoopCLBuffer.this.tracker.toString(),
+                HadoopCLBuffer.this.clContext);
             this.writeStarts.add(System.currentTimeMillis());
         }
 
         public void stopWrite() {
+            OpenCLDriver.logger.log("finishing write of "+HadoopCLBuffer.this.tracker.toString(),
+                HadoopCLBuffer.this.clContext);
             this.writeStops.add(System.currentTimeMillis());
         }
 
@@ -171,37 +180,38 @@ public abstract class HadoopCLBuffer {
             return this.nItemsProcessed;
         }
 
-        public static String listToString(List<Profile> profiles) {
-            StringBuffer sb = new StringBuffer();
-            if (profiles != null && profiles.size() > 0) {
-                long accumRead = 0;
-                long accumKernel = 0;
-                long accumWrite = 0;
-                int accumAttempts = 0;
-                int nItemsProcessed = 0;
-                for(HadoopCLBuffer.Profile p : profiles) {
-                    accumRead += p.readTime();
-                    accumKernel += p.kernelTime();
-                    accumWrite += p.writeTime();
-                    accumAttempts += p.nKernelAttempts();
-                    nItemsProcessed += p.nItemsProcessed();
-                }
-                sb.append(", nBuffers=");
-                sb.append(profiles.size());
-                sb.append(", readTime=");
-                sb.append(accumRead);
-                sb.append(" ms, kernelTime=");
-                sb.append(accumKernel);
-                sb.append(" ms, writeTime=");
-                sb.append(accumWrite);
-                sb.append(" ms, kernelAttempts=");
-                sb.append(accumAttempts);
-                sb.append(", itemsProcessed=");
-                sb.append(nItemsProcessed);
-            }
-            return sb.toString();
+    }
 
+    public static String listToString(List<Profile> profiles) {
+      StringBuffer sb = new StringBuffer();
+      if (profiles != null && profiles.size() > 0) {
+        long accumRead = 0;
+        long accumKernel = 0;
+        long accumWrite = 0;
+        int accumAttempts = 0;
+        int nItemsProcessed = 0;
+        for(HadoopCLBuffer.Profile p : profiles) {
+          accumRead += p.readTime();
+          accumKernel += p.kernelTime();
+          accumWrite += p.writeTime();
+          accumAttempts += p.nKernelAttempts();
+          nItemsProcessed += p.nItemsProcessed();
         }
+        sb.append(", nBuffers=");
+        sb.append(profiles.size());
+        sb.append(", readTime=");
+        sb.append(accumRead);
+        sb.append(" ms, kernelTime=");
+        sb.append(accumKernel);
+        sb.append(" ms, writeTime=");
+        sb.append(accumWrite);
+        sb.append(" ms, kernelAttempts=");
+        sb.append(accumAttempts);
+        sb.append(", itemsProcessed=");
+        sb.append(nItemsProcessed);
+      }
+      return sb.toString();
+
     }
 
     @Override
