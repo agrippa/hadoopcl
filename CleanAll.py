@@ -8,6 +8,9 @@ generatedIters = [ ]
 
 baseCmd = 'git rm -f '
 
+def getCmd(filename):
+    return 'git rm -f '+filename+'; rm -f '+filename
+
 def typeNameForClassName(type):
     if type == 'ipair':
         return 'UPair'
@@ -29,23 +32,23 @@ for line in fp:
     outputBufferFileName = 'mapred/org/apache/hadoop/mapreduce/'+outputBufferName+'.java'
 
     if os.path.exists(kernelFileName):
-        cmd = baseCmd+kernelFileName
+        cmd = getCmd(kernelFileName)
         print cmd
         os.system(cmd)
 
     # This just cleans up the old buffer file if it still exists, i.e. for upgrades on existing systems
     if os.path.exists(oldBufferFileName):
-        cmd = baseCmd+oldBufferFileName
+        cmd = getCmd(oldBufferFileName)
         print cmd
         os.system(cmd)
 
     if os.path.exists(inputBufferFileName):
-        cmd = baseCmd+inputBufferFileName
+        cmd = getCmd(inputBufferFileName)
         print cmd
         os.system(cmd)
 
     if os.path.exists(outputBufferFileName):
-        cmd = baseCmd+outputBufferFileName
+        cmd = getCmd(outputBufferFileName)
         print cmd
         os.system(cmd)
 
@@ -56,7 +59,7 @@ for line in fp:
             iterName = 'HadoopCL'+typeNameForClassName(outputValType)+'ValueIterator'
             iterFileName = 'mapred/org/apache/hadoop/mapreduce/'+iterName+'.java'
             if os.path.exists(iterFileName):
-                cmd = baseCmd+iterFileName
+                cmd = getCmd(iterFileName)
                 print cmd
                 os.system(cmd)
 
@@ -64,7 +67,7 @@ arrayTypes = [ 'int', 'long', 'double', 'float' ]
 for t in arrayTypes:
     arrayFileName = 'core/org/apache/hadoop/io/HadoopCLResizable'+t.capitalize()+'Array.java'
     if os.path.exists(arrayFileName):
-        cmd = baseCmd+arrayFileName
+        cmd = getCmd(arrayFileName)
         print cmd
         os.system(cmd)
 
