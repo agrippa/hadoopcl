@@ -9,7 +9,7 @@ public class HadoopCLLogger {
 
   public void log(String msg, HadoopOpenCLContext ctx) {
     if (this.enabled) {
-      System.err.println(ctx.typeName()+" | "+System.currentTimeMillis()+" | "+msg);
+      System.err.println("TIMING | "+ctx.typeName()+" | "+System.currentTimeMillis()+" | "+msg);
     }
   }
 }
