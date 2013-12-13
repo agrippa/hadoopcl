@@ -67,7 +67,6 @@ class Child {
   }
 
   public static void main(String[] args) throws Throwable {
-    LOG.debug("Child starting");
     final JobConf defaultConf = new JobConf();
     String host = args[0];
     int port = Integer.parseInt(args[1]);
@@ -75,7 +74,7 @@ class Child {
     final TaskAttemptID firstTaskid = TaskAttemptID.forName(args[2]);
     final String logLocation = args[3];
     final int SLEEP_LONGER_COUNT = 5;
-    int jvmIdInt = Integer.parseInt(args[4]);
+    final int jvmIdInt = Integer.parseInt(args[4]);
     JVMId jvmId = new JVMId(firstTaskid.getJobID(),firstTaskid.isMap(),jvmIdInt);
     String prefix = firstTaskid.isMap() ? "MapTask" : "ReduceTask";
     
@@ -251,9 +250,9 @@ class Child {
             try {
               // use job-specified working directory
               FileSystem.get(job).setWorkingDirectory(job.getWorkingDirectory());
-              LOG.info("Xiangyu: task starts");
+              LOG.info("Xiangyu: time" + System.currentTimeMillis() + " jvm" + jvmIdInt + " task starts");
               taskFinal.run(job, umbilical);        // run the task
-              LOG.info("Xiangyu: task ends");
+              LOG.info("Xiangyu: time" + System.currentTimeMillis() + " jvm" + jvmIdInt + " task ends");
             } finally {
               TaskLog.syncLogs
                 (logLocation, taskid, isCleanup, logIsSegmented(job));

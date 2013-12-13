@@ -370,9 +370,9 @@ public class MapTask extends Task {
     }
 
     if (useNewApi) {
-      LOG.info("Xiangyu: mapper starts");
+      LOG.info("Xiangyu: " + System.currentTimeMillis() + " mapper starts");
       runNewMapper(job, splitMetaInfo, umbilical, reporter);
-      LOG.info("Xiangyu: reducer starts");
+      LOG.info("Xiangyu: " + System.currentTimeMillis() + " mapper ends");
     } else {
       runOldMapper(job, splitMetaInfo, umbilical, reporter);
     }
