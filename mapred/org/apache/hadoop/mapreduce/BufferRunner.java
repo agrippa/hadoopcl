@@ -77,8 +77,13 @@ public class BufferRunner implements Runnable {
     private boolean startKernel(HadoopCLKernel kernel,
             HadoopCLInputBuffer inputBuffer, HadoopCLOutputBuffer outputBuffer) {
         boolean success;
+
+        kernel.tracker = inputBuffer.tracker.clone();
+        outputBuffer.tracker = inputBuffer.tracker.clone();
         kernel.fill(inputBuffer, outputBuffer);
         try {
+            OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(),
+                this.clContext);
             success = kernel.launchKernel();
         } catch(Exception io) {
             throw new RuntimeException(io);
@@ -222,6 +227,8 @@ public class BufferRunner implements Runnable {
                 // set the output buffers up for dumping
                 boolean doContinue = false; // we only want to continue if we actually made progress on this iter
                 for (HadoopCLKernel k : completed) {
+                    OpenCLDriver.logger.log("recovering completed kernel "+k.tracker.toString(),
+                        this.clContext);
                     HadoopCLInputOutputBufferPair pair = running.remove(k);
                     HadoopCLInputBuffer input = pair.inputBuffer();
                     HadoopCLOutputBuffer output = pair.outputBuffer();
@@ -243,6 +250,7 @@ public class BufferRunner implements Runnable {
                         freeInputBuffers.free(input);
                         freeKernels.free(k);
                     } else {
+                        input.tracker.incrementAttempt();
                         if (enableLogs) {
                             log("    Input buffer "+input.id+" has not finished all work");
                         }

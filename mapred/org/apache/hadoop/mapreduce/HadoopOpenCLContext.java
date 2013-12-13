@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
 
 public class HadoopOpenCLContext {
 
-    private TaskInputOutputContext hadoopContext;
+    private final TaskInputOutputContext hadoopContext;
     private String type;
     private int ngroups;
     private int threadsPerGroup;
@@ -51,47 +51,26 @@ public class HadoopOpenCLContext {
     private HadoopCLReducerKernel combinerKernel;
 
     private GlobalsWrapper globals;
-
-    private int findDeviceWithType(Device.TYPE type) {
-        int devicesSoFar = 0;
-        List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
-        for(OpenCLPlatform platform : platforms) {
-            for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
-              if(tmpDev.getType() == type) {
-                return devicesSoFar;
-              }
-              devicesSoFar++;
-            }
-        }
-        return -1;
-    }
-
-    private OpenCLDevice findDevice(int id) {
-        int devicesSoFar = 0;
-        OpenCLDevice dev = null;
-        List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
-        for(OpenCLPlatform platform : platforms) {
-            for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
-              if(devicesSoFar == id) {
-                dev = tmpDev;
-                break;
-              }
-              devicesSoFar++;
-            }
-            if(dev != null) break;
-        }
-        return dev;
-    }
+    
+    private final int nKernels;
+    private final int nInputBuffers;
+    private final int nOutputBuffers;
 
     public HadoopOpenCLContext(String contextType,
         TaskInputOutputContext setHadoopContext, GlobalsWrapper globals) {
-      init(contextType, setHadoopContext, globals);
+
+      this.hadoopContext = setHadoopContext;
+
+      Configuration conf = this.hadoopContext.getConfiguration();
+      this.nKernels = conf.getInt("opencl."+type+".nkernels", 1);
+      this.nInputBuffers = conf.getInt("opencl."+type+".ninputbuffers", 3);
+      this.nOutputBuffers = conf.getInt("opencl."+type+".noutputbuffers", 1);
+
+      init(contextType, conf, globals);
     }
 
-    public void init(String contextType, TaskInputOutputContext setHadoopContext,
+    public void init(String contextType, Configuration conf,
             GlobalsWrapper globals) {
-        this.hadoopContext = setHadoopContext;
-        Configuration conf = this.hadoopContext.getConfiguration();
 
         this.globals = globals;
         synchronized(this.globals) {
@@ -230,6 +209,37 @@ public class HadoopOpenCLContext {
 
     }
 
+    private int findDeviceWithType(Device.TYPE type) {
+        int devicesSoFar = 0;
+        List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
+        for(OpenCLPlatform platform : platforms) {
+            for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
+              if(tmpDev.getType() == type) {
+                return devicesSoFar;
+              }
+              devicesSoFar++;
+            }
+        }
+        return -1;
+    }
+
+    private OpenCLDevice findDevice(int id) {
+        int devicesSoFar = 0;
+        OpenCLDevice dev = null;
+        List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
+        for(OpenCLPlatform platform : platforms) {
+            for(OpenCLDevice tmpDev : platform.getOpenCLDevices()) {
+              if(devicesSoFar == id) {
+                dev = tmpDev;
+                break;
+              }
+              devicesSoFar++;
+            }
+            if(dev != null) break;
+        }
+        return dev;
+    }
+
     public int[] getGlobalIndices() { return this.globals.globalIndices; }
     public double[] getGlobalsVal() { return this.globals.globalsVal; }
     public float[] getGlobalsFval() { return this.globals.globalsFval; }
@@ -322,5 +332,17 @@ public class HadoopOpenCLContext {
     public boolean runningOnCPU() {
         return this.device != null &&
             this.device.getType() == Device.TYPE.CPU;
+    }
+
+    public int getNKernels() {
+      return nKernels;
+    }
+
+    public int getNInputBuffers() {
+      return nInputBuffers;
+    }
+
+    public int getNOutputBuffers() {
+      return nOutputBuffers;
     }
 }
