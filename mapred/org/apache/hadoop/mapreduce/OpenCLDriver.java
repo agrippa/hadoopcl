@@ -230,7 +230,7 @@ public class OpenCLDriver {
     Thread thread = new Thread(runner);
     thread.start();
     
-    buffer.getProfile().startRead();
+    buffer.getProfile().startRead(buffer);
 
     while (this.context.nextKeyValue()) {
         if (buffer.isFull(this.context)) {
@@ -248,7 +248,7 @@ public class OpenCLDriver {
                 // so we don't need to hold two input buffers at once
                 // and can release the current one immediately before
                 // requesting a new one.
-                buffer.getProfile().stopRead();
+                buffer.getProfile().stopRead(buffer);
                 runner.addWork(buffer);
 
                 BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
@@ -270,20 +270,20 @@ public class OpenCLDriver {
                 }
 
                 buffer.transferBufferedValues(newBuffer);
-                buffer.getProfile().stopRead();
+                buffer.getProfile().stopRead(buffer);
                 runner.addWork(buffer);
                 buffer = newBuffer;
             }
             buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
             buffer.resetProfile();
-            buffer.getProfile().startRead();
+            buffer.getProfile().startRead(buffer);
         }
 
         buffer.addKeyAndValue(this.context);
         OpenCLDriver.inputsRead++;
         buffer.getProfile().addItemProcessed();
     }
-    buffer.getProfile().stopRead();
+    buffer.getProfile().stopRead(buffer);
 
     if(buffer.hasWork()) {
         runner.addWork(buffer);

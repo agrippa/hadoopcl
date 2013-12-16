@@ -82,8 +82,9 @@ public class BufferRunner implements Runnable {
         outputBuffer.tracker = inputBuffer.tracker.clone();
         kernel.fill(inputBuffer, outputBuffer);
         try {
-            OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(),
-                this.clContext);
+            OpenCLDriver.logger.log("launching kernel "+
+                kernel.tracker.toString()+" on "+inputBuffer.tracker.toString()+
+                "->"+outputBuffer.tracker.toString(), this.clContext);
             success = kernel.launchKernel();
         } catch(Exception io) {
             throw new RuntimeException(io);
@@ -101,10 +102,10 @@ public class BufferRunner implements Runnable {
 
     private OutputBufferSoFar handleOutputBuffer(OutputBufferSoFar soFar) {
         try {
-            soFar.buffer().getProfile().startWrite();
+            soFar.buffer().getProfile().startWrite(soFar.buffer());
             int newProgress = soFar.buffer().putOutputsIntoHadoop(
                     this.clContext.getContext(), soFar.soFar());
-            soFar.buffer().getProfile().stopWrite();
+            soFar.buffer().getProfile().stopWrite(soFar.buffer());
             if (newProgress == -1) {
                 if (enableLogs) {
                     log("    Done writing "+soFar.buffer().id+", releasing");
@@ -227,11 +228,12 @@ public class BufferRunner implements Runnable {
                 // set the output buffers up for dumping
                 boolean doContinue = false; // we only want to continue if we actually made progress on this iter
                 for (HadoopCLKernel k : completed) {
-                    OpenCLDriver.logger.log("recovering completed kernel "+k.tracker.toString(),
-                        this.clContext);
                     HadoopCLInputOutputBufferPair pair = running.remove(k);
                     HadoopCLInputBuffer input = pair.inputBuffer();
                     HadoopCLOutputBuffer output = pair.outputBuffer();
+                    OpenCLDriver.logger.log("recovering completed kernel "+
+                        k.tracker.toString()+" for "+input.tracker.toString()+
+                        "->"+output.tracker.toString(), this.clContext);
 
                     int errCode = k.waitFor();
                     input.getProfile().stopKernel();

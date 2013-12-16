@@ -120,14 +120,14 @@ public abstract class HadoopCLBuffer {
             this.nItemsProcessed++;
         }
 
-        public void startRead() {
-            OpenCLDriver.logger.log("starting read of "+HadoopCLBuffer.this.tracker.toString(),
+        public void startRead(HadoopCLBuffer owner) {
+            OpenCLDriver.logger.log("starting read of "+owner.tracker.toString(),
                 HadoopCLBuffer.this.clContext);
             this.startRead = System.currentTimeMillis();
         }
 
-        public void stopRead() {
-            OpenCLDriver.logger.log("finishing read of "+HadoopCLBuffer.this.tracker.toString(),
+        public void stopRead(HadoopCLBuffer owner) {
+            OpenCLDriver.logger.log("finishing read of "+owner.tracker.toString(),
                 HadoopCLBuffer.this.clContext);
             this.stopRead = System.currentTimeMillis();
         }
@@ -140,14 +140,14 @@ public abstract class HadoopCLBuffer {
             this.kernelStops.add(System.currentTimeMillis());
         }
 
-        public void startWrite() {
-            OpenCLDriver.logger.log("starting write of "+HadoopCLBuffer.this.tracker.toString(),
+        public void startWrite(HadoopCLBuffer owner) {
+            OpenCLDriver.logger.log("starting write of "+owner.tracker.toString(),
                 HadoopCLBuffer.this.clContext);
             this.writeStarts.add(System.currentTimeMillis());
         }
 
-        public void stopWrite() {
-            OpenCLDriver.logger.log("finishing write of "+HadoopCLBuffer.this.tracker.toString(),
+        public void stopWrite(HadoopCLBuffer owner) {
+            OpenCLDriver.logger.log("finishing write of "+owner.tracker.toString(),
                 HadoopCLBuffer.this.clContext);
             this.writeStops.add(System.currentTimeMillis());
         }
