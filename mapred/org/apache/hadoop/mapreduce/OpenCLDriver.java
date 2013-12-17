@@ -40,7 +40,7 @@ public class OpenCLDriver {
   private final int nInputBuffers;
   private final int nOutputBuffers;
   public static final boolean profileMemory = false;
-  public static final HadoopCLLogger logger = new HadoopCLLogger(true);
+  public static final HadoopCLLogger logger = new HadoopCLLogger(false);
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
 

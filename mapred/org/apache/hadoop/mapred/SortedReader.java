@@ -35,7 +35,6 @@ public class SortedReader<K, V> implements MergeReader<K, V>, IndexedSortable {
     final DataInputBuffer key = new DataInputBuffer();
     final DataInputBuffer val = new DataInputBuffer();
     while (reader.next(key, val)) {
-      // TODO may be reading these incorrectly and need to use getPosition as well?
       keys.add(new BufferedElement(key.getData(), key.getPosition(), key.getLength() - key.getPosition()));
       vals.add(new BufferedElement(val.getData(), val.getPosition(), val.getLength() - val.getPosition()));
     }
