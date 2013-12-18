@@ -2060,7 +2060,7 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     fp.write('            if (this.memIncr[0] != 0) {\n')
     writeln(visitor(nativeOutputKeyType).getLimitSetter(), 4, fp)
     fp.write('               for(int i = soFar; i < limit; i++) {\n')
-    fp.write('                   if (!this.itersFinished.contains(i)) continue;\n')
+    fp.write('                   if (!this.itersFinished.contains(this.outputIterMarkers[i])) continue;\n')
 
     for line in firstLoopLines:
         fp.write(line.replace('DUMMY', 'i'))
@@ -2072,7 +2072,7 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
         fp.write('                   for(int i = soFar; i < this.nPairs; i++) {\n')
     else:
         fp.write('                   for(int i = soFar; i < this.nKeys; i++) {\n')
-    fp.write('                       if (!this.itersFinished.contains(i)) continue;\n')
+    fp.write('                       if (!this.itersFinished.contains(this.outputIterMarkers[i])) continue;\n')
     fp.write('                       for(int j = 0; j < this.nWrites[i]; j++) {\n')
 
     for line in firstLoopLines:
@@ -2090,7 +2090,7 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
         fp.write('                       for(int i = soFar; i < this.nPairs; i++) {\n')
     else:
         fp.write('                       for(int i = soFar; i < this.nKeys; i++) {\n')
-    fp.write('                           if (!this.itersFinished.contains(i)) continue;\n')
+    fp.write('                           if (!this.itersFinished.contains(this.outputIterMarkers[i])) continue;\n')
     fp.write('                           if(this.nWrites[i] > j) {\n')
     for line in secondLoopLines:
         fp.write(line.replace('DUMMY', 'base + i'))
@@ -2132,7 +2132,7 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
           fp.write(');\n')
           fp.write('\n')
         fp.write('        for (int i = soFar; i < count; i++) {\n')
-        fp.write('            if (!this.itersFinished.contains(i)) continue;\n')
+        fp.write('            if (!this.itersFinished.contains(this.outputIterMarkers[i])) continue;\n')
         fp.write('            int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
         fp.write('            int doubleStartOffset = this.outputValDoubleLookAsideBuffer[i];\n')
         fp.write('            int length = this.outputValLengthBuffer[i];\n')
@@ -2152,7 +2152,7 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         fp.write('            count = this.memIncr[0];\n')
         fp.write('        }\n')
         fp.write('              for (int i = soFar; i < count; i++) {\n')
-        fp.write('                if (!this.itersFinished.contains(i)) continue;\n')
+        fp.write('                if (!this.itersFinished.contains(this.outputIterMarkers[i])) continue;\n')
         fp.write('                int startOffset = this.outputValLookAsideBuffer[i];\n')
         fp.write('                int length = this.outputValLengthBuffer[i];\n')
         fp.write('                saveVal.set(this.outputVal, startOffset, length);\n')
@@ -2171,7 +2171,7 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         fp.write('            count = this.memIncr[0];\n')
         fp.write('        }\n')
         fp.write('              for (int i = soFar; i < count; i++) {\n')
-        fp.write('                if (!this.itersFinished.contains(i)) continue;\n')
+        fp.write('                if (!this.itersFinished.contains(this.outputIterMarkers[i])) continue;\n')
         fp.write('                int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
         fp.write('                int floatStartOffset = this.outputValFloatLookAsideBuffer[i];\n')
         fp.write('                int length = this.outputValLengthBuffer[i];\n')
