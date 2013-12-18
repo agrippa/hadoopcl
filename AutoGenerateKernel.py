@@ -1652,6 +1652,7 @@ def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueTy
         writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
             'this.clContext.getBufferSize() * 5', False, False,
                 isMapper, True), 3, fp)
+        write('            outputIterMarkers = new int[this.clContext.getBufferSize() * 5];\n')
         writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
             'this.clContext.getBufferSize() * 5', False, False,
                 isMapper, False), 3, fp)
@@ -1668,6 +1669,7 @@ def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueTy
         writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
             'this.clContext.getBufferSize() * inputValPerInputKey', True, False,
                 isMapper, True), 3, fp)
+        write('            outputIterMarkers = new int[this.clContext.getBufferSize() * inputValPerInputKey];\n')
         writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
             'this.clContext.getBufferSize() * inputValPerInputKey', True, False,
                 isMapper, False), 3, fp)
@@ -2454,6 +2456,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
         input_fp.write('    public int nVectorsToBuffer;\n')
 
+    output_fp.write('    protected int[] outputIterMarkers;\n')
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')
         output_fp.write('    protected int[] memAuxDoubleIncr;\n')
@@ -2470,9 +2473,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    protected int[] memAuxIntIncr;\n')
         kernelfp.write('    protected int[] memAuxFloatIncr;\n')
         kernelfp.write('    protected int outputAuxLength;\n')
-
-    output_fp.write('    private final int lockingInterval = 256;\n')
-
 
     kernelfp.write('\n')
     input_fp.write('\n')
