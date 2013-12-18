@@ -30,6 +30,14 @@ public abstract class AllocManager<Type> {
     public abstract TypeAlloc<Type> alloc();
     public abstract void free(Type b);
 
+    /**
+     * Basically, how many future allocation requests we could successfully
+     * respond to.
+     */
+    public synchronized int nAvailable() {
+      return free.size() + (this.maxAllocated - this.nAllocated);
+    }
+
     protected synchronized TypeAlloc<Type> nonBlockingAllocHelper() {
         if (!free.isEmpty()) {
             Type nb = free.poll();

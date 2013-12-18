@@ -78,7 +78,7 @@ import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.QuickSort;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
-
+import org.apache.hadoop.mapreduce.DontBlockOnSpillDoneException;
 /** A Map task. */
 public class MapTask extends Task {
   /**
@@ -1230,7 +1230,10 @@ public class MapTask extends Task {
           throws IOException {
         boolean buffull = false;
         boolean wrap = false;
+        boolean dontBlockException = false;
+
         spillLock.lock();
+
         try {
           do {
             if (sortSpillException != null) {
@@ -1275,6 +1278,12 @@ public class MapTask extends Task {
             }
 
             if (buffull && !wrap) {
+
+              if (kvstart != kvend) {
+                dontBlockException = true;
+                throw new DontBlockOnSpillDoneException();
+              }
+
               try {
                 while (kvstart != kvend) {
                   reporter.progress();
@@ -1288,7 +1297,9 @@ public class MapTask extends Task {
             }
           } while (buffull && !wrap);
         } finally {
-          spillLock.unlock();
+          if (!dontBlockException) {
+              spillLock.unlock();
+          }
         }
         // here, we know that we have sufficient space to write
         if (buffull) {
@@ -1356,10 +1367,14 @@ public class MapTask extends Task {
       @Override
       public void run() {
         spillLock.lock();
+
+        OpenCLDriver.spillLock = spillLock;
+        OpenCLDriver.spillDone = spillDone;
+
         spillThreadRunning = true;
         try {
           while (true) {
-            spillDone.signal();
+            spillDone.signalAll();
             while (kvstart == kvend) {
               spillReady.await();
             }

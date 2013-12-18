@@ -48,6 +48,12 @@ public class BufferRunner implements Runnable {
         return this.profiles;
     }
 
+    private void log(String s) {
+        if (enableLogs) {
+            System.err.println(System.currentTimeMillis()+"|"+this.clContext.typeName()+" "+s);
+        }
+    }
+
     public void addWork(HadoopCLInputBuffer input) {
         // possible if getting DONE signal from main
         if (input != null) {
@@ -94,12 +100,6 @@ public class BufferRunner implements Runnable {
         return success;
     }
 
-    private void log(String s) {
-        if (enableLogs) {
-            System.err.println(System.currentTimeMillis()+"|"+this.clContext.typeName()+" "+s);
-        }
-    }
-
     private OutputBufferSoFar handleOutputBuffer(OutputBufferSoFar soFar) {
         try {
             soFar.buffer().getProfile().startWrite(soFar.buffer());
@@ -111,7 +111,7 @@ public class BufferRunner implements Runnable {
                 this.freeOutputBuffers.free(soFar.buffer());
                 return null;
             } else {
-                log("    Unable to complete output buffer, putting "+soFar.buffer().id+" back in toWrite");
+                log("    Unable to complete output buffer, putting "+soFar.buffer().id+" back in toWrite with "+soFar.soFar()+" so far");
                 soFar.setSoFar(newProgress);
                 return soFar;
             }
@@ -124,9 +124,11 @@ public class BufferRunner implements Runnable {
         HadoopCLOutputBuffer result = null;
         BufferManager.TypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
             freeOutputBuffers.nonBlockingAlloc();
-        if (outputBufferContainer != null && outputBufferContainer.isFresh()) {
-            result = outputBufferContainer.obj();
+        if (outputBufferContainer != null) {
+          result = outputBufferContainer.obj();
+          if (outputBufferContainer.isFresh()) {
             result.initBeforeKernel(outputPairsPerInput, this.clContext);
+          }
         }
         return result;
     }
@@ -245,10 +247,8 @@ public class BufferRunner implements Runnable {
                         }
                     }
                 }
-                {
-                    log("    Continuing to next iteration");
-                    continue;
-                }
+                log("    Continuing to next iteration");
+                continue;
             }
 
             OutputBufferSoFar soFar = toWrite.poll();
@@ -257,10 +257,17 @@ public class BufferRunner implements Runnable {
                 OutputBufferSoFar cont = handleOutputBuffer(soFar);
                 if (cont != null) {
                     this.toWrite.add(cont);
+                    if (this.freeOutputBuffers.nAvailable() == 0) {
+                      try {
+                        OpenCLDriver.spillDone.await();
+                        OpenCLDriver.spillLock.unlock();
+                      } catch (InterruptedException ie) { }
+                    }
                 }
             }
         }
 
+        log("    At end, "+toWrite.size()+" output buffers remaining to write");
         if (!toWrite.isEmpty()) {
             // Little bit of work left, just finish off the remaining output
             // buffers
@@ -273,6 +280,9 @@ public class BufferRunner implements Runnable {
                 OutputBufferSoFar soFar = toWrite.poll();
                 do {
                     soFar = handleOutputBuffer(soFar);
+                    if (soFar != null) {
+                      OpenCLDriver.spillLock.unlock();
+                    }
                 } while(soFar != null);
             }
         }

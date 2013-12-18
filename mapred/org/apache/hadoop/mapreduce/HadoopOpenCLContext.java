@@ -40,7 +40,9 @@ public class HadoopOpenCLContext {
     private int isGPU;
     private Range r;
     private int bufferSize;
-    private int preallocLength;
+    private final int preallocIntLength;
+    private final int preallocFloatLength;
+    private final int preallocDoubleLength;
     private String deviceString;
     private int nVectorsToBuffer;
 
@@ -65,6 +67,9 @@ public class HadoopOpenCLContext {
       this.nKernels = conf.getInt("opencl."+type+".nkernels", 1);
       this.nInputBuffers = conf.getInt("opencl."+type+".ninputbuffers", 3);
       this.nOutputBuffers = conf.getInt("opencl."+type+".noutputbuffers", 1);
+      this.preallocIntLength = conf.getInt("opencl.prealloc.length.int", 5242880);
+      this.preallocFloatLength = conf.getInt("opencl.prealloc.length.double", 5242880);
+      this.preallocDoubleLength = conf.getInt("opencl.prealloc.length.float", 5242880);
 
       init(contextType, conf, globals);
     }
@@ -154,13 +159,6 @@ public class HadoopOpenCLContext {
             this.bufferSize = Integer.parseInt(bufferSizeStr);
         } else {
             this.bufferSize = 1048576;
-        }
-
-        String preallocLengthStr = System.getProperty("opencl.prealloc.length");
-        if (preallocLengthStr != null) {
-            this.preallocLength = Integer.parseInt(preallocLengthStr);
-        } else {
-            this.preallocLength = 1048576;
         }
 
         String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
@@ -267,7 +265,6 @@ public class HadoopOpenCLContext {
         return this.type;
     }
 
-
     public int getNVectorsToBuffer() {
         return this.nVectorsToBuffer;
     }
@@ -300,9 +297,9 @@ public class HadoopOpenCLContext {
         return this.bufferSize;
     }
 
-    public int getPreallocLength() {
-        return this.preallocLength;
-    }
+    public int getPreallocIntLength() { return this.preallocIntLength; }
+    public int getPreallocDoubleLength() { return this.preallocDoubleLength; }
+    public int getPreallocFloatLength() { return this.preallocFloatLength; }
 
     public String getDeviceString() {
         return this.deviceString;

@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -41,6 +42,9 @@ public class OpenCLDriver {
   private final int nOutputBuffers;
   public static final boolean profileMemory = false;
   public static final HadoopCLLogger logger = new HadoopCLLogger(false);
+
+  public static ReentrantLock spillLock = null;
+  public static Condition spillDone = null;
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
 

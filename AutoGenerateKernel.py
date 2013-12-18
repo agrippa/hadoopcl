@@ -493,9 +493,9 @@ class SvecVisitor(NativeTypeVisitor):
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
-                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
-                buf.append(basename+'Indices = new int[bigger];\n')
-                buf.append(basename+'Vals = new double[bigger];\n')
+                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+'Indices = new int[this.clContext.getPreallocIntLength()];\n')
+                buf.append(basename+'Vals = new double[this.clContext.getPreallocDoubleLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
@@ -730,8 +730,8 @@ class IvecVisitor(NativeTypeVisitor):
                     buf.append(basename+' = new int[('+size+') * 5];\n')
             else:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
-                buf.append(basename+' = new int[bigger];\n')
+                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+' = new int[this.clContext.getPreallocIntLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
@@ -942,9 +942,9 @@ class FsvecVisitor(NativeTypeVisitor):
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'FloatLookAsideBuffer = new int['+size+'];\n')
-                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
-                buf.append(basename+'Indices = new int[bigger];\n')
-                buf.append(basename+'Vals = new float[bigger];\n')
+                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+'Indices = new int[this.clContext.getPreallocIntLength()];\n')
+                buf.append(basename+'Vals = new float[this.clContext.getPreallocFloatLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
@@ -1202,9 +1202,9 @@ class BsvecVisitor(NativeTypeVisitor):
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
-                buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
-                buf.append(basename+'Indices = new int[bigger];\n')
-                buf.append(basename+'Vals = new double[bigger];\n')
+                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
+                buf.append(basename+'Indices = new int[this.clContext.getPreallocIntLength()];\n')
+                buf.append(basename+'Vals = new double[this.clContext.getPreallocDoubleLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
@@ -1860,7 +1860,7 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
         fp.write('\n')
 
     if profileMemoryUtilization:
-        fp.write('        System.out.println("'+('Mapper' if isMapper else 'Reducer')+': Output using "+\n')
+        fp.write('        System.out.println("'+('Mapper' if isMapper else 'Reducer')+': Input using "+\n')
         write_without_last_ln(visitor(nativeInputKeyType).getInputLength('Key', isMapper), 3, fp)
         fp.write('+", "+\n')
         write_without_last_ln(visitor(nativeInputValueType).getInputLength('Val', isMapper), 3, fp)
@@ -2013,7 +2013,7 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     # fp.write('            context.setUsingOpenCL(false);\n')
     fp.write('            if (this.memIncr[0] != 0) {\n')
     writeln(visitor(nativeOutputKeyType).getLimitSetter(), 4, fp)
-    fp.write('               for(int i = 0; i < limit; i++) {\n')
+    fp.write('               for(int i = soFar; i < limit; i++) {\n')
 
     for line in firstLoopLines:
         fp.write(line.replace('DUMMY', 'i'))
@@ -2022,9 +2022,9 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     fp.write('            } else {\n')
     fp.write('               if(isGPU == 0) {\n')
     if isMapper:
-        fp.write('                   for(int i = 0; i < this.nPairs; i++) {\n')
+        fp.write('                   for(int i = soFar; i < this.nPairs; i++) {\n')
     else:
-        fp.write('                   for(int i = 0; i < this.nKeys; i++) {\n')
+        fp.write('                   for(int i = soFar; i < this.nKeys; i++) {\n')
     fp.write('                       for(int j = 0; j < this.nWrites[i]; j++) {\n')
 
     for line in firstLoopLines:
@@ -2039,9 +2039,9 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     fp.write('                   do {\n')
     fp.write('                       someLeft = false;\n')
     if isMapper:
-        fp.write('                       for(int i = 0; i < this.nPairs; i++) {\n')
+        fp.write('                       for(int i = soFar; i < this.nPairs; i++) {\n')
     else:
-        fp.write('                       for(int i = 0; i < this.nKeys; i++) {\n')
+        fp.write('                       for(int i = soFar; i < this.nKeys; i++) {\n')
     fp.write('                           if(this.nWrites[i] > j) {\n')
     for line in secondLoopLines:
         fp.write(line.replace('DUMMY', 'base + i'))
@@ -2094,13 +2094,15 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         # fp.write('            }\n')
         # fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
         # fp.write('            for (i = j; i < limit; i++) {\n')
-        fp.write('        for (int i = 0; i < count; i++) {\n')
+        fp.write('        for (int i = soFar; i < count; i++) {\n')
         fp.write('            int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
         fp.write('            int doubleStartOffset = this.outputValDoubleLookAsideBuffer[i];\n')
         fp.write('            int length = this.outputValLengthBuffer[i];\n')
         fp.write('            saveVal.set(this.outputValIndices, intStartOffset, outputValVals, doubleStartOffset, length);\n')
         writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 3, fp)
-        fp.write('            context.write(saveKey, saveVal);\n')
+        fp.write('            try {\n')
+        fp.write('                context.write(saveKey, saveVal);\n')
+        fp.write('            } catch (DontBlockOnSpillDoneException e) { return i; }\n')
         fp.write('        }\n')
         # fp.write('            spillLock.unlock();\n')
         # fp.write('        }\n')
@@ -2131,7 +2133,7 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         # fp.write('            }\n')
         # fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
         # fp.write('            for(i = j; i < limit; i++) {\n')
-        fp.write('              for (int i = 0; i < count; i++) {\n')
+        fp.write('              for (int i = soFar; i < count; i++) {\n')
         fp.write('                int startOffset = this.outputValLookAsideBuffer[i];\n')
         fp.write('                int length = this.outputValLengthBuffer[i];\n')
         fp.write('                saveVal.set(this.outputVal, startOffset, length);\n')
@@ -2140,7 +2142,9 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         # fp.write('                    vals.add(this.outputVal[startOffset + k]);\n')
         # fp.write('                }\n')
         writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 4, fp)
-        fp.write('                context.write(saveKey, saveVal);\n')
+        fp.write('                try {\n')
+        fp.write('                    context.write(saveKey, saveVal);\n')
+        fp.write('                } catch (DontBlockOnSpillDoneException e) { return i; }\n')
         fp.write('            }\n')
         # fp.write('            spillLock.unlock();\n')
         # fp.write('        }\n')
@@ -2172,7 +2176,7 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         # fp.write('            }\n')
         # fp.write('            int limit = (j + this.lockingInterval > count ? count : j+this.lockingInterval);\n')
         # fp.write('            for (i = j; i < limit; i++) {\n')
-        fp.write('              for (int i = 0; i < count; i++) {\n')
+        fp.write('              for (int i = soFar; i < count; i++) {\n')
         fp.write('                int intStartOffset = this.outputValIntLookAsideBuffer[i];\n')
         fp.write('                int floatStartOffset = this.outputValFloatLookAsideBuffer[i];\n')
         fp.write('                int length = this.outputValLengthBuffer[i];\n')
@@ -2186,7 +2190,9 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         # fp.write('                    vals.add(this.outputValVals[doubleStartOffset + k]);\n')
         # fp.write('                }\n')
         writeln(visitor(nativeOutputKeyType).getKeyValSet('Key', 'i'), 4, fp)
-        fp.write('                context.write(saveKey, saveVal);\n')
+        fp.write('                try {\n')
+        fp.write('                    context.write(saveKey, saveVal);\n')
+        fp.write('                } catch (DontBlockOnSpillDoneException e) { return i; }\n')
         fp.write('            }\n')
         # fp.write('            spillLock.unlock();\n')
         # fp.write('        }\n')
@@ -2204,12 +2210,17 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
         firstLines = [ ]
         firstLines.append(tostr(visitor(nativeOutputKeyType).getKeyValSet('Key', 'DUMMY'), 8))
         firstLines.append(tostr(visitor(nativeOutputValueType).getKeyValSet('Val', 'DUMMY'), 8))
-        firstLines.append('                            context.write(saveKey, saveVal);\n')
+        firstLines.append('                            try {\n')
+        firstLines.append('                                context.write(saveKey, saveVal);\n')
+        firstLines.append('                            } catch (DontBlockOnSpillDoneException e) { return i; }\n')
+
 
         secondLines = [ ]
         secondLines.append(tostr(visitor(nativeOutputKeyType).getKeyValSet('Key', 'DUMMY'), 8))
         secondLines.append(tostr(visitor(nativeOutputValueType).getKeyValSet('Val', 'DUMMY'), 8))
-        secondLines.append('                                    context.write(saveKey, saveVal);\n')
+        secondLines.append('                                    try {\n')
+        secondLines.append('                                        context.write(saveKey, saveVal);\n')
+        secondLines.append('                                    } catch (DontBlockOnSpillDoneException e) { return i; }\n')
 
         writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLines, secondLines)
 
