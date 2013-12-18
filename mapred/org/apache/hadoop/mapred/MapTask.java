@@ -85,6 +85,7 @@ public class MapTask extends Task {
    * The size of each record in the index file for the map-outputs.
    */
   public static final int MAP_OUTPUT_INDEX_RECORD_LENGTH = 24;
+  private boolean isOpenCL = true;
 
   private TaskSplitIndex splitMetaInfo = new TaskSplitIndex();
   private final static int APPROX_HEADER_LENGTH = 150;
@@ -131,6 +132,8 @@ public class MapTask extends Task {
       splitMetaInfo.write(out);
       out.close();
     }
+
+    this.isOpenCL = conf.getMapperClass().toString().equals("org.apache.hadoop.mapreduce.OpenCLMapper");
   }
   
   @Override
@@ -1279,7 +1282,7 @@ public class MapTask extends Task {
 
             if (buffull && !wrap) {
 
-              if (kvstart != kvend) {
+              if (kvstart != kvend && isOpenCL) {
                 dontBlockException = true;
                 throw new DontBlockOnSpillDoneException();
               }
