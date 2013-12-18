@@ -33,6 +33,7 @@ public abstract class HadoopCLKernel extends Kernel {
     protected int[] globalsMap;
     protected int nGlobalBuckets;
 
+    protected int[] outputIterMarkers;
     protected int[] memIncr;
     protected int outputsPerInput;
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();

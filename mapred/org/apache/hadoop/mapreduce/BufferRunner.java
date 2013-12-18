@@ -218,6 +218,7 @@ public class BufferRunner implements Runnable {
                     input.getProfile().stopKernel();
 
                     output.copyOverFromInput(input);
+                    output.constructIterSet();
                     log("    Adding "+output.id+" to output buffers to write");
                     toWrite.add(new OutputBufferSoFar(output, 0));
                     boolean completedAll = input.completedAll();

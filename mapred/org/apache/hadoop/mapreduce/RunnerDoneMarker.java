@@ -11,8 +11,8 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
       return -1;
     }
 
-    public void copyOverFromInput(HadoopCLInputBuffer inputBuffer) {
-    }
+    public void copyOverFromInput(HadoopCLInputBuffer inputBuffer) { }
+    public void constructIterSet() { }
 
     public boolean isEnd() {
       return true;

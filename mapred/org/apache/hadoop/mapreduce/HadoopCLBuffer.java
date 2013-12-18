@@ -20,22 +20,6 @@ public abstract class HadoopCLBuffer {
 
     protected final static AtomicInteger idIncr = new AtomicInteger(0);
     public int id = -1;
-    // public final int id = HadoopCLBuffer.idIncr.getAndIncrement();
-
-    // public abstract Class getKernelClass();
-    // public abstract void init(int pairsPerInput, HadoopOpenCLContext clContext);
-    // public abstract boolean isFull(TaskInputOutputContext context) throws IOException, InterruptedException;
-    // public abstract void reset();
-    // public abstract boolean hasWork();
-    // public abstract boolean completedAll();
-    // public abstract HadoopCLReducerBuffer putOutputsIntoHadoop(TaskInputOutputContext context, boolean doIntermediateReduction) throws IOException, InterruptedException;
-    // public abstract void addKeyAndValue(TaskInputOutputContext context) throws IOException, InterruptedException;
-    // public abstract void addTypedValue(Object val);
-    // public abstract void addTypedKey(Object key);
-    // public abstract void fill(HadoopCLKernel kernel);
-    // public abstract void transferBufferedValues(HadoopCLBuffer buffer);
-    // public abstract boolean equalInputOutputTypes();
-    // public abstract HadoopCLBuffer cloneIncomplete();
 
     public long space() {
         return 4 * nWrites.length;

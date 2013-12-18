@@ -29,6 +29,16 @@ public abstract class HadoopCLOutputReducerBuffer extends HadoopCLOutputBuffer {
     }
 
     @Override
+    public void constructIterSet() {
+      itersFinished.clear();
+      for (int i = 0; i < this.nKeys; i++) {
+        if (this.nWrites[i] >= 0) {
+          itersFinished.add(i);
+        }
+      }
+    }
+
+    @Override
     public long space() {
         return super.space();
     }
