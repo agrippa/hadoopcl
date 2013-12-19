@@ -31,8 +31,9 @@ import java.nio.ByteBuffer;
 
 public class HadoopOpenCLContext {
 
+    private final boolean enableBufferRunnerDiagnostics;
     private final TaskInputOutputContext hadoopContext;
-    private String type;
+    private final String type;
     private int ngroups;
     private int threadsPerGroup;
     private OpenCLDevice device;
@@ -63,6 +64,14 @@ public class HadoopOpenCLContext {
 
       this.hadoopContext = setHadoopContext;
 
+      if(contextType.equals("reducer") && this.hadoopContext.getTaskAttemptID().isMap()) {
+          this.isCombiner = true;
+          this.type = "combiner";
+      } else {
+          this.isCombiner = false;
+          this.type = contextType;
+      }
+
       Configuration conf = this.hadoopContext.getConfiguration();
       this.nKernels = conf.getInt("opencl."+type+".nkernels", 1);
       this.nInputBuffers = conf.getInt("opencl."+type+".ninputbuffers", 3);
@@ -70,6 +79,7 @@ public class HadoopOpenCLContext {
       this.preallocIntLength = conf.getInt("opencl.prealloc.length.int", 5242880);
       this.preallocFloatLength = conf.getInt("opencl.prealloc.length.double", 5242880);
       this.preallocDoubleLength = conf.getInt("opencl.prealloc.length.float", 5242880);
+      this.enableBufferRunnerDiagnostics = conf.getBoolean("opencl.buffer.diagnostics", false);
 
       init(contextType, conf, globals);
     }
@@ -80,14 +90,6 @@ public class HadoopOpenCLContext {
         this.globals = globals;
         synchronized(this.globals) {
           this.globals.init(conf);
-        }
-
-        if(contextType.equals("reducer") && this.hadoopContext.getTaskAttemptID().isMap()) {
-            this.isCombiner = true;
-            this.type = "combiner";
-        } else {
-            this.isCombiner = false;
-            this.type = contextType;
         }
 
         if(this.isCombiner) {
@@ -341,5 +343,9 @@ public class HadoopOpenCLContext {
 
     public int getNOutputBuffers() {
       return nOutputBuffers;
+    }
+
+    public boolean enableBufferRunnerDiagnostics() {
+      return this.enableBufferRunnerDiagnostics;
     }
 }

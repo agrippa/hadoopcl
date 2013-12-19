@@ -45,6 +45,8 @@ public class OpenCLDriver {
 
   public static ReentrantLock spillLock = null;
   public static Condition spillDone = null;
+  public static ReentrantLock resourcesLock = null;
+  public static Condition resourcesAvailable = null;
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
 

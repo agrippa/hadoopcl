@@ -85,7 +85,16 @@ public class MapTask extends Task {
    * The size of each record in the index file for the map-outputs.
    */
   public static final int MAP_OUTPUT_INDEX_RECORD_LENGTH = 24;
-  private boolean isOpenCL = true;
+  private Boolean isOpenCL = null;
+
+  private boolean isOpenCL() {
+    if (isOpenCL == null) {
+      try {
+        isOpenCL = new Boolean(taskContext.getMapperClass().getName().equals("org.apache.hadoop.mapreduce.OpenCLMapper"));
+      } catch(Exception e) { isOpenCL = new Boolean(false); }
+    }
+    return isOpenCL.booleanValue();
+  }
 
   private TaskSplitIndex splitMetaInfo = new TaskSplitIndex();
   private final static int APPROX_HEADER_LENGTH = 150;
@@ -132,8 +141,6 @@ public class MapTask extends Task {
       splitMetaInfo.write(out);
       out.close();
     }
-
-    this.isOpenCL = conf.getMapperClass().toString().equals("org.apache.hadoop.mapreduce.OpenCLMapper");
   }
   
   @Override
@@ -919,6 +926,8 @@ public class MapTask extends Task {
     private final ReentrantLock spillLock = new ReentrantLock();
     private final Condition spillDone = spillLock.newCondition();
     private final Condition spillReady = spillLock.newCondition();
+    private final ReentrantLock resourcesLock = new ReentrantLock();
+    private final Condition resourcesAvailable = resourcesLock.newCondition();
     private final BlockingBuffer bb = new BlockingBuffer();
     private volatile boolean spillThreadRunning = false;
     private final SpillThread spillThread = new SpillThread();
@@ -1281,8 +1290,7 @@ public class MapTask extends Task {
             }
 
             if (buffull && !wrap) {
-
-              if (kvstart != kvend && isOpenCL) {
+              if (kvstart != kvend && isOpenCL()) {
                 dontBlockException = true;
                 throw new DontBlockOnSpillDoneException();
               }
@@ -1373,11 +1381,22 @@ public class MapTask extends Task {
 
         OpenCLDriver.spillLock = spillLock;
         OpenCLDriver.spillDone = spillDone;
+        OpenCLDriver.resourcesLock = resourcesLock;
+        OpenCLDriver.resourcesAvailable = resourcesAvailable;
 
         spillThreadRunning = true;
         try {
           while (true) {
+
+            try {
+              resourcesLock.lock();
+              resourcesAvailable.signalAll();
+            } finally {
+              resourcesLock.unlock();
+            }
+
             spillDone.signalAll();
+
             while (kvstart == kvend) {
               spillReady.await();
             }

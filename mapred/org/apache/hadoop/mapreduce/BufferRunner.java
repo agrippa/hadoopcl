@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.Map;
 
 public class BufferRunner implements Runnable {
-    private static final boolean enableLogs = false;
+    private final boolean enableLogs;
     private final List<HadoopCLBuffer.Profile> profiles;
     private final BufferManager<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
@@ -42,6 +42,8 @@ public class BufferRunner implements Runnable {
 
         this.clContext = clContext;
         this.profiles = new LinkedList<HadoopCLBuffer.Profile>();
+
+        this.enableLogs = clContext.enableBufferRunnerDiagnostics();
     }
 
     public List<HadoopCLBuffer.Profile> profiles() {
@@ -68,6 +70,15 @@ public class BufferRunner implements Runnable {
         return (result == null ? null : result.obj());
     }
 
+    private boolean anyKernelsComplete() {
+        for (HadoopCLKernel k : this.running.keySet()) {
+            if (k.isComplete()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private List<HadoopCLKernel> getCompleteKernels() {
         List<HadoopCLKernel> complete = new LinkedList<HadoopCLKernel>();
         for (HadoopCLKernel k : this.running.keySet()) {
@@ -78,7 +89,7 @@ public class BufferRunner implements Runnable {
         return complete;
     }
 
-    private boolean startKernel(HadoopCLKernel kernel,
+    private boolean startKernel(final HadoopCLKernel kernel,
             HadoopCLInputBuffer inputBuffer, HadoopCLOutputBuffer outputBuffer) {
         boolean success;
 
@@ -90,12 +101,18 @@ public class BufferRunner implements Runnable {
                 kernel.tracker.toString()+" on "+inputBuffer.tracker.toString()+
                 "->"+outputBuffer.tracker.toString(), this.clContext);
             success = kernel.launchKernel();
+            // new Thread(new Runnable() {
+            //   @Override
+            //   public void run() {
+            //     kernel.waitForCompletion();
+            //   }
+            // }).start();
         } catch(Exception io) {
             throw new RuntimeException(io);
         }
         if (success) {
             inputBuffer.getProfile().startKernel();
-            running.put(kernel, new HadoopCLInputOutputBufferPair(inputBuffer, outputBuffer));
+            running.put(kernel, new HadoopCLInputOutputBufferPair(inputBuffer, outputBuffer, kernel));
         }
         return success;
     }
@@ -147,6 +164,7 @@ public class BufferRunner implements Runnable {
         while (!mainDone || !running.isEmpty() ||
                 !toRunPrivate.isEmpty()) {
 
+            boolean forwardProgress = false;
             BufferTypeContainer<HadoopCLInputBuffer> inputBufferContainer = 
                 toRun.nonBlockingGet();
             // Special test for DONE signal from main thread
@@ -186,6 +204,7 @@ public class BufferRunner implements Runnable {
                         freeOutputBuffers.free(outputBuffer);
                         freeKernels.free(k);
                     } else {
+                        forwardProgress = true;
                         log("    Successfully started kernel "+k.id+" on "+inputBuffer.id+" -> "+outputBuffer.id);
                     }
                     log("    Continuing to next iteration");
@@ -196,6 +215,8 @@ public class BufferRunner implements Runnable {
                     if (outputBuffer != null) freeOutputBuffers.free(outputBuffer);
                     if (k != null) freeKernels.free(k);
                 }
+            } else {
+              log("    No input buffer available to process");
             }
 
             List<HadoopCLKernel> completed = getCompleteKernels();
@@ -203,6 +224,7 @@ public class BufferRunner implements Runnable {
                 log("  Detected "+completed.size()+" completed kernels, out of "+running.size()+" running");
             }
             if (!completed.isEmpty()) {
+                forwardProgress = true;
                 // Try to either re-run incomplete kernels, or just
                 // set the output buffers up for dumping
                 for (HadoopCLKernel k : completed) {
@@ -213,6 +235,12 @@ public class BufferRunner implements Runnable {
                     OpenCLDriver.logger.log("recovering completed kernel "+
                         k.tracker.toString()+" for "+input.tracker.toString()+
                         "->"+output.tracker.toString(), this.clContext);
+
+                    try {
+                      pair.wrapperThread().join();
+                    } catch(InterruptedException ie) {
+                      throw new RuntimeException(ie);
+                    }
 
                     int errCode = k.waitFor();
                     input.getProfile().stopKernel();
@@ -248,23 +276,49 @@ public class BufferRunner implements Runnable {
                         }
                     }
                 }
-                log("    Continuing to next iteration");
-                continue;
+                // log("    Continuing to next iteration");
+                // continue;
             }
 
             OutputBufferSoFar soFar = toWrite.poll();
             if (soFar != null) {
                 log("    Got output buffer "+soFar.buffer().id+" to write");
+                log("      # output buffers available = "+this.freeOutputBuffers.nAvailable());
+                int previously = soFar.soFar();
                 OutputBufferSoFar cont = handleOutputBuffer(soFar);
                 if (cont != null) {
+                    if (cont.soFar() > previously) forwardProgress = true;
                     this.toWrite.add(cont);
-                    if (this.freeOutputBuffers.nAvailable() == 0) {
-                      try {
-                        OpenCLDriver.spillDone.await();
-                        OpenCLDriver.spillLock.unlock();
-                      } catch (InterruptedException ie) { }
+
+                    boolean successfulUnlock = false;
+                    try {
+                        if (!forwardProgress) {
+                            OpenCLDriver.resourcesLock.lock();
+                            OpenCLDriver.spillLock.unlock();
+                            successfulUnlock = true;
+                            OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
+                            OpenCLDriver.resourcesAvailable.await();
+                            OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+
+                            // if (this.freeOutputBuffers.nAvailable() == 0) {
+                            //     OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
+                            //     OpenCLDriver.spillDone.await();
+                            //     OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                            // }
+                        }
+                    } catch (InterruptedException ie) {
+                    } finally {
+                        if (!successfulUnlock) {
+                            OpenCLDriver.spillLock.unlock();
+                        } else {
+                          OpenCLDriver.resourcesLock.unlock();
+                        }
                     }
+                } else {
+                  forwardProgress = true;
                 }
+            } else {
+              log("    No output buffers eligible for writing");
             }
         }
 
