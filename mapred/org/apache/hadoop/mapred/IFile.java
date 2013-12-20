@@ -48,7 +48,7 @@ import org.apache.hadoop.io.serializer.Serializer;
  */
 public class IFile {
 
-  private static final int EOF_MARKER = -1;
+  protected static final int EOF_MARKER = -1;
   
   /**
    * <code>IFile.Writer</code> to write out intermediate map-outputs. 
@@ -67,8 +67,8 @@ public class IFile {
     long compressedBytesWritten = 0;
 
     // Count records written to disk
-    private long numRecordsWritten = 0;
-    private final Counters.Counter writtenRecordsCounter;
+    protected long numRecordsWritten = 0;
+    protected final Counters.Counter writtenRecordsCounter;
 
     IFileOutputStream checksumOut;
 

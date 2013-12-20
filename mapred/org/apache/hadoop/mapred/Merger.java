@@ -207,10 +207,10 @@ public class Merger {
       if (reader == null) {
         FSDataInputStream in = fs.open(file);
         in.seek(segmentOffset);
-        // reader = new IFile.Reader<K, V>(conf, in, segmentLength, codec,
-        //     readsCounter);
-        reader = new SortedReader<K, V>(conf, in, segmentLength, codec,
-            readsCounter, comparator);
+        reader = new IFile.Reader<K, V>(conf, in, segmentLength, codec,
+            readsCounter);
+        // reader = new SortedReader<K, V>(conf, in, segmentLength, codec,
+        //     readsCounter, comparator);
       }
     }
     

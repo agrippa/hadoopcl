@@ -27,7 +27,7 @@ import static org.apache.hadoop.mapred.Task.Counter.MAP_INPUT_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.MAP_OUTPUT_BYTES;
 import static org.apache.hadoop.mapred.Task.Counter.MAP_OUTPUT_MATERIALIZED_BYTES;
 import static org.apache.hadoop.mapred.Task.Counter.MAP_OUTPUT_RECORDS;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.WritableComparable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -705,7 +705,7 @@ public class MapTask extends Task {
     }
   }
   
-  private class NewOutputCollector<K,V>
+  private class NewOutputCollector<K extends Comparable<K>, V extends Comparable<V>>
     extends org.apache.hadoop.mapreduce.RecordWriter<K,V> {
     private final MapOutputCollector<K,V> collector;
     private final org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner;
@@ -901,8 +901,8 @@ public class MapTask extends Task {
     }
   }
 
-  class MapOutputBuffer<K extends Object, V extends Object> 
-  implements MapOutputCollector<K, V>, IndexedSortable {
+  class MapOutputBuffer<K extends Comparable<K>, V extends Comparable<V>> 
+      implements MapOutputCollector<K, V>, IndexedSortable {
     private final int partitions;
     private final JobConf job;
     private final TaskReporter reporter;
@@ -1128,7 +1128,7 @@ public class MapTask extends Task {
         int valend = bb.markRecord();
 
         if (partition < 0 || partition >= partitions) {
-          throw new IOException("Illegal partition for " + key + " (" +
+          throw new IOException("Illegal partition for " + key.toString() + " (" +
               partition + ")");
         }
 
@@ -1488,9 +1488,9 @@ public class MapTask extends Task {
           IFile.Writer<K, V> writer = null;
           try {
             long segmentStart = out.getPos();
-            writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
-                                      spilledRecordsCounter);
             if (combinerRunner == null) {
+              writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
+                                        spilledRecordsCounter);
               // spill directly
               DataInputBuffer key = new DataInputBuffer();
               while (spindex < endPosition &&
@@ -1505,6 +1505,10 @@ public class MapTask extends Task {
                 ++spindex;
               }
             } else {
+              writer = new SortedWriter<K, V>(job, out, keyClass, valClass, codec,
+                                        spilledRecordsCounter);
+              // writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
+              //                           spilledRecordsCounter);
               int spstart = spindex;
               while (spindex < endPosition &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]

@@ -35,7 +35,7 @@ public abstract class HadoopCLBuffer {
         if (clContext.doHighLevelProfiling()) {
             this.prof = new Profile();
         } else {
-            this.prof = new HadoopCLEmptyProfile();
+            this.prof = new HadoopCLEmptyProfile(this.clContext);
         }
     }
 
