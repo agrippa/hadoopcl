@@ -225,7 +225,7 @@ public class HadoopOpenCLContext {
         return -1;
     }
 
-    private OpenCLDevice findDevice(int id) {
+    public static OpenCLDevice findDevice(int id) {
         int devicesSoFar = 0;
         OpenCLDevice dev = null;
         List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();

@@ -79,6 +79,11 @@ import org.apache.hadoop.util.QuickSort;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.mapreduce.DontBlockOnSpillDoneException;
+import org.apache.hadoop.mapreduce.HadoopOpenCLContext;
+
+import com.amd.aparapi.device.OpenCLDevice;
+import com.amd.aparapi.device.Device;
+
 /** A Map task. */
 public class MapTask extends Task {
   /**
@@ -90,6 +95,23 @@ public class MapTask extends Task {
   private boolean isOpenCL() {
     if (isOpenCL == null) {
       try {
+        if (taskContext.getMapperClass().getName().equals("org.apache.hadoop.mapreduce.OpenCLMapper")) {
+          String deviceStr = System.getProperty("opencl.device");
+          if (deviceStr != null) {
+            int device = Integer.parseInt(deviceStr);
+            OpenCLDevice dev = HadoopOpenCLContext.findDevice(device);
+            if (dev.getType() == Device.TYPE.GPU ||
+                dev.getType() == Device.TYPE.CPU) {
+              isOpenCL = new Boolean(true);
+            } else {
+              isOpenCL = new Boolean(false);
+            }
+          } else {
+            isOpenCL = new Boolean(false);
+          }
+        } else {
+          isOpenCL = new Boolean(false);
+        }
         isOpenCL = new Boolean(taskContext.getMapperClass().getName().equals("org.apache.hadoop.mapreduce.OpenCLMapper"));
       } catch(Exception e) { isOpenCL = new Boolean(false); }
     }
