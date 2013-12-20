@@ -1567,10 +1567,12 @@ def generateWriteSig(outputKeyType, outputValType, fp):
     write(visitor(outputValType).getSig('val', False), 0, fp)
     fp.write(') {\n')
 
-def generateWriteMethod(fp, nativeOutputKeyType, nativeOutputValueType):
+def generateWriteMethod(fp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType):
     generateWriteSig(nativeOutputKeyType, nativeOutputValueType, fp)
     fp.write('        this.javaProfile.stopKernel();\n')
     fp.write('        this.javaProfile.startWrite();\n')
+    fp.write('        final '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
+    fp.write('        final '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
     writeln(visitor(nativeOutputKeyType).getWriteMethodBody('key', True), 2, fp)
     writeln(visitor(nativeOutputValueType).getWriteMethodBody('val', False), 2, fp)
     fp.write('        try { clContext.getContext().write(keyObj, valObj); } catch(Exception ex) { throw new RuntimeException(ex); }\n')
@@ -2393,8 +2395,8 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, True), 1, kernelfp)
     writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, True), 1, kernelfp)
     writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, True), 1, kernelfp)
-    kernelfp.write('    final private '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
-    kernelfp.write('    final private '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
+    # kernelfp.write('    final private '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
+    # kernelfp.write('    final private '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
     kernelfp.write('\n')
     generateKernelDecl(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
@@ -2493,7 +2495,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     # generateCloneIncompleteMethod(bufferfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
-    generateWriteMethod(kernelfp, nativeOutputKeyType, nativeOutputValueType)
+    generateWriteMethod(kernelfp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType)
 
     generateKernelCall(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
