@@ -351,18 +351,6 @@ public abstract class HadoopCLKernel extends Kernel {
             indicesIntoVectors[minVector] = newIndex;
             todoNext = queueOfSparseIndicesLinks[queueHead];
 
-            // if (newIndex < valsIter.currentVectorLength()) {
-            //     int nextIndexInVector = valsIter.getValIndices()[newIndex];
-            //     int insertAfter = findEnd(queueHead, queueOfSparseIndicesLinks);
-            //     queueOfSparseIndices[queueHead] = nextIndexInVector;
-            //     if (insertAfter != queueHead) {
-            //         queueOfSparseIndicesLinks[queueHead] = queueOfSparseIndicesLinks[insertAfter];
-            //         queueOfSparseIndicesLinks[insertAfter] = queueHead;
-            //     } else {
-            //         todoNext = queueHead;
-            //     }
-            // }
-
             if (newIndex < valsIter.currentVectorLength()) {
                 // If there are still elements to be processed in the current
                 // vector, start by grabbing the value of the next smallest
@@ -386,7 +374,7 @@ public abstract class HadoopCLKernel extends Kernel {
                 // This slot is no longer valid, if we arrive at it we want to
                 // crash
                 queueOfSparseIndicesLinks[queueHead] = -1;
-                queueOfSparseIndices[queueHead] = Integer.MAX_VALUE;
+                // queueOfSparseIndices[queueHead] = Integer.MAX_VALUE;
             }
             nProcessed++;
 
