@@ -7,8 +7,9 @@ public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManag
     private final List<HadoopCLBuffer> globalSpace;
 
     public BufferManager(String name, int setMax,
-            Class<? extends BufferType> toInstantiate, List<HadoopCLBuffer> globalSpace) {
-        super(name, setMax, toInstantiate);
+            Class<? extends BufferType> toInstantiate,
+            List<HadoopCLBuffer> globalSpace, boolean exclusive) {
+        super(name, setMax, toInstantiate, exclusive);
         this.globalSpace = globalSpace;
     }
 

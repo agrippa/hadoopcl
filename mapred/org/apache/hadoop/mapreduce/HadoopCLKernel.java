@@ -187,6 +187,45 @@ public abstract class HadoopCLKernel extends Kernel {
       }
     }
 
+    protected void quickSort(int[] arr, int[] coarr, int elements, int[] beg, int[] end) {
+      int piv, L, R, swap;
+      int dpiv;
+      int i = 0;
+
+      beg[0] = 0;
+      end[0] = elements;
+
+      while (i >= 0) {
+        L=beg[i]; R=end[i]-1;
+        if (L < R) {
+          piv = arr[L];
+          dpiv = coarr[L];
+
+          while (L < R) {
+            while (arr[R]>=piv && L<R) R--;
+            if (L<R) {
+              coarr[L] = coarr[R];
+              arr[L++]=arr[R];
+            }
+            while (arr[L]<=piv && L<R) L++;
+            if (L<R) {
+              coarr[R] = coarr[L];
+              arr[R--]=arr[L];
+            }
+          }
+
+          arr[L]=piv; coarr[L] = dpiv;
+          beg[i+1]=L+1; end[i+1]=end[i]; end[i++]=L;
+          if (end[i]-beg[i]>end[i-1]-beg[i-1]) {
+            swap=beg[i]; beg[i]=beg[i-1]; beg[i-1]=swap;
+            swap=end[i]; end[i]=end[i-1]; end[i-1]=swap;
+          }
+        } else {
+          i--;
+        }
+      }
+    }
+
     protected void stupidSort(int[] arr, double[] coarr, int len) {
         for (int i = 0; i < len; i++) {
             int minIndex = i;

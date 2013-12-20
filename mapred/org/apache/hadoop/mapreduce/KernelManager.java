@@ -9,7 +9,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
     public KernelManager(String name, int setMax,
             Class<? extends HadoopCLKernel> toInstantiate,
             HadoopOpenCLContext clContext) {
-        super(name, setMax, toInstantiate);
+        super(name, setMax, toInstantiate, true);
         this.clContext = clContext;
     }
 
@@ -49,7 +49,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
         this.freeHelper(k);
     }
 
-    private synchronized String str() {
+    private String str() {
         StringBuffer sb = new StringBuffer();
         sb.append("[ ");
         for (HadoopCLKernel b : this.free) {

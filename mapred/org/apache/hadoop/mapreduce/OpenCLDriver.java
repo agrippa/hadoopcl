@@ -41,7 +41,8 @@ public class OpenCLDriver {
   private final int nInputBuffers;
   private final int nOutputBuffers;
   public static final boolean profileMemory = false;
-  public static final HadoopCLLogger logger = new HadoopCLLogger(false);
+  public static HadoopCLLogger logger = null;
+  // public static final HadoopCLLogger logger = new HadoopCLLogger(false);
 
   public static ReentrantLock spillLock = null;
   public static Condition spillDone = null;
@@ -69,6 +70,8 @@ public class OpenCLDriver {
     this.nKernels = this.clContext.getNKernels();
     this.nInputBuffers = this.clContext.getNInputBuffers();
     this.nOutputBuffers = this.clContext.getNOutputBuffers();
+    System.out.println(this.nKernels+" kernel objects, "+this.nInputBuffers+" input buffers, "+this.nOutputBuffers+" output buffers");
+    logger = new HadoopCLLogger(this.clContext.enableProfilingPrints());
   }
 
   public static void hadoopclLog(Configuration conf, String str) throws IOException {
@@ -216,9 +219,9 @@ public class OpenCLDriver {
                 this.clContext.nGlobalBuckets());
 
         inputManager = new BufferManager<HadoopCLInputBuffer>("\""+this.clContext.typeName()+" inputs\"", nInputBuffers,
-            kernel.getInputBufferClass(), globalSpace);
+            kernel.getInputBufferClass(), globalSpace, false);
         outputManager = new BufferManager<HadoopCLOutputBuffer>("\""+this.clContext.typeName()+" outputs\"", nOutputBuffers,
-            kernel.getOutputBufferClass(), globalSpace);
+            kernel.getOutputBufferClass(), globalSpace, true);
         kernelManager = new KernelManager("\""+this.clContext.typeName()+"kernels\"", nKernels,
                 kernelClass, this.clContext);
 

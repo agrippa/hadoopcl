@@ -290,6 +290,7 @@ public class BufferRunner implements Runnable {
                     if (cont.soFar() > previously) forwardProgress = true;
                     this.toWrite.add(cont);
 
+                    log("      forwardProgress="+forwardProgress+" previously="+previously+" soFar="+cont.soFar()+" toWrite.size()="+this.toWrite.size());
                     boolean successfulUnlock = false;
                     try {
                         if (!forwardProgress) {
@@ -334,9 +335,29 @@ public class BufferRunner implements Runnable {
             while (!toWrite.isEmpty()) {
                 OutputBufferSoFar soFar = toWrite.poll();
                 do {
+                    int previously = soFar.soFar();
                     soFar = handleOutputBuffer(soFar);
                     if (soFar != null) {
-                      OpenCLDriver.spillLock.unlock();
+                      boolean forwardProgress = soFar.soFar() > previously;
+                      log("      forwardProgress="+forwardProgress+" previously="+previously+" soFar="+soFar.soFar()+" toWrite.size()="+this.toWrite.size());
+                      boolean successfulUnlock = false;
+                      try {
+                        if (!forwardProgress) {
+                          OpenCLDriver.resourcesLock.lock();
+                          OpenCLDriver.spillLock.unlock();
+                          successfulUnlock = true;
+                          OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
+                          OpenCLDriver.resourcesAvailable.await();
+                          OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                        }
+                      } catch (InterruptedException ie) {
+                      } finally {
+                        if (!successfulUnlock) {
+                          OpenCLDriver.spillLock.unlock();
+                        } else {
+                          OpenCLDriver.resourcesLock.unlock();
+                        }
+                      }
                     }
                 } while(soFar != null);
             }
