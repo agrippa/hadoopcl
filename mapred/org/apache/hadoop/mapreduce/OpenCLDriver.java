@@ -94,7 +94,7 @@ public class OpenCLDriver {
       hadoopclLog(conf, tmp);
   }
 
-  public HadoopCLAccumulatedProfile javaRun() throws IOException, InterruptedException {
+  public IHadoopCLAccumulatedProfile javaRun() throws IOException, InterruptedException {
     HadoopCLKernel kernel = null;
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
@@ -112,22 +112,26 @@ public class OpenCLDriver {
     return kernel.javaProcess(this.context);
   }
 
-  private String profilesToString(HadoopCLAccumulatedProfile profile,
+  private String profilesToString(IHadoopCLAccumulatedProfile profile,
           long startupTime) {
-      StringBuffer sb = new StringBuffer();
-      sb.append("DIAGNOSTICS: ");
-      sb.append(this.clContext.typeName());
-      sb.append("(");
-      sb.append(this.clContext.getDeviceString());
-      sb.append("), startupTime=");
-      sb.append(startupTime);
-      sb.append(" ms, ");
-      sb.append(profile.toString());
-      return sb.toString();
+      if (this.clContext.doHighLevelProfiling()) {
+          StringBuffer sb = new StringBuffer();
+          sb.append("DIAGNOSTICS: ");
+          sb.append(this.clContext.typeName());
+          sb.append("(");
+          sb.append(this.clContext.getDeviceString());
+          sb.append("), startupTime=");
+          sb.append(startupTime);
+          sb.append(" ms, ");
+          sb.append(profile.toString());
+          return sb.toString();
+      } else {
+          return "";
+      }
   }
 
   private String profilesToString(long overallTime, long startupTime,
-          List<HadoopCLBuffer.Profile> profiles, long inputTimeWaiting,
+          List<HadoopCLProfile> profiles, long inputTimeWaiting,
           long outputTimeWaiting, long kernelTimeWaiting) {
       StringBuffer sb = new StringBuffer();
       sb.append("DIAGNOSTICS: ");
@@ -145,7 +149,7 @@ public class OpenCLDriver {
       sb.append(" ms, kernel lag=");
       sb.append(kernelTimeWaiting);
       sb.append(" ms");
-      sb.append(HadoopCLBuffer.listToString(profiles));
+      sb.append(profiles.get(0).listToString(profiles));
       return sb.toString();
   }
 
@@ -186,8 +190,11 @@ public class OpenCLDriver {
     logger.log("entering run", this.clContext);
 
     if(this.clContext.getDevice() == null) {
-        HadoopCLAccumulatedProfile javaProfile = javaRun();
-        System.out.println(profilesToString(javaProfile, startupTime));
+        IHadoopCLAccumulatedProfile javaProfile = javaRun();
+        String profileStr = profilesToString(javaProfile, startupTime);
+        if (profileStr.length() > 0) {
+          System.out.println(profileStr);
+        }
         OpenCLDriver.processingFinish = System.currentTimeMillis();
         logger.log("exiting run", this.clContext);
         return;
@@ -306,9 +313,12 @@ public class OpenCLDriver {
 
     long stop = System.currentTimeMillis();
     logger.log("exiting run", this.clContext);
-    System.out.println(profilesToString(stop-start, startupTime, runner.profiles(),
+    String profileStr = profilesToString(stop-start, startupTime, runner.profiles(),
           inputManager.timeWaiting(), outputManager.timeWaiting(),
-          kernelManager.timeWaiting()));
+          kernelManager.timeWaiting());
+    if (profileStr.length() > 0) {
+      System.out.println(profileStr);
+    }
   }
 
   /*

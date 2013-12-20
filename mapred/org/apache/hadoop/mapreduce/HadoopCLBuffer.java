@@ -11,7 +11,7 @@ import org.apache.hadoop.io.SparseVectorWritable;
 
 public abstract class HadoopCLBuffer {
     public HadoopOpenCLContext clContext;
-    protected Profile prof;
+    protected HadoopCLProfile prof;
     protected int isGPU;
     public int[] nWrites;
     private boolean inUse;
@@ -32,10 +32,14 @@ public abstract class HadoopCLBuffer {
     }
 
     public void resetProfile() {
-        this.prof = new Profile();
+        if (clContext.doHighLevelProfiling()) {
+            this.prof = new Profile();
+        } else {
+            this.prof = new HadoopCLEmptyProfile();
+        }
     }
 
-    public Profile getProfile() {
+    public HadoopCLProfile getProfile() {
         if (this.prof == null) {
             throw new RuntimeException("Null profile");
         }
@@ -91,7 +95,7 @@ public abstract class HadoopCLBuffer {
         return maxLength;
     }
 
-    class Profile {
+    class Profile implements HadoopCLProfile {
         private long startRead;
         private long stopRead;
         private final List<Long> kernelStarts = new ArrayList<Long>();
@@ -164,39 +168,40 @@ public abstract class HadoopCLBuffer {
             return this.nItemsProcessed;
         }
 
-    }
+        public String listToString(List<HadoopCLProfile> profiles) {
+          StringBuffer sb = new StringBuffer();
+          if (profiles != null && profiles.size() > 0) {
+            long accumRead = 0;
+            long accumKernel = 0;
+            long accumWrite = 0;
+            int accumAttempts = 0;
+            int nItemsProcessed = 0;
+            for(HadoopCLProfile p : profiles) {
+              accumRead += p.readTime();
+              accumKernel += p.kernelTime();
+              accumWrite += p.writeTime();
+              accumAttempts += p.nKernelAttempts();
+              nItemsProcessed += p.nItemsProcessed();
+            }
+            sb.append(", nBuffers=");
+            sb.append(profiles.size());
+            sb.append(", readTime=");
+            sb.append(accumRead);
+            sb.append(" ms, kernelTime=");
+            sb.append(accumKernel);
+            sb.append(" ms, writeTime=");
+            sb.append(accumWrite);
+            sb.append(" ms, kernelAttempts=");
+            sb.append(accumAttempts);
+            sb.append(", itemsProcessed=");
+            sb.append(nItemsProcessed);
+          }
+          return sb.toString();
 
-    public static String listToString(List<Profile> profiles) {
-      StringBuffer sb = new StringBuffer();
-      if (profiles != null && profiles.size() > 0) {
-        long accumRead = 0;
-        long accumKernel = 0;
-        long accumWrite = 0;
-        int accumAttempts = 0;
-        int nItemsProcessed = 0;
-        for(HadoopCLBuffer.Profile p : profiles) {
-          accumRead += p.readTime();
-          accumKernel += p.kernelTime();
-          accumWrite += p.writeTime();
-          accumAttempts += p.nKernelAttempts();
-          nItemsProcessed += p.nItemsProcessed();
         }
-        sb.append(", nBuffers=");
-        sb.append(profiles.size());
-        sb.append(", readTime=");
-        sb.append(accumRead);
-        sb.append(" ms, kernelTime=");
-        sb.append(accumKernel);
-        sb.append(" ms, writeTime=");
-        sb.append(accumWrite);
-        sb.append(" ms, kernelAttempts=");
-        sb.append(accumAttempts);
-        sb.append(", itemsProcessed=");
-        sb.append(nItemsProcessed);
-      }
-      return sb.toString();
-
     }
+
+
 
     @Override
     public boolean equals(Object obj) {

@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 
 public class HadoopOpenCLContext {
 
+    private final boolean doHighLevelProfiling;
     private final boolean enableBufferRunnerDiagnostics;
     private final boolean enableProfilingPrints;
     private final TaskInputOutputContext hadoopContext;
@@ -82,6 +83,7 @@ public class HadoopOpenCLContext {
       this.preallocDoubleLength = conf.getInt("opencl.prealloc.length.float", 5242880);
       this.enableBufferRunnerDiagnostics = conf.getBoolean("opencl.buffer.diagnostics", false);
       this.enableProfilingPrints = conf.getBoolean("opencl.profiling", false);
+      this.doHighLevelProfiling = conf.getBoolean("opencl.highlevel", false);
 
       init(contextType, conf, globals);
     }
@@ -353,5 +355,9 @@ public class HadoopOpenCLContext {
 
     public boolean enableProfilingPrints() {
       return this.enableProfilingPrints;
+    }
+
+    public boolean doHighLevelProfiling() {
+      return this.doHighLevelProfiling;
     }
 }

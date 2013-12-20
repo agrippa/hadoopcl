@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class BufferRunner implements Runnable {
     private final boolean enableLogs;
-    private final List<HadoopCLBuffer.Profile> profiles;
+    private final List<HadoopCLProfile> profiles;
     private final BufferManager<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
     private final KernelManager freeKernels; // exclusive
@@ -41,12 +41,12 @@ public class BufferRunner implements Runnable {
         this.running = new HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair>();
 
         this.clContext = clContext;
-        this.profiles = new LinkedList<HadoopCLBuffer.Profile>();
+        this.profiles = new LinkedList<HadoopCLProfile>();
 
         this.enableLogs = clContext.enableBufferRunnerDiagnostics();
     }
 
-    public List<HadoopCLBuffer.Profile> profiles() {
+    public List<HadoopCLProfile> profiles() {
         return this.profiles;
     }
 

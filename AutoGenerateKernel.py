@@ -2498,9 +2498,13 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     generateKernelCall(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
     kernelfp.write('    @Override\n')
-    kernelfp.write('    public HadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException {\n')
+    kernelfp.write('    public IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException {\n')
     kernelfp.write('        Context ctx = (Context)context;\n')
-    kernelfp.write('        this.javaProfile = new HadoopCLAccumulatedProfile();\n')
+    kernelfp.write('        if (this.clContext.doHighLevelProfiling()) {\n')
+    kernelfp.write('            this.javaProfile = new HadoopCLAccumulatedProfile();\n')
+    kernelfp.write('        } else {\n')
+    kernelfp.write('            this.javaProfile = new HadoopCLEmptyAccumulatedProfile();\n')
+    kernelfp.write('        }\n')
     kernelfp.write('        this.javaProfile.startOverall();\n')
     if not isMapper:
         writeln(visitor(nativeInputValueType).getBufferedInit(), 2, kernelfp)

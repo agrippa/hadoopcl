@@ -1,6 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
-public class HadoopCLAccumulatedProfile {
+public class HadoopCLAccumulatedProfile implements IHadoopCLAccumulatedProfile {
     private long accumRead = 0;
     private long accumKernel = 0;
     private long accumWrite = 0;

@@ -19,7 +19,7 @@ public abstract class HadoopCLKernel extends Kernel {
     public HadoopCLGlobalId tracker;
 
     protected HadoopOpenCLContext clContext;
-    protected HadoopCLAccumulatedProfile javaProfile;
+    protected IHadoopCLAccumulatedProfile javaProfile;
 
     protected double[] globalsVal;
     protected float[] globalsFval;
@@ -46,7 +46,7 @@ public abstract class HadoopCLKernel extends Kernel {
     public abstract boolean launchKernel() throws IOException, InterruptedException;
     public abstract void init(HadoopOpenCLContext clContext);
     public abstract int getOutputPairsPerInput();
-    public abstract HadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
+    public abstract IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
     public abstract void fill(HadoopCLInputBuffer inputBuffer,
             HadoopCLOutputBuffer outputBuffer);
 
