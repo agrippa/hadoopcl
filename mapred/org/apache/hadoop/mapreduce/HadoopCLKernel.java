@@ -425,4 +425,15 @@ public abstract class HadoopCLKernel extends Kernel {
       for ( ; i < high && vals[i] < find; i++) ;
       return i < high && vals[i] == find ? i : -1;
     }
+
+    @Override
+    public TaskType checkTaskType() {
+      if (this.clContext.isMapper()) {
+        return TaskType.MAPPER;
+      } else if (this.clContext.isCombiner()) {
+        return TaskType.COMBINER;
+      } else {
+        return TaskType.REDUCER;
+      }
+    }
 }

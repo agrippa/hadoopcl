@@ -70,15 +70,6 @@ public class BufferRunner implements Runnable {
         return (result == null ? null : result.obj());
     }
 
-    private boolean anyKernelsComplete() {
-        for (HadoopCLKernel k : this.running.keySet()) {
-            if (k.isComplete()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private List<HadoopCLKernel> getCompleteKernels() {
         List<HadoopCLKernel> complete = new LinkedList<HadoopCLKernel>();
         for (HadoopCLKernel k : this.running.keySet()) {
@@ -188,12 +179,6 @@ public class BufferRunner implements Runnable {
                             OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
                             OpenCLDriver.resourcesAvailable.await();
                             OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
-
-                            // if (this.freeOutputBuffers.nAvailable() == 0) {
-                            //     OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
-                            //     OpenCLDriver.spillDone.await();
-                            //     OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
-                            // }
                         }
                     } catch (InterruptedException ie) {
                     } finally {
