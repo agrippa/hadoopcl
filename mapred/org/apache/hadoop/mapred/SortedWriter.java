@@ -19,7 +19,7 @@ import org.apache.hadoop.io.compress.CodecPool;
 import org.apache.hadoop.io.IntWritable;
 
 public class SortedWriter<K extends Comparable<K>, V extends Comparable<V>> extends
-    IFile.Writer<K, V> /* implements IndexedSortable */ {
+    IFile.Writer<K, V> implements IndexedSortable {
 
     class Buffered implements Comparable<Buffered>{
       public final K key;
@@ -32,8 +32,8 @@ public class SortedWriter<K extends Comparable<K>, V extends Comparable<V>> exte
       }
     }
 
-    private final Set<Buffered> buffered = new TreeSet<Buffered>();
-    // private final List<Buffered> buffered = new ArrayList<Buffered>();
+    // private final Set<Buffered> buffered = new TreeSet<Buffered>();
+    private final List<Buffered> buffered = new ArrayList<Buffered>();
 
     public SortedWriter(Configuration conf, FileSystem fs, Path file, 
                   Class<K> keyClass, Class<V> valueClass,
@@ -49,21 +49,19 @@ public class SortedWriter<K extends Comparable<K>, V extends Comparable<V>> exte
       super(conf, out, keyClass, valueClass, codec, writesCounter);
     }
 
-    // @Override
-    // public int compare(int i, int j) {
-    //   return buffered.get(i).key.compareTo(buffered.get(j).key);
-    // }
+    public int compare(int i, int j) {
+      return buffered.get(i).key.compareTo(buffered.get(j).key);
+    }
 
-    // @Override
-    // public void swap(int i, int j) {
-    //   Buffered tmp = this.buffered.get(i);
-    //   this.buffered.set(i, this.buffered.get(j));
-    //   this.buffered.set(j, tmp);
-    // }
+    public void swap(int i, int j) {
+      Buffered tmp = this.buffered.get(i);
+      this.buffered.set(i, this.buffered.get(j));
+      this.buffered.set(j, tmp);
+    }
 
     public void close() throws IOException {
 
-      // new QuickSort().sort(this, 0, buffered.size());
+      new QuickSort().sort(this, 0, buffered.size());
 
       // Do sorted writes
       for (Buffered b : this.buffered) {
@@ -145,67 +143,12 @@ public class SortedWriter<K extends Comparable<K>, V extends Comparable<V>> exte
                               +" is not "+ valueClass);
 
       buffered.add(new Buffered(key, value));
-
-      // StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-      // for (StackTraceElement el : trace) System.out.println(el.toString());
-      // System.out.println();
-      
-      // // Append the 'key'
-      // keySerializer.serialize(key);
-      // int keyLength = buffer.getLength();
-      // if (keyLength < 0) {
-      //   throw new IOException("Negative key-length not allowed: " + keyLength + 
-      //                         " for " + key);
-      // }
-
-      // // Append the 'value'
-      // valueSerializer.serialize(value);
-      // int valueLength = buffer.getLength() - keyLength;
-      // if (valueLength < 0) {
-      //   throw new IOException("Negative value-length not allowed: " + 
-      //                         valueLength + " for " + value);
-      // }
-      // 
-      // // Write the record out
-      // WritableUtils.writeVInt(out, keyLength);                  // key length
-      // WritableUtils.writeVInt(out, valueLength);                // value length
-      // out.write(buffer.getData(), 0, buffer.getLength());       // data
-
-      // // Reset
-      // buffer.reset();
-      // 
-      // // Update bytes written
-      // decompressedBytesWritten += keyLength + valueLength + 
-      //                             WritableUtils.getVIntSize(keyLength) + 
-      //                             WritableUtils.getVIntSize(valueLength);
       ++numRecordsWritten;
     }
     
     public void append(DataInputBuffer key, DataInputBuffer value)
-    throws IOException {
+        throws IOException {
       throw new UnsupportedOperationException();
-    //  int keyLength = key.getLength() - key.getPosition();
-    //  if (keyLength < 0) {
-    //    throw new IOException("Negative key-length not allowed: " + keyLength + 
-    //                          " for " + key);
-    //  }
-    //  
-    //  int valueLength = value.getLength() - value.getPosition();
-    //  if (valueLength < 0) {
-    //    throw new IOException("Negative value-length not allowed: " + 
-    //                          valueLength + " for " + value);
-    //  }
-
-    //  WritableUtils.writeVInt(out, keyLength);
-    //  WritableUtils.writeVInt(out, valueLength);
-    //  out.write(key.getData(), key.getPosition(), keyLength); 
-    //  out.write(value.getData(), value.getPosition(), valueLength); 
-
-    //  // Update bytes written
-    //  decompressedBytesWritten += keyLength + valueLength + 
-    //                  WritableUtils.getVIntSize(keyLength) + 
-    //                  WritableUtils.getVIntSize(valueLength);
-    //  ++numRecordsWritten;
     }
     
     public long getRawLength() {
