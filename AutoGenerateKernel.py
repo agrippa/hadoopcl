@@ -42,6 +42,15 @@ def tostr(arr, indent):
         buf.append(indent_str+token+'\n')
     return ''.join(buf)
 
+def tostr_without_last_ln(arr, indent):
+    buf = [ ]
+    indent_str = '    ' * indent
+    for token in arr[:len(arr)-1]:
+        buf.append(indent_str+token+'\n')
+    buf.append(indent_str+arr[len(arr)-1])
+    return ''.join(buf)
+
+
 #################################################################################
 ########################## Empty Visitor ########################################
 #################################################################################
@@ -2520,7 +2529,8 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('            this.currentInputVectorLength = val.size();\n')
         kernelfp.write('            this.javaProfile.stopRead();\n')
         kernelfp.write('            this.javaProfile.startKernel();\n')
-        kernelfp.write('            map('+tostr(visitor(nativeInputKeyType).getMapArguments('key'), 0)+', '+tostr(visitor(nativeInputValueType).getMapArguments('val'), 0)+');\n')
+        kernelfp.write('            map('+tostr_without_last_ln(visitor(nativeInputKeyType).getMapArguments('key'), 0)+', '+
+            tostr(visitor(nativeInputValueType).getMapArguments('val'), 0)+');\n')
         kernelfp.write('            this.javaProfile.stopKernel();\n')
     else:
         kernelfp.write('            '+hadoopInputKeyType +'Writable key = ('+hadoopInputKeyType+'Writable)ctx.getCurrentKey();\n')
@@ -2533,8 +2543,8 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('            }\n')
         kernelfp.write('            this.javaProfile.stopRead();\n')
         kernelfp.write('            this.javaProfile.startKernel();\n')
-        kernelfp.write('            reduce('+tostr(visitor(nativeInputKeyType).getMapArguments('key'), 0)+', ')
-        writeln(visitor(nativeInputValueType).getJavaProcessReducerCall(), 0, kernelfp)
+        kernelfp.write('            reduce('+tostr_without_last_ln(visitor(nativeInputKeyType).getMapArguments('key'), 0)+', ')
+        writeln(visitor(nativeInputValueType).getJavaProcessReducerCall(), 3, kernelfp)
         kernelfp.write('            this.javaProfile.stopKernel();\n')
 
     kernelfp.write('            OpenCLDriver.inputsRead++;\n')
