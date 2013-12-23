@@ -68,8 +68,6 @@ public class SortedWriter<K extends Comparable<K>, V extends Comparable<V>> exte
         K key = b.key;
         V value = b.val;
 
-        // System.out.print(((IntWritable)key).get()+" ");
-
         keySerializer.serialize(key);
         int keyLength = buffer.getLength();
         if (keyLength < 0) {
@@ -91,7 +89,6 @@ public class SortedWriter<K extends Comparable<K>, V extends Comparable<V>> exte
                                    WritableUtils.getVIntSize(keyLength) + 
                                    WritableUtils.getVIntSize(valueLength);
       }
-      // System.out.println();
 
       // Close the serializers
       keySerializer.close();

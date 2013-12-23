@@ -80,6 +80,15 @@ public class BufferRunner implements Runnable {
         return complete;
     }
 
+    private HadoopCLKernel getFirstCompleteKernel() {
+        for (HadoopCLKernel k : this.running.keySet()) {
+            if (k.isComplete()) {
+                return k;
+            }
+        }
+        return null;
+    }
+
     private boolean startKernel(final HadoopCLKernel kernel,
             HadoopCLInputBuffer inputBuffer, HadoopCLOutputBuffer outputBuffer) {
         boolean success;
@@ -203,15 +212,16 @@ public class BufferRunner implements Runnable {
             /*
              * Kernel Completion Handling
              */
-            List<HadoopCLKernel> completed = getCompleteKernels();
-            if (completed.size() > 0) {
-                log("  Detected "+completed.size()+" completed kernels, out of "+running.size()+" running");
-            }
-            if (!completed.isEmpty()) {
+            HadoopCLKernel complete = getFirstCompleteKernel();
+            // List<HadoopCLKernel> completed = getCompleteKernels();
+            // if (!completed.isEmpty()) {
+            //     log("  Detected "+completed.size()+" completed kernels, out of "+running.size()+" running");
+            if (complete != null) {
                 forwardProgress = true;
                 // Try to either re-run incomplete kernels, or just
                 // set the output buffers up for dumping
-                for (HadoopCLKernel k : completed) {
+                // for (HadoopCLKernel k : completed) {
+                    HadoopCLKernel k = complete;
                     HadoopCLInputOutputBufferPair pair = running.remove(k);
                     HadoopCLInputBuffer input = pair.inputBuffer();
                     HadoopCLOutputBuffer output = pair.outputBuffer();
@@ -259,9 +269,7 @@ public class BufferRunner implements Runnable {
                             freeKernels.free(k);
                         }
                     }
-                }
-                // log("    Continuing to next iteration");
-                // continue;
+                // }
             }
 
             /*

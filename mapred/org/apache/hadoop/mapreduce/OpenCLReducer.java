@@ -70,7 +70,7 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
 
         driver.run();
         driver = null;
-        System.gc();
+        // System.gc();
 
         cleanup(context);
     }

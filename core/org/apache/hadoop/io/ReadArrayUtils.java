@@ -37,8 +37,8 @@ public class ReadArrayUtils {
       return result;
     }
 
-    public static void dumpIntArray(DataOutput output, int[] arr, int offset,
-            int len) throws IOException {
+    public static void dumpIntArray(DataOutput output, int[] arr, final int offset,
+            final int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 4);
         IntBuffer intBuffer = byteBuffer.asIntBuffer();
         intBuffer.put(arr, offset, len);
@@ -46,8 +46,8 @@ public class ReadArrayUtils {
         output.write(binary, 0, len * 4);
     }
 
-    public static void dumpFloatArray(DataOutput output, float[] arr, int offset,
-            int len) throws IOException {
+    public static void dumpFloatArray(DataOutput output, float[] arr, final int offset,
+            final int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 4);
         FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();
         floatBuffer.put(arr, offset, len);
@@ -55,8 +55,8 @@ public class ReadArrayUtils {
         output.write(binary, 0, len * 4);
     }
 
-    public static void dumpDoubleArray(DataOutput output, double[] arr, int offset,
-            int len) throws IOException {
+    public static void dumpDoubleArray(DataOutput output, double[] arr, final int offset,
+            final int len) throws IOException {
         ByteBuffer byteBuffer = ByteBuffer.allocate(len * 8);
         DoubleBuffer doubleBuffer = byteBuffer.asDoubleBuffer();
         doubleBuffer.put(arr, offset, len);
