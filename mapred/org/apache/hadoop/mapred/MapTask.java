@@ -1092,11 +1092,6 @@ public class MapTask extends Task {
             startSpill();
           }
           if (kvfull) {
-            // if (usingOpenCL) {
-            //     // spillLock is unlocked below in the finally clause
-            //     // System.err.println(System.currentTimeMillis()+" Throwing would block exception");
-            //     throw new RuntimeException("WOULD_BLOCK");
-            // }
             try {
               while (kvstart != kvend) {
                 reporter.progress();
@@ -1318,10 +1313,12 @@ public class MapTask extends Task {
               }
 
               try {
+                OpenCLDriver.logger.log("Blocking on spillDone", "mapper");
                 while (kvstart != kvend) {
                   reporter.progress();
                   spillDone.await();
                 }
+                OpenCLDriver.logger.log("Unblocking on spillDone", "mapper");
               } catch (InterruptedException e) {
                   throw (IOException)new IOException(
                       "Buffer interrupted while waiting for the writer"

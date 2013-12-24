@@ -79,8 +79,8 @@ public class HadoopOpenCLContext {
       this.nInputBuffers = conf.getInt("opencl."+type+".ninputbuffers", 3);
       this.nOutputBuffers = conf.getInt("opencl."+type+".noutputbuffers", 1);
       this.preallocIntLength = conf.getInt("opencl.prealloc.length.int", 5242880);
-      this.preallocFloatLength = conf.getInt("opencl.prealloc.length.double", 5242880);
-      this.preallocDoubleLength = conf.getInt("opencl.prealloc.length.float", 5242880);
+      this.preallocFloatLength = conf.getInt("opencl.prealloc.length.float", 5242880);
+      this.preallocDoubleLength = conf.getInt("opencl.prealloc.length.double", 5242880);
       this.enableBufferRunnerDiagnostics = conf.getBoolean("opencl.buffer.diagnostics", false);
       this.enableProfilingPrints = conf.getBoolean("opencl.profiling", false);
       this.doHighLevelProfiling = conf.getBoolean("opencl.highlevel", false);
