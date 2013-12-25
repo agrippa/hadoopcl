@@ -48,9 +48,8 @@ public abstract class HadoopCLKernel extends Kernel {
     public abstract void init(HadoopOpenCLContext clContext);
     public abstract int getOutputPairsPerInput();
     public abstract IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
-    public abstract void fill(HadoopCLInputBuffer inputBuffer,
-            HadoopCLOutputBuffer outputBuffer);
-
+    public abstract void fill(HadoopCLInputBuffer inputBuffer);
+    public abstract void prepareForRead(HadoopCLOutputBuffer outputBuffer);
 
     public abstract void deviceStrength(DeviceStrength str);
     public abstract Device.TYPE[] validDevices();

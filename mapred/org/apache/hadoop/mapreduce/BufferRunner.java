@@ -90,16 +90,16 @@ public class BufferRunner implements Runnable {
     }
 
     private boolean startKernel(final HadoopCLKernel kernel,
-            HadoopCLInputBuffer inputBuffer, HadoopCLOutputBuffer outputBuffer) {
+            HadoopCLInputBuffer inputBuffer) {
         boolean success;
 
         kernel.tracker = inputBuffer.tracker.clone();
-        outputBuffer.tracker = inputBuffer.tracker.clone();
-        kernel.fill(inputBuffer, outputBuffer);
+        // outputBuffer.tracker = inputBuffer.tracker.clone();
+        kernel.fill(inputBuffer);
         try {
             OpenCLDriver.logger.log("launching kernel "+
-                kernel.tracker.toString()+" on "+inputBuffer.tracker.toString()+
-                "->"+outputBuffer.tracker.toString(), this.clContext);
+                kernel.tracker.toString()+" on "+inputBuffer.tracker.toString(),
+                this.clContext);
             success = kernel.launchKernel();
             // new Thread(new Runnable() {
             //   @Override
@@ -112,7 +112,7 @@ public class BufferRunner implements Runnable {
         }
         if (success) {
             inputBuffer.getProfile().startKernel();
-            running.put(kernel, new HadoopCLInputOutputBufferPair(inputBuffer, outputBuffer, kernel));
+            running.put(kernel, new HadoopCLInputOutputBufferPair(inputBuffer));
         }
         return success;
     }
@@ -223,50 +223,57 @@ public class BufferRunner implements Runnable {
                 // for (HadoopCLKernel k : completed) {
                     HadoopCLKernel k = complete;
                     HadoopCLInputOutputBufferPair pair = running.remove(k);
-                    HadoopCLInputBuffer input = pair.inputBuffer();
-                    HadoopCLOutputBuffer output = pair.outputBuffer();
 
-                    OpenCLDriver.logger.log("recovering completed kernel "+
-                        k.tracker.toString()+" for "+input.tracker.toString()+
-                        "->"+output.tracker.toString(), this.clContext);
-
-                    try {
-                      pair.wrapperThread().join();
-                    } catch(InterruptedException ie) {
-                      throw new RuntimeException(ie);
-                    }
-
-                    int errCode = k.waitFor();
-                    input.getProfile().stopKernel();
-
-                    output.copyOverFromInput(input);
-                    output.constructIterSet();
-                    log("    Adding "+output.id+" to output buffers to write");
-                    toWrite.add(new OutputBufferSoFar(output, 0));
-                    boolean completedAll = input.completedAll();
-                    if (input.completedAll()) {
-                        log("    Input buffer "+input.id+" completed all work, releasing it and kernel "+k.id);
-                        profiles.add(input.getProfile());
-                        freeInputBuffers.free(input);
-                        freeKernels.free(k);
+                    HadoopCLOutputBuffer output = allocOutputBufferWithInit(k.getOutputPairsPerInput());
+                    if (output == null) {
+                        running.put(k, pair); // put it back to get it later
                     } else {
-                        input.tracker.incrementAttempt();
-                        log("    Input buffer "+input.id+" has not finished all work");
-                        HadoopCLOutputBuffer outputBuffer = allocOutputBufferWithInit(k.getOutputPairsPerInput());
-                        if (outputBuffer != null) {
-                            log("      Successfully allocated output buffer "+outputBuffer.id+" for input "+input.id);
-                            if (!startKernel(k, input, outputBuffer)) {
-                                log("      Failed to start kernel "+k.id+" on "+input.id+" -> "+outputBuffer.id);
-                                toRunPrivate.add(input);
-                                freeOutputBuffers.free(outputBuffer);
-                                freeKernels.free(k);
-                            } else {
-                                log("      Successfully launched kernel "+k.id+" on "+input.id+" -> "+outputBuffer.id);
-                            }
-                        } else {
-                            log("      Failed allocating an output buffer for "+input.id+", releasing input "+input.id+" and kernel "+k.id);
-                            toRunPrivate.add(input);
+                        HadoopCLInputBuffer input = pair.inputBuffer();
+                        // HadoopCLOutputBuffer output = pair.outputBuffer();
+
+                        OpenCLDriver.logger.log("recovering completed kernel "+
+                            k.tracker.toString()+" for "+input.tracker.toString(),
+                            this.clContext);
+
+                        k.prepareForRead(output);
+                        try {
+                          pair.wrapperThread().join();
+                        } catch(InterruptedException ie) {
+                          throw new RuntimeException(ie);
+                        }
+
+                        int errCode = k.waitFor();
+                        input.getProfile().stopKernel();
+
+                        output.copyOverFromInput(input);
+                        output.constructIterSet();
+                        log("    Adding "+output.id+" to output buffers to write");
+                        toWrite.add(new OutputBufferSoFar(output, 0));
+                        boolean completedAll = input.completedAll();
+                        if (input.completedAll()) {
+                            log("    Input buffer "+input.id+" completed all work, releasing it and kernel "+k.id);
+                            profiles.add(input.getProfile());
+                            freeInputBuffers.free(input);
                             freeKernels.free(k);
+                        } else {
+                            input.tracker.incrementAttempt();
+                            log("    Input buffer "+input.id+" has not finished all work");
+                            // HadoopCLOutputBuffer outputBuffer = allocOutputBufferWithInit(k.getOutputPairsPerInput());
+                            // if (outputBuffer != null) {
+                            //     log("      Successfully allocated output buffer "+outputBuffer.id+" for input "+input.id);
+                                if (!startKernel(k, input)) {
+                                    log("      Failed to start kernel "+k.id+" on "+input.id);
+                                    toRunPrivate.add(input);
+                                    // freeOutputBuffers.free(outputBuffer);
+                                    freeKernels.free(k);
+                                } else {
+                                    log("      Successfully launched kernel "+k.id+" on "+input.id+" -> "+outputBuffer.id);
+                                }
+                            // } else {
+                            //     log("      Failed allocating an output buffer for "+input.id+", releasing input "+input.id+" and kernel "+k.id);
+                            //     toRunPrivate.add(input);
+                            //     freeKernels.free(k);
+                            // }
                         }
                     }
                 // }
@@ -302,27 +309,27 @@ public class BufferRunner implements Runnable {
             if (inputBuffer != null) {
                 // Have a kernel from main to run
                 HadoopCLKernel k = null;
-                HadoopCLOutputBuffer outputBuffer = null;
-                if ((k = newKernelInstance()) != null &&
-                        (outputBuffer = allocOutputBufferWithInit(k.getOutputPairsPerInput())) != null) {
+                // HadoopCLOutputBuffer outputBuffer = null;
+                if ((k = newKernelInstance()) != null /* &&
+                        (outputBuffer = allocOutputBufferWithInit(k.getOutputPairsPerInput())) != null */ ) {
 
-                    log("    Allocated output buffer "+outputBuffer.id+", kernel "+k.id+" for processing of input buffer "+inputBuffer.id);
+                    log("    Allocated kernel "+k.id+" for processing of input buffer "+inputBuffer.id);
                     
-                    if (!startKernel(k, inputBuffer, outputBuffer)) {
-                        log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing output "+outputBuffer.id+", kernel "+k.id);
+                    if (!startKernel(k, inputBuffer)) {
+                        log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing kernel "+k.id);
                         toRunPrivate.add(inputBuffer);
-                        freeOutputBuffers.free(outputBuffer);
+                        // freeOutputBuffers.free(outputBuffer);
                         freeKernels.free(k);
                     } else {
                         forwardProgress = true;
-                        log("    Successfully started kernel "+k.id+" on "+inputBuffer.id+" -> "+outputBuffer.id);
+                        log("    Successfully started kernel "+k.id+" on "+inputBuffer.id);
                     }
                     log("    Continuing to next iteration");
                     continue; // one operation per iteration
                 } else {
                     log("    Failed to allocate "+(k == null ? "kernel" : "output buffer")+", marking "+inputBuffer.id+" for retry");
                     toRunPrivate.add(inputBuffer);
-                    if (outputBuffer != null) freeOutputBuffers.free(outputBuffer);
+                    // if (outputBuffer != null) freeOutputBuffers.free(outputBuffer);
                     if (k != null) freeKernels.free(k);
                 }
             } else {
@@ -404,8 +411,6 @@ public class BufferRunner implements Runnable {
             sb.append(entry.getValue().inputBuffer().id);
             sb.append("->");
             sb.append(entry.getKey().id);
-            sb.append("->");
-            sb.append(entry.getValue().outputBuffer().id);
             sb.append(" ");
         }
         sb.append("]");

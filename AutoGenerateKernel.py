@@ -1844,23 +1844,11 @@ def writeInitBeforeKernelMethod(fp, isMapper, nativeOutputKeyType, nativeOutputV
     fp.write('    }\n')
     fp.write('\n')
 
-def writeSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
-    fp.write('    public void setup(')
-    write(visitor(nativeInputKeyType).getSetupParameter('inputKey', True, True), 0, fp)
-    fp.write(', ')
-    write(visitor(nativeInputValueType).getSetupParameter('inputVal', True, False), 0, fp)
-    fp.write(', ')
+def writePostKernelSetupDeclaration(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
+    fp.write('    public void postKernelSetup(')
     write(visitor(nativeOutputKeyType).getSetupParameter('outputKey', False, True), 0, fp)
     fp.write(', ')
     write(visitor(nativeOutputValueType).getSetupParameter('outputVal', False, False), 0, fp)
-
-    if isMapper:
-        fp.write(', int[] setNWrites, int setNPairs')
-    else:
-        fp.write(', int[] setKeyIndex, int[] setNWrites, int setNKeys, int setNVals')
-
-    if isVariableLength(nativeInputValueType):
-        fp.write(', int setIndividualInputValsCount')
 
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
         fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxDoubleIncr')
@@ -1871,36 +1859,21 @@ def writeSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType
 
     fp.write(', int[] setMemIncr, int setOutputsPerInput, int[] outputIterMarkers) {\n')
 
-def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
-    fp.write('\n')
-    writeSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
-    writeln(visitor(nativeInputKeyType).getKeyValSetup('inputKey', True, True), 2, fp)
-    writeln(visitor(nativeInputValueType).getKeyValSetup('inputVal', True, False), 2, fp)
+def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
+    fp.write('\n')
+    writePostKernelSetupDeclaration(fp, isMapper, nativeOutputKeyType, nativeOutputValueType)
+
     writeln(visitor(nativeOutputKeyType).getKeyValSetup('outputKey', False, True), 2, fp)
     writeln(visitor(nativeOutputValueType).getKeyValSetup('outputVal', False, False), 2, fp)
-
-    if isMapper:
-        fp.write('        this.nWrites = setNWrites;\n')
-        fp.write('        this.nPairs = setNPairs;\n')
-    else:
-        fp.write('        this.input_keyIndex = setKeyIndex;\n')
-        fp.write('        this.nWrites = setNWrites;\n')
-        fp.write('        this.nKeys = setNKeys;\n')
-        fp.write('        this.nVals = setNVals;\n')
 
     fp.write('\n')
     fp.write('        this.memIncr = setMemIncr;\n')
     fp.write('        this.memIncr[0] = 0;\n')
-    fp.write('        this.outputsPerInput = setOutputsPerInput;\n')
     fp.write('\n')
 
     writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
     fp.write('        this.outputIterMarkers = outputIterMarkers;\n')
-
-    if isVariableLength(nativeInputValueType):
-        fp.write('        this.individualInputValsCount = setIndividualInputValsCount;\n')
-        fp.write('\n')
 
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
         fp.write('        this.memAuxIntIncr = setMemAuxIntIncr;\n')
@@ -1918,6 +1891,84 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
         fp.write('        this.memAuxFloatIncr[0] = 0;\n')
         fp.write('\n')
 
+    fp.write('    }\n')
+
+
+def writePreKernelSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType):
+    fp.write('    public void preKernelSetup(')
+    write(visitor(nativeInputKeyType).getSetupParameter('inputKey', True, True), 0, fp)
+    fp.write(', ')
+    write(visitor(nativeInputValueType).getSetupParameter('inputVal', True, False), 0, fp)
+    # fp.write(', ')
+    # write(visitor(nativeOutputKeyType).getSetupParameter('outputKey', False, True), 0, fp)
+    # fp.write(', ')
+    # write(visitor(nativeOutputValueType).getSetupParameter('outputVal', False, False), 0, fp)
+
+    if isMapper:
+        fp.write(', int[] setNWrites, int setNPairs')
+    else:
+        fp.write(', int[] setKeyIndex, int[] setNWrites, int setNKeys, int setNVals')
+
+    if isVariableLength(nativeInputValueType):
+        fp.write(', int setIndividualInputValsCount')
+
+    # if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
+    #     fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxDoubleIncr')
+    # elif nativeOutputValueType == 'ivec':
+    #     fp.write(', int[] setMemAuxIncr')
+    # elif nativeOutputValueType == 'fsvec':
+    #     fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxFloatIncr')
+
+    # fp.write(', int[] setMemIncr, int setOutputsPerInput, int[] outputIterMarkers) {\n')
+    fp.write(') {\n')
+
+def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType):
+    fp.write('\n')
+    writePreKernelSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType)
+
+    writeln(visitor(nativeInputKeyType).getKeyValSetup('inputKey', True, True), 2, fp)
+    writeln(visitor(nativeInputValueType).getKeyValSetup('inputVal', True, False), 2, fp)
+    # writeln(visitor(nativeOutputKeyType).getKeyValSetup('outputKey', False, True), 2, fp)
+    # writeln(visitor(nativeOutputValueType).getKeyValSetup('outputVal', False, False), 2, fp)
+
+    if isMapper:
+        fp.write('        this.nWrites = setNWrites;\n')
+        fp.write('        this.nPairs = setNPairs;\n')
+    else:
+        fp.write('        this.input_keyIndex = setKeyIndex;\n')
+        fp.write('        this.nWrites = setNWrites;\n')
+        fp.write('        this.nKeys = setNKeys;\n')
+        fp.write('        this.nVals = setNVals;\n')
+
+    # fp.write('\n')
+    # fp.write('        this.memIncr = setMemIncr;\n')
+    # fp.write('        this.memIncr[0] = 0;\n')
+    fp.write('        this.outputsPerInput = setOutputsPerInput;\n')
+    fp.write('\n')
+
+    # writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
+    # fp.write('        this.outputIterMarkers = outputIterMarkers;\n')
+
+    if isVariableLength(nativeInputValueType):
+        fp.write('        this.individualInputValsCount = setIndividualInputValsCount;\n')
+        fp.write('\n')
+
+    # if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
+    #     fp.write('        this.memAuxIntIncr = setMemAuxIntIncr;\n')
+    #     fp.write('        this.memAuxDoubleIncr = setMemAuxDoubleIncr;\n')
+    #     fp.write('        this.memAuxIntIncr[0] = 0;\n')
+    #     fp.write('        this.memAuxDoubleIncr[0] = 0;\n')
+    #     fp.write('\n')
+    # elif nativeOutputValueType == 'ivec':
+    #     fp.write('        this.memAuxIncr = setMemAuxIncr;\n')
+    #     fp.write('        this.memAuxIncr[0] = 0;\n')
+    # elif nativeOutputValueType == 'fsvec':
+    #     fp.write('        this.memAuxIntIncr = setMemAuxIntIncr;\n')
+    #     fp.write('        this.memAuxFloatIncr = setMemAuxFloatIncr;\n')
+    #     fp.write('        this.memAuxIntIncr[0] = 0;\n')
+    #     fp.write('        this.memAuxFloatIncr[0] = 0;\n')
+    #     fp.write('\n')
+
     if profileMemoryUtilization:
         fp.write('        System.out.println("'+('Mapper' if isMapper else 'Reducer')+': Input using "+\n')
         write_without_last_ln(visitor(nativeInputKeyType).getInputLength('Key', isMapper), 3, fp)
@@ -1926,8 +1977,9 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
         fp.write(');\n')
         fp.write('\n')
 
-
     fp.write('    }\n')
+
+def writeInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
     fp.write('    @Override\n')
     fp.write('    public void init(HadoopOpenCLContext clContext) {\n')
@@ -2218,13 +2270,35 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
 
     fp.write('    }\n')
 
-def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOutputKeyType, nativeOutputValType):
-    inputBufferClass = inputBufferClassName(isMapper, nativeInputKeyType, nativeInputValType)
+def generatePrepareForRead(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOutputKeyType, nativeOutputValType):
     outputBufferClass = outputBufferClassName(isMapper, nativeOutputKeyType, nativeOutputValType)
     fp.write('    @Override\n')
-    fp.write('    public void fill(HadoopCLInputBuffer genericInputBuffer, HadoopCLOutputBuffer genericOutputBuffer) {\n')
-    fp.write('        '+inputBufferClass+' inputBuffer = ('+inputBufferClass+')genericInputBuffer;\n')
+    fp.write('    public void prepareForRead(HadoopCLOutputBuffer genericOutputBuffer) {\n')
     fp.write('        '+outputBufferClass+' outputBuffer = ('+outputBufferClass+')genericOutputBuffer;\n')
+    fp.write('        this.postKernelSetup(')
+    fp.write(', ')
+    write(visitor(nativeOutputKeyType).getFillParameter('outputBuffer.outputKey', False, isMapper), 0, fp)
+    fp.write(', ')
+    write(visitor(nativeOutputValType).getFillParameter('outputBuffer.outputVal', False, isMapper), 0, fp)
+    if isVariableLength(nativeOutputValType):
+        fp.write(', outputBuffer.outputValLengthBuffer')
+
+    if nativeOutputValType == 'svec' or nativeOutputValType == 'bsvec':
+        fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxDoubleIncr')
+    elif nativeOutputValType == 'ivec':
+        fp.write(', outputBuffer.memAuxIncr')
+    elif nativeOutputValType == 'fsvec':
+        fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
+
+    fp.write(', outputBuffer.memIncr, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
+    fp.write('    }\n')
+    fp.write('\n')
+
+def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOutputKeyType, nativeOutputValType):
+    inputBufferClass = inputBufferClassName(isMapper, nativeInputKeyType, nativeInputValType)
+    fp.write('    @Override\n')
+    fp.write('    public void fill(HadoopCLInputBuffer genericInputBuffer) {\n')
+    fp.write('        '+inputBufferClass+' inputBuffer = ('+inputBufferClass+')genericInputBuffer;\n')
 
     if isMapper and isVariableLength(nativeInputValType):
         fp.write('        this.setStrided(inputBuffer.enableStriding);\n')
@@ -2270,18 +2344,18 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     #         'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False, False, isMapper, False),
     #         3, fp)
     #     fp.write('        }\n')
-    fp.write('        this.setup(')
+    fp.write('        this.preKernelSetup(')
 
     write(visitor(nativeInputKeyType).getFillParameter('inputBuffer.inputKey', True, isMapper), 0, fp)
     fp.write(', ')
     write(visitor(nativeInputValType).getFillParameter('inputBuffer.inputVal', True, isMapper), 0, fp)
-    fp.write(', ')
-    write(visitor(nativeOutputKeyType).getFillParameter('outputBuffer.outputKey', False, isMapper), 0, fp)
-    fp.write(', ')
-    write(visitor(nativeOutputValType).getFillParameter('outputBuffer.outputVal', False, isMapper), 0, fp)
+    # fp.write(', ')
+    # write(visitor(nativeOutputKeyType).getFillParameter('outputBuffer.outputKey', False, isMapper), 0, fp)
+    # fp.write(', ')
+    # write(visitor(nativeOutputValType).getFillParameter('outputBuffer.outputVal', False, isMapper), 0, fp)
 
-    if isVariableLength(nativeOutputValType):
-        fp.write(', outputBuffer.outputValLengthBuffer')
+    # if isVariableLength(nativeOutputValType):
+    #     fp.write(', outputBuffer.outputValLengthBuffer')
 
     if isMapper:
         fp.write(', inputBuffer.nWrites, inputBuffer.nPairs')
@@ -2291,14 +2365,15 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     if isVariableLength(nativeInputValType):
         fp.write(', inputBuffer.individualInputValsCount')
 
-    if nativeOutputValType == 'svec' or nativeOutputValType == 'bsvec':
-        fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxDoubleIncr')
-    elif nativeOutputValType == 'ivec':
-        fp.write(', outputBuffer.memAuxIncr')
-    if nativeOutputValType == 'fsvec':
-        fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
+    # if nativeOutputValType == 'svec' or nativeOutputValType == 'bsvec':
+    #     fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxDoubleIncr')
+    # elif nativeOutputValType == 'ivec':
+    #     fp.write(', outputBuffer.memAuxIncr')
+    # elif nativeOutputValType == 'fsvec':
+    #     fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
 
-    fp.write(', outputBuffer.memIncr, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
+    # fp.write(', outputBuffer.memIncr, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
+    fp.write(');\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -2424,7 +2499,9 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     kernelfp.write('\n')
     generateKernelDecl(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
-    writeSetupAndInitMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
+    writePostKernelSetupMethod(kernelfp, isMapper, nativeOutputKeyType, nativeOutputValueType)
+    writePreKernelSetupMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType)
+    writeInitMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
     kernelfp.write('    public Class<? extends HadoopCLInputBuffer> getInputBufferClass() { return '+inputBufferClassName(isMapper, inputKeyType, inputValueType)+'.class; }\n')
     kernelfp.write('    public Class<? extends HadoopCLOutputBuffer> getOutputBufferClass() { return '+outputBufferClassName(isMapper, outputKeyType, outputValueType)+'.class; }\n')
@@ -2456,6 +2533,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     writeOriginalInputInitMethod(input_fp, nativeInputKeyType, nativeInputValueType)
 
     generateFill(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
+    generatePrepareForRead(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
     if not isMapper:
         input_fp.write('    @Override\n')
