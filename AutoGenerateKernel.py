@@ -59,6 +59,8 @@ class NativeTypeVisitor:
         raise NotImplementedError('Missing getKeyValDecl')
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
         raise NotImplementedError('Missing getKeyValInit')
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        raise NotImplementedError('Missing getArrayLengthInit')
     def getMarkerInit(self, varname, size, forceNull):
         raise NotImplementedError('Missing getMarkerInit')
     def getKeyValSetup(self, basename, isInput, isKey):
@@ -137,6 +139,8 @@ class PrimitiveVisitor(NativeTypeVisitor):
         else:
             initializer = 'new '+self.typ+'['+size+']'
         return [ basename+'s = '+initializer+';' ]
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        return [ 'this.arrayLengths.put("'+basename+'s", '+size+');' ]
     def getMarkerInit(self, varname, size, forceNull):
         if forceNull:
             return [ varname+' = null;' ]
@@ -235,6 +239,9 @@ class PairVisitor(NativeTypeVisitor):
             initializer = 'new double['+size+']'
         return [ basename+'s1 = '+initializer+';',
                  basename+'s2 = '+initializer+';' ]
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        return [ 'this.arrayLengths.put("'+basename+'s1", '+size+');',
+                 'this.arrayLengths.put("'+basename+'s2", '+size+');' ]
     def getMarkerInit(self, varname, size, forceNull):
         if forceNull:
             return [ varname+' = null;' ]
@@ -352,6 +359,10 @@ class IpairVisitor(NativeTypeVisitor):
         return [ basename+'Ids = '+initializer1+';',
                  basename+'s1 = '+initializer2+';',
                  basename+'s2 = '+initializer2+';' ]
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        return [ 'this.arrayLengths.put("'+basename+'Ids", '+size+');',
+                 'this.arrayLengths.put("'+basename+'s1", '+size+');',
+                 'this.arrayLengths.put("'+basename+'s2", '+size+');' ]
     def getMarkerInit(self, varname, size, forceNull):
         if forceNull:
             return [ varname+' = null;' ]
@@ -530,6 +541,18 @@ class SvecVisitor(NativeTypeVisitor):
             buf.append('outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxDoubleIncr = new int[1];')
+        return buf
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        buf = [ ]
+        buf.append('this.arrayLengths.put("'+basename+'IntLookAsideBuffer", '+size+');')
+        buf.append('this.arrayLengths.put("'+basename+'DoubleLookAsideBuffer", '+size+');')
+        buf.append('this.arrayLengths.put("'+basename+'Indices", this.clContext.getPreallocIntLength());')
+        buf.append('this.arrayLengths.put("'+basename+'Vals", this.clContext.getPreallocDoubleLength());')
+        if not isKey:
+            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getBufferSize() * this.getOutputPairsPerInput());')
+            buf.append('this.arrayLengths.put("memAuxIntIncr", 1);')
+            buf.append('this.arrayLengths.put("memAuxDoubleIncr", 1);')
+
         return buf
     def getMarkerInit(self, varname, size, forceNull):
         if forceNull:
@@ -771,6 +794,15 @@ class IvecVisitor(NativeTypeVisitor):
             buf.append('outputLengthBuffer = new int['+size+'];')
             buf.append('memAuxIncr = new int[1];')
         return buf
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        buf = [ ]
+        buf.append('this.arrayLengths.put("'+basename+'LookAsideBuffer", '+size+');')
+        buf.append('this.arrayLengths.put("'+basename+'", this.clContext.getPreallocIntLength());')
+        if isMapper and not isKey:
+            buf.append('this.arrayLengths.put("outputLengthBuffer", '+size+');')
+            buf.append('this.arrayLengths.put("memAuxIncr", 1);')
+        return buf
+
     def getMarkerInit(self, varname, size, forceNull):
         if forceNull:
             return [ varname+' = null;' ]
@@ -990,6 +1022,20 @@ class FsvecVisitor(NativeTypeVisitor):
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxFloatIncr = new int[1];')
         return buf
+
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        buf = [ ]
+        buf.append('this.arrayLengths.put("'+basename+'IntLookAsideBuffer", '+size+');')
+        buf.append('this.arrayLengths.put("'+basename+'FloatLookAsideBuffer", '+size+');')
+        buf.append('this.arrayLengths.put("'+basename+'Indices", this.clContext.getPreallocIntLength());')
+        buf.append('this.arrayLengths.put("'+basename+'Vals", this.clContext.getPreallocFloatLength());')
+        if isMapper and not isKey:
+            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getBufferSize() * this.getOutputPairsPerInput());')
+            buf.append('this.arrayLengths.put("memAuxIntIncr", 1);')
+            buf.append('this.arrayLengths.put("memAuxFloatIncr", 1);')
+
+        return buf
+
     def getMarkerInit(self, varname, size, forceNull):
         if forceNull:
             return [ varname+' = null;' ]
@@ -1249,12 +1295,25 @@ class BsvecVisitor(NativeTypeVisitor):
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
-        # if isMapper and not isInput and not isKey:
         if not isInput and not isKey:
             buf.append('outputValLengthBuffer = new int[this.clContext.getBufferSize() * outputsPerInput];')
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxDoubleIncr = new int[1];')
         return buf
+
+    def getArrayLengthInit(self, basename, size, isMapper, isKey):
+        buf = [ ]
+        buf.append('this.arrayLengths.put("'+basename+'IntLookAsideBuffer", '+size+');')
+        buf.append('this.arrayLengths.put("'+basename+'DoubleLookAsideBuffer", '+size+');')
+        buf.append('this.arrayLengths.put("'+basename+'Indices", this.clContext.getPreallocIntLength());')
+        buf.append('this.arrayLengths.put("'+basename+'Vals", this.clContext.getPreallocDoubleLength());')
+        if not isKey:
+            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getBufferSize() * this.getOutputPairsPerInput());')
+            buf.append('this.arrayLengths.put("memAuxIntIncr", 1);')
+            buf.append('this.arrayLengths.put("memAuxDoubleIncr", 1);')
+
+        return buf
+
     def getMarkerInit(self, varname, size, forceNull):
         if forceNull:
             return [ varname+' = null;' ]
@@ -1695,85 +1754,57 @@ def writeHeader(fp, isMapper):
 #     fp.write('    }\n')
 
 def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType):
-    if isMapper:
-        fp.write('        if (this.outputsPerInput < 0) {\n')
-        writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
-            'this.clContext.getBufferSize() * 5', False, False,
-                isMapper, True), 3, fp)
-        writeln(visitor(nativeOutputKeyType).getMarkerInit(
-            'outputIterMarkers', 'this.clContext.getBufferSize() * 5', False), 3, fp)
-        writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
-            'this.clContext.getBufferSize() * 5', False, False,
-                isMapper, False), 3, fp)
-        fp.write('        } else {\n')
-        writeln(visitor(nativeOutputKeyType).getMarkerInit(
-            'outputIterMarkers', 'this.clContext.getBufferSize() * outputsPerInput', False), 3, fp)
-        writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
-            'this.clContext.getBufferSize() * outputsPerInput', False, False,
-                isMapper, True), 3, fp)
-        writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
-            'this.clContext.getBufferSize() * outputsPerInput', False, False,
-                isMapper, False), 3, fp)
-        fp.write('        }\n')
-    else:
-        fp.write('        if(outputsPerInput < 0) {\n')
-        writeln(visitor(nativeOutputKeyType).getMarkerInit(
-            'outputIterMarkers', 'this.clContext.getBufferSize() * inputValPerInputKey', True), 3, fp)
-        writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
-            'this.clContext.getBufferSize() * inputValPerInputKey', True, False,
-                isMapper, True), 3, fp)
-        writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
-            'this.clContext.getBufferSize() * inputValPerInputKey', True, False,
-                isMapper, False), 3, fp)
+    writeln(visitor(nativeOutputKeyType).getMarkerInit(
+        'outputIterMarkers', 'this.clContext.getBufferSize() * outputsPerInput',
+            False), 3, fp)
+    writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
+        'this.clContext.getBufferSize() * outputsPerInput', False, False,
+            isMapper, True), 3, fp)
+    writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
+        'this.clContext.getBufferSize() * outputsPerInput', False, False,
+            isMapper, False), 3, fp)
+    # if isMapper:
+    #     fp.write('        if (this.outputsPerInput < 0) {\n')
+    #     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
+    #         'this.clContext.getBufferSize() * 5', False, False,
+    #             isMapper, True), 3, fp)
+    #     writeln(visitor(nativeOutputKeyType).getMarkerInit(
+    #         'outputIterMarkers', 'this.clContext.getBufferSize() * 5', False), 3, fp)
+    #     writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
+    #         'this.clContext.getBufferSize() * 5', False, False,
+    #             isMapper, False), 3, fp)
+    #     fp.write('        } else {\n')
+    #     writeln(visitor(nativeOutputKeyType).getMarkerInit(
+    #         'outputIterMarkers', 'this.clContext.getBufferSize() * outputsPerInput', False), 3, fp)
+    #     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
+    #         'this.clContext.getBufferSize() * outputsPerInput', False, False,
+    #             isMapper, True), 3, fp)
+    #     writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
+    #         'this.clContext.getBufferSize() * outputsPerInput', False, False,
+    #             isMapper, False), 3, fp)
+    #     fp.write('        }\n')
+    # else
+    #     fp.write('        if(outputsPerInput < 0) {\n')
+    #     writeln(visitor(nativeOutputKeyType).getMarkerInit(
+    #         'outputIterMarkers', 'this.clContext.getBufferSize() * inputValPerInputKey', True), 3, fp)
+    #     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
+    #         'this.clContext.getBufferSize() * inputValPerInputKey', True, False,
+    #             isMapper, True), 3, fp)
+    #     writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
+    #         'this.clContext.getBufferSize() * inputValPerInputKey', True, False,
+    #             isMapper, False), 3, fp)
 
-        fp.write('        } else {\n')
-        writeln(visitor(nativeOutputKeyType).getMarkerInit(
-            'outputIterMarkers', 'this.clContext.getBufferSize() * outputsPerInput', False), 3, fp)
-        writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
-            'this.clContext.getBufferSize() * outputsPerInput', False, False,
-                isMapper, True), 3, fp)
-        writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
-            'this.clContext.getBufferSize() * outputsPerInput', False, False,
-                isMapper, False), 3, fp)
+    #     fp.write('        } else {\n')
+    #     writeln(visitor(nativeOutputKeyType).getMarkerInit(
+    #         'outputIterMarkers', 'this.clContext.getBufferSize() * outputsPerInput', False), 3, fp)
+    #     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
+    #         'this.clContext.getBufferSize() * outputsPerInput', False, False,
+    #             isMapper, True), 3, fp)
+    #     writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
+    #         'this.clContext.getBufferSize() * outputsPerInput', False, False,
+    #             isMapper, False), 3, fp)
 
-        fp.write('        }\n')
-
-
-# def writeInitFromMapperBufferMethod(fp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType, hadoopInputKeyType, hadoopInputValueType):
-#     fp.write('\n')
-#     fp.write('    @Override\n')
-#     fp.write('    public void init(HadoopCLOutputMapperBuffer mapperBuffer) {\n')
-#     fp.write('        this.keep = false;\n')
-#     fp.write('        this.tempBuffer1 = null;\n')
-#     fp.write('        this.clContext = mapperBuffer.clContext;\n')
-#     fp.write('        this.isGPU = this.clContext.isGPU();\n')
-#     fp.write('        this.maxInputValsPerInputKey = 0;\n')
-#     fp.write('\n')
-#     fp.write('        HashMap<'+hadoopInputKeyType+'Writable, HadoopCLMutableInteger> keyCounts = (HashMap<'+hadoopInputKeyType+'Writable, HadoopCLMutableInteger>)mapperBuffer.getKeyCounts();\n')
-#     fp.write('\n')
-#     fp.write('        this.nKeys = keyCounts.keySet().size();\n')
-#     fp.write('        this.inputKeys = new '+nativeInputKeyType+'[this.nKeys];\n')
-#     fp.write('        this.keyIndex = new int[this.nKeys];\n')
-#     fp.write('        this.nWrites = new int[this.nKeys];\n')
-#     fp.write('        this.outputsPerInput = this.clContext.getReducerKernel().getOutputPairsPerInput();\n')
-#     fp.write('        this.keyCapacity = this.nKeys;\n')
-#     fp.write('\n')
-#     fp.write('        int nTotalValues = 0;\n')
-#     fp.write('        int index = 0;\n')
-#     fp.write('        for('+hadoopInputKeyType+'Writable key : keyCounts.keySet()) {\n')
-#     fp.write('            this.keyIndex[index] = nTotalValues;\n')
-#     fp.write('            this.inputKeys[index] = key.get();\n')
-#     fp.write('            nTotalValues = nTotalValues + keyCounts.get(key).get();\n')
-#     fp.write('            index = index + 1;\n')
-#     fp.write('        }\n')
-#     fp.write('        this.inputVals = new '+nativeInputValueType+'[nTotalValues];\n')
-#     fp.write('        this.nVals = nTotalValues;\n')
-#     fp.write('        this.valCapacity = nTotalValues;\n')
-#     fp.write('\n')
-#     fp.write('        mapperBuffer.populate(this.inputKeys, this.inputVals, this.keyIndex);\n')
-#     fp.write('\n')
-#     # writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType)
-#     fp.write('    }\n')
+    #     fp.write('        }\n')
 
 def writeOriginalInputInitMethod(fp, nativeInputKeyType, nativeInputValueType):
     fp.write('\n')
@@ -1812,35 +1843,6 @@ def writeInitBeforeKernelMethod(fp, isMapper, nativeOutputKeyType, nativeOutputV
     fp.write('        this.initialized = true;\n')
     fp.write('    }\n')
     fp.write('\n')
-
-# def writeOriginalInitMethod(fp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
-#     fp.write('\n')
-#     fp.write('    @Override\n')
-#     fp.write('    public void init(int outputsPerInput, HadoopOpenCLContext clContext) {\n')
-#     fp.write('        baseInit(clContext);\n')
-#     fp.write('        this.keep = true;\n')
-#     fp.write('        this.outputsPerInput = outputsPerInput;\n')
-#     fp.write('\n')
-#     if not isMapper:
-#         fp.write('        int inputValPerInputKey = this.getInputValPerInputKey();\n')
-#         writeln(visitor(nativeInputValueType).getOriginalInitMethod(), 2, fp)
-#         fp.write('\n')
-# 
-#     writeln(visitor(nativeInputKeyType).getKeyValInit('inputKey',
-#         'this.clContext.getBufferSize()', False, True, isMapper, True), 2, fp)
-# 
-#     if isMapper:
-#         writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
-#             'this.clContext.getBufferSize()', False, True, isMapper, False), 2, fp)
-#     else:
-#         writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
-#             'this.clContext.getBufferSize() * inputValPerInputKey',
-#                 False, True, isMapper, False), 2, fp)
-# 
-#     writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType)
-# 
-#     fp.write('    }\n')
-#     fp.write('\n')
 
 def writeSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('    public void setup(')
@@ -1932,11 +1934,14 @@ def writeSetupAndInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueTy
     fp.write('        baseInit(clContext);\n')
     # Just init to false, it gets actually set in fill
     fp.write('        this.setStrided(false);\n')
-    # if isMapper and isVariableLength(nativeInputValueType):
-    #     # fp.write('        this.setStrided(this.clContext.runningOnGPU());\n')
-    #     fp.write('        this.setStrided(false);\n')
-    # else:
-    #     fp.write('        this.setStrided(false);\n')
+    fp.write('\n')
+    fp.write('        this.arrayLengths.put("outputIterMarkers", this.clContext.getBufferSize() * this.getOutputPairsPerInput());\n')
+    writeln(visitor(nativeOutputKeyType).getArrayLengthInit('outputKey',
+        'this.clContext.getBufferSize() * this.getOutputPairsPerInput()',
+            isMapper, True), 2, fp)
+    writeln(visitor(nativeOutputValueType).getArrayLengthInit('outputVal',
+        'this.clContext.getBufferSize() * this.getOutputPairsPerInput()',
+            isMapper, False), 2, fp)
     fp.write('    }\n')
     fp.write('\n')
 
@@ -2253,18 +2258,18 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('        } // if (enableStriding)\n')
         fp.write('\n')
 
-    if not isMapper:
-        fp.write('        if(this.outputsPerInput < 0 && (outputBuffer.outputKeys == null || outputBuffer.outputKeys.length < inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey)) {\n')
-        writeln(visitor(nativeOutputKeyType).getMarkerInit(
-            'outputBuffer.outputIterMarkers', 'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False),
-            3, fp)
-        writeln(visitor(nativeOutputKeyType).getKeyValInit('outputBuffer.outputKey',
-            'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False, False, isMapper, True),
-            3, fp)
-        writeln(visitor(nativeOutputValType).getKeyValInit('outputBuffer.outputVal',
-            'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False, False, isMapper, False),
-            3, fp)
-        fp.write('        }\n')
+    # if not isMapper:
+    #     fp.write('        if(this.outputsPerInput < 0 && (outputBuffer.outputKeys == null || outputBuffer.outputKeys.length < inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey)) {\n')
+    #     writeln(visitor(nativeOutputKeyType).getMarkerInit(
+    #         'outputBuffer.outputIterMarkers', 'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False),
+    #         3, fp)
+    #     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputBuffer.outputKey',
+    #         'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False, False, isMapper, True),
+    #         3, fp)
+    #     writeln(visitor(nativeOutputValType).getKeyValInit('outputBuffer.outputVal',
+    #         'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False, False, isMapper, False),
+    #         3, fp)
+    #     fp.write('        }\n')
     fp.write('        this.setup(')
 
     write(visitor(nativeInputKeyType).getFillParameter('inputBuffer.inputKey', True, isMapper), 0, fp)
@@ -2294,6 +2299,16 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
 
     fp.write(', outputBuffer.memIncr, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
+    fp.write('    }\n')
+    fp.write('\n')
+
+def writeGetArrayLength(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
+    fp.write('    @Override\n')
+    fp.write('    public int getArrayLength(String inArr) {\n')
+    fp.write('        if (!this.arrayLengths.containsKey(inArr)) {\n')
+    fp.write('            throw new RuntimeException("Querying for array length of invalid array "+inArr);\n')
+    fp.write('        }\n')
+    fp.write('        return this.arrayLengths.get(inArr);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -2438,28 +2453,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('       return 0;\n')
             kernelfp.write('    }\n')
 
-    # if isMapper:
-    #     writeKeyCountsMethod(output_fp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType)
-    #     writePopulatesMethod(output_fp, nativeOutputKeyType, nativeOutputValueType)
-    # else:
-    #     if isPrimitiveHadoopType(hadoopInputValueType):
-    #         writeInitFromMapperBufferMethod(input_fp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType, hadoopInputKeyType, hadoopInputValueType)
-    #     else:
-    #          input_fp.write('\n')
-    #          input_fp.write('    @Override\n')
-    #          input_fp.write('    public void init(HadoopCLOutputMapperBuffer mapperBuffer) {\n')
-    #          input_fp.write('        throw new RuntimeException("Invalid to call this init method for complex input values");\n')
-    #          input_fp.write('    }\n')
-
     writeOriginalInputInitMethod(input_fp, nativeInputKeyType, nativeInputValueType)
-    # writeOriginalInitMethod(bufferfp, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
-    # bufferfp.write('    @Override\n')
-    # bufferfp.write('    public Class getKernelClass() {\n')
-    # if isMapper:
-    #     bufferfp.write('        return '+compactHadoopName(hadoopInputKeyType)+compactHadoopName(hadoopInputValueType)+compactHadoopName(hadoopOutputKeyType)+compactHadoopName(hadoopOutputValueType)+'HadoopCLMapperKernel.class;\n')
-    # else:
-    #     bufferfp.write('        return '+compactHadoopName(hadoopInputKeyType)+compactHadoopName(hadoopInputValueType)+compactHadoopName(hadoopOutputKeyType)+compactHadoopName(hadoopOutputValueType)+'HadoopCLReducerKernel.class;\n')
-    # bufferfp.write('    }\n')
 
     generateFill(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 

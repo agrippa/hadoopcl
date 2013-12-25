@@ -39,6 +39,7 @@ public abstract class HadoopCLKernel extends Kernel {
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
     private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
     private HadoopCLResizableFloatArray copyFvals = new HadoopCLResizableFloatArray();
+    protected final HashMap<String, Integer> arrayLengths = new HashMap<String, Integer>();
 
     // public abstract Class getBufferClass();
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
