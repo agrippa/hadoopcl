@@ -3,6 +3,7 @@ package org.apache.hadoop.mapreduce;
 import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
+import java.util.HashSet;
 import java.io.IOException;
 import java.lang.InterruptedException;
 import com.amd.aparapi.Kernel;
@@ -19,20 +20,23 @@ public abstract class HadoopCLOutputMapperBuffer extends HadoopCLOutputBuffer {
         this.nWrites = new int[this.clContext.getBufferSize()];
     }
 
-    public void copyOverFromInput(HadoopCLInputBuffer inputBuffer) {
-        this.nPairs = ((HadoopCLInputMapperBuffer)inputBuffer).nPairs;
-        System.arraycopy(inputBuffer.nWrites, 0, this.nWrites, 0, this.nWrites.length);
-        this.prof = inputBuffer.prof;
+    @Override
+    public void copyOverFromKernel(HadoopCLKernel genericKernel) {
+        HadoopCLMapperKernel kernel = (HadoopCLMapperKernel)genericKernel;
+        this.itersFinished = constructIterSet();
+        this.nPairs = kernel.nPairs;
+        this.prof = kernel.openclProfile;
     }
 
     @Override
-    public void constructIterSet() {
-      itersFinished.clear();
+    public HashSet<Integer> constructIterSet() {
+      HashSet<Integer> itersFinished = new HashSet<Integer>();
       for (int i = 0; i < this.nPairs; i++) {
         if (this.nWrites[i] >= 0) {
           itersFinished.add(i);
         }
       }
+      return itersFinished;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.HashSet;
 import java.io.IOException;
 
 public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {

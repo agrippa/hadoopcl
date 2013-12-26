@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.HashSet;
 import java.io.IOException;
 
 public class RunnerDoneMarker extends HadoopCLOutputBuffer {
@@ -11,8 +12,8 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
       return -1;
     }
 
-    public void copyOverFromInput(HadoopCLInputBuffer inputBuffer) { }
-    public void constructIterSet() { }
+    public void copyOverFromKernel(HadoopCLKernel kernel) { }
+    public HashSet<Integer> constructIterSet() { return null; }
 
     public boolean isEnd() {
       return true;

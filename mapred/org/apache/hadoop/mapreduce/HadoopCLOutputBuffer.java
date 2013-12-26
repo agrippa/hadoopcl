@@ -7,13 +7,14 @@ import java.util.concurrent.locks.ReentrantLock;
 public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public int[] memIncr;
     protected int[] outputIterMarkers;
-    protected final HashSet<Integer> itersFinished = new HashSet<Integer>();
+    public HashSet<Integer> itersFinished;
 
     public abstract void initBeforeKernel(int outputsPerInput, HadoopOpenCLContext clContext);
     public abstract int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar)
         throws IOException, InterruptedException;
-    public abstract void copyOverFromInput(HadoopCLInputBuffer inputBuffer);
-    public abstract void constructIterSet();
+
+    public abstract void copyOverFromKernel(HadoopCLKernel kernel);
+    public abstract HashSet<Integer> constructIterSet();
 
     @Override
     public long space() {

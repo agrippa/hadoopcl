@@ -1308,7 +1308,6 @@ public class MapTask extends Task {
 
             if (buffull && !wrap) {
               if (kvstart != kvend && isOpenCL()) {
-                dontBlockException = true;
                 throw new DontBlockOnSpillDoneException();
               }
 
@@ -1327,9 +1326,7 @@ public class MapTask extends Task {
             }
           } while (buffull && !wrap);
         } finally {
-          if (!dontBlockException) {
-              spillLock.unlock();
-          }
+            spillLock.unlock();
         }
         // here, we know that we have sufficient space to write
         if (buffull) {
@@ -1398,8 +1395,6 @@ public class MapTask extends Task {
       public void run() {
         spillLock.lock();
 
-        OpenCLDriver.spillLock = spillLock;
-        OpenCLDriver.spillDone = spillDone;
         OpenCLDriver.resourcesLock = resourcesLock;
         OpenCLDriver.resourcesAvailable = resourcesAvailable;
 
@@ -1409,6 +1404,7 @@ public class MapTask extends Task {
 
             try {
               resourcesLock.lock();
+              OpenCLDriver.spillInProgress = false;
               resourcesAvailable.signalAll();
             } finally {
               resourcesLock.unlock();
@@ -1420,7 +1416,11 @@ public class MapTask extends Task {
               spillReady.await();
             }
             try {
+              OpenCLDriver.resourcesLock.lock();
+              OpenCLDriver.spillInProgress = true;
+              OpenCLDriver.resourcesLock.unlock();
               spillLock.unlock();
+
               sortAndSpill();
             } catch (Exception e) {
               sortSpillException = e;

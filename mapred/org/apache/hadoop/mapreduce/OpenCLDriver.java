@@ -44,10 +44,9 @@ public class OpenCLDriver {
   public static HadoopCLLogger logger = null;
   // public static final HadoopCLLogger logger = new HadoopCLLogger(false);
 
-  public static ReentrantLock spillLock = null;
-  public static Condition spillDone = null;
   public static ReentrantLock resourcesLock = null;
   public static Condition resourcesAvailable = null;
+  public static boolean spillInProgress = false;
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
 

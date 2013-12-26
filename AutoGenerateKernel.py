@@ -63,7 +63,7 @@ class NativeTypeVisitor:
         raise NotImplementedError('Missing getArrayLengthInit')
     def getMarkerInit(self, varname, size, forceNull):
         raise NotImplementedError('Missing getMarkerInit')
-    def getKeyValSetup(self, basename, isInput, isKey):
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
         raise NotImplementedError('Missing getKeyValSetup')
     def getKeyValSet(self, basename, indexStr):
         raise NotImplementedError('Missing getKeyValSet')
@@ -146,8 +146,11 @@ class PrimitiveVisitor(NativeTypeVisitor):
             return [ varname+' = null;' ]
         else:
             return [ varname+' = new int['+size+'];' ]
-    def getKeyValSetup(self, basename, isInput, isKey):
-        return [ 'this.'+basename+'s = set'+basename.capitalize()+'s;' ]
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
+        if forceNull:
+            return [ 'this.'+basename+'s = null;' ]
+        else:
+            return [ 'this.'+basename+'s = set'+basename.capitalize()+'s;' ]
     def getKeyValSet(self, basename, indexStr):
         return [ 'save'+basename+'.set(this.output'+basename+'s['+indexStr+']);' ]
     def getSig(self, basename, isKey):
@@ -167,7 +170,7 @@ class PrimitiveVisitor(NativeTypeVisitor):
     def getSetupParameter(self, basename, isInput, isKey):
         return [ self.typ+'[] set'+basename.capitalize()+'s' ]
     def getSetLengths(self):
-        return [ 'this.outputLength = outputVals.length;' ]
+        return [ 'this.outputLength = this.getArrayLength("outputVals");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputVals[this.nPairs] = actual.get();' ]
     def getAddValueMethodReducer(self):
@@ -247,9 +250,13 @@ class PairVisitor(NativeTypeVisitor):
             return [ varname+' = null;' ]
         else:
             return [ varname+' = new int['+size+'];' ]
-    def getKeyValSetup(self, basename, isInput, isKey):
-        return [ 'this.'+basename+'s1 = set'+basename.capitalize()+'s1;',
-                 'this.'+basename+'s2 = set'+basename.capitalize()+'s2;' ]
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
+        if forceNull:
+            return [ 'this.'+basename+'s1 = null;',
+                     'this.'+basename+'s2 = null;' ]
+        else:
+            return [ 'this.'+basename+'s1 = set'+basename.capitalize()+'s1;',
+                     'this.'+basename+'s2 = set'+basename.capitalize()+'s2;' ]
     def getKeyValSet(self, basename, indexStr):
         return [ 'save'+basename+'.set(this.output'+basename+'s1['+indexStr+'], this.output'+basename+'s2['+indexStr+']);' ]
     def getSig(self, basename, isKey):
@@ -270,7 +277,7 @@ class PairVisitor(NativeTypeVisitor):
         return [ 'double[] set'+basename.capitalize()+'s1, ',
                  'double[] set'+basename.capitalize()+'s2' ]
     def getSetLengths(self):
-        return [ 'this.outputLength = outputVals1.length;' ]
+        return [ 'this.outputLength = this.getArrayLength("outputVals1");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputVals1[this.nPairs] = actual.getVal1();',
                  'this.inputVals2[this.nPairs] = actual.getVal2();' ]
@@ -368,10 +375,15 @@ class IpairVisitor(NativeTypeVisitor):
             return [ varname+' = null;' ]
         else:
             return [ varname+' = new int['+size+'];' ]
-    def getKeyValSetup(self, basename, isInput, isKey):
-        return [ 'this.'+basename+'Ids = set'+basename.capitalize()+'Ids;',
-                 'this.'+basename+'s1 = set'+basename.capitalize()+'s1;',
-                 'this.'+basename+'s2 = set'+basename.capitalize()+'s2;' ]
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
+        if forceNull:
+            return [ 'this.'+basename+'Ids = null;',
+                     'this.'+basename+'s1 = null;',
+                     'this.'+basename+'s2 = null;' ]
+        else:
+            return [ 'this.'+basename+'Ids = set'+basename.capitalize()+'Ids;',
+                     'this.'+basename+'s1 = set'+basename.capitalize()+'s1;',
+                     'this.'+basename+'s2 = set'+basename.capitalize()+'s2;' ]
     def getKeyValSet(self, basename, indexStr):
         return [ 'save'+basename+'.set(this.output'+basename+'Ids['+indexStr+'], this.output'+basename+'s1['+indexStr+'], this.output'+basename+'s2['+indexStr+']);' ]
     def getSig(self, basename, isKey):
@@ -394,7 +406,7 @@ class IpairVisitor(NativeTypeVisitor):
                  'double[] set'+basename.capitalize()+'s1, ',
                  'double[] set'+basename.capitalize()+'s2' ]
     def getSetLengths(self):
-        return [ 'this.outputLength = outputValIds.length;' ]
+        return [ 'this.outputLength = this.getArrayLength("outputValIds");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValIds[this.nPairs] = actual.getIVal();',
                  'this.inputVals1[this.nPairs] = actual.getVal1();',
@@ -559,19 +571,34 @@ class SvecVisitor(NativeTypeVisitor):
             return [ varname+' = null;' ]
         else:
             return [ varname+' = new int['+size+'];' ]
-    def getKeyValSetup(self, basename, isInput, isKey):
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
         buf = [ ]
         if isInput:
-            buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
+            if forceNull:
+                buf.append('this.'+basename+'LookAsideBuffer = null;')
+            else:
+                buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
         else:
-            buf.append('this.'+basename+'IntLookAsideBuffer = set'+basename.capitalize()+'IntLookAsideBuffer;')
-            buf.append('this.'+basename+'DoubleLookAsideBuffer = set'+basename.capitalize()+'DoubleLookAsideBuffer;')
-        buf.append('this.'+basename+'Indices = set'+basename.capitalize()+'Indices;')
-        buf.append('this.'+basename+'Vals = set'+basename.capitalize()+'Vals;')
+            if forceNull:
+                buf.append('this.'+basename+'IntLookAsideBuffer = null;')
+                buf.append('this.'+basename+'DoubleLookAsideBuffer = null;')
+            else:
+                buf.append('this.'+basename+'IntLookAsideBuffer = set'+basename.capitalize()+'IntLookAsideBuffer;')
+                buf.append('this.'+basename+'DoubleLookAsideBuffer = set'+basename.capitalize()+'DoubleLookAsideBuffer;')
+        if forceNull:
+            buf.append('this.'+basename+'Indices = null;')
+            buf.append('this.'+basename+'Vals = null;')
+        else:
+            buf.append('this.'+basename+'Indices = set'+basename.capitalize()+'Indices;')
+            buf.append('this.'+basename+'Vals = set'+basename.capitalize()+'Vals;')
+
         if not isKey and not isInput:
-            buf.append('this.outputValLengthBuffer = setOutputValLengthBuffer;')
+            if forceNull:
+                buf.append('this.outputValLengthBuffer = null;')
+            else:
+                buf.append('this.outputValLengthBuffer = setOutputValLengthBuffer;')
         return buf
-#    def getKeyValSet(basename, indexStr):
+
     def getSig(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupport key type svec')
@@ -606,8 +633,8 @@ class SvecVisitor(NativeTypeVisitor):
             buf.append(', int[] setOutputValLengthBuffer')
         return buf
     def getSetLengths(self):
-        return [ 'this.outputLength = outputValIntLookAsideBuffer.length;',
-                 'this.outputAuxLength = outputValIndices.length;' ]
+        return [ 'this.outputLength = this.getArrayLength("outputValIntLookAsideBuffer");',
+                 'this.outputAuxLength = this.getArrayLength("outputValIndices");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -808,14 +835,22 @@ class IvecVisitor(NativeTypeVisitor):
             return [ varname+' = null;' ]
         else:
             return [ varname+' = new int['+size+'];' ]
-    def getKeyValSetup(self, basename, isInput, isKey):
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
         buf = [ ]
-        buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
-        buf.append('this.'+basename+' = set'+basename.capitalize()+';')
+        if forceNull:
+            buf.append('this.'+basename+'LookAsideBuffer = null;')
+            buf.append('this.'+basename+' = null;')
+        else:
+            buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
+            buf.append('this.'+basename+' = set'+basename.capitalize()+';')
+
         if not isKey and not isInput:
-            buf.append('this.outputLengthBuffer = setOutputLengthBuffer;')
+            if forceNull:
+                buf.append('this.outputLengthBuffer = null;')
+            else:
+                buf.append('this.outputLengthBuffer = setOutputLengthBuffer;')
         return buf
-#    def getKeyValSet(basename, indexStr):
+
     def getSig(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupport key type svec')
@@ -844,8 +879,8 @@ class IvecVisitor(NativeTypeVisitor):
             buf.append(', int[] setOutputLengthBuffer')
         return buf
     def getSetLengths(self):
-        return [ 'this.outputLength = outputLookAsideBuffer.length;',
-                 'this.outputAuxLength = output.length;' ]
+        return [ 'this.outputLength = this.getArrayLength("outputLookAsideBuffer");',
+                 'this.outputAuxLength = this.getArrayLength("output");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -1041,19 +1076,35 @@ class FsvecVisitor(NativeTypeVisitor):
             return [ varname+' = null;' ]
         else:
             return [ varname+' = new int['+size+'];' ]
-    def getKeyValSetup(self, basename, isInput, isKey):
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
         buf = [ ]
         if isInput:
-            buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
+            if forceNull:
+                buf.append('this.'+basename+'LookAsideBuffer = null;')
+            else:
+                buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
         else:
-            buf.append('this.'+basename+'IntLookAsideBuffer = set'+basename.capitalize()+'IntLookAsideBuffer;')
-            buf.append('this.'+basename+'FloatLookAsideBuffer = set'+basename.capitalize()+'FloatLookAsideBuffer;')
-        buf.append('this.'+basename+'Indices = set'+basename.capitalize()+'Indices;')
-        buf.append('this.'+basename+'Vals = set'+basename.capitalize()+'Vals;')
+            if forceNull:
+                buf.append('this.'+basename+'IntLookAsideBuffer = null;')
+                buf.append('this.'+basename+'FloatLookAsideBuffer = null;')
+            else:
+                buf.append('this.'+basename+'IntLookAsideBuffer = set'+basename.capitalize()+'IntLookAsideBuffer;')
+                buf.append('this.'+basename+'FloatLookAsideBuffer = set'+basename.capitalize()+'FloatLookAsideBuffer;')
+
+        if forceNull:
+            buf.append('this.'+basename+'Indices = null;')
+            buf.append('this.'+basename+'Vals = null;')
+        else:
+            buf.append('this.'+basename+'Indices = set'+basename.capitalize()+'Indices;')
+            buf.append('this.'+basename+'Vals = set'+basename.capitalize()+'Vals;')
+
         if not isKey and not isInput:
-            buf.append('this.outputValLengthBuffer = setOutputValLengthBuffer;')
+            if forceNull:
+                buf.append('this.outputValLengthBuffer = null;')
+            else:
+                buf.append('this.outputValLengthBuffer = setOutputValLengthBuffer;')
         return buf
-#    def getKeyValSet(basename, indexStr):
+
     def getSig(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupport key type fsvec')
@@ -1088,8 +1139,8 @@ class FsvecVisitor(NativeTypeVisitor):
             buf.append(', int[] setOutputValLengthBuffer')
         return buf
     def getSetLengths(self):
-        return [ 'this.outputLength = outputValIntLookAsideBuffer.length;',
-                 'this.outputAuxLength = outputValIndices.length;' ]
+        return [ 'this.outputLength = this.getArrayLength("outputValIntLookAsideBuffer");',
+                 'this.outputAuxLength = this.getArrayLength("outputValIndices");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -1319,19 +1370,35 @@ class BsvecVisitor(NativeTypeVisitor):
             return [ varname+' = null;' ]
         else:
             return [ varname+' = new int['+size+'];' ]
-    def getKeyValSetup(self, basename, isInput, isKey):
+    def getKeyValSetup(self, basename, isInput, isKey, forceNull):
         buf = [ ]
         if isInput:
-            buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
+            if forceNull:
+                buf.append('this.'+basename+'LookAsideBuffer = null;')
+            else:
+                buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
         else:
-            buf.append('this.'+basename+'IntLookAsideBuffer = set'+basename.capitalize()+'IntLookAsideBuffer;')
-            buf.append('this.'+basename+'DoubleLookAsideBuffer = set'+basename.capitalize()+'DoubleLookAsideBuffer;')
-        buf.append('this.'+basename+'Indices = set'+basename.capitalize()+'Indices;')
-        buf.append('this.'+basename+'Vals = set'+basename.capitalize()+'Vals;')
+            if forceNull:
+                buf.append('this.'+basename+'IntLookAsideBuffer = null;')
+                buf.append('this.'+basename+'DoubleLookAsideBuffer = null;')
+            else:
+                buf.append('this.'+basename+'IntLookAsideBuffer = set'+basename.capitalize()+'IntLookAsideBuffer;')
+                buf.append('this.'+basename+'DoubleLookAsideBuffer = set'+basename.capitalize()+'DoubleLookAsideBuffer;')
+
+        if forceNull:
+            buf.append('this.'+basename+'Indices = null;')
+            buf.append('this.'+basename+'Vals = null;')
+        else:
+            buf.append('this.'+basename+'Indices = set'+basename.capitalize()+'Indices;')
+            buf.append('this.'+basename+'Vals = set'+basename.capitalize()+'Vals;')
+
         if not isKey and not isInput:
-            buf.append('this.outputValLengthBuffer = setOutputValLengthBuffer;')
+            if forceNull:
+                buf.append('this.outputValLengthBuffer = null;')
+            else:
+                buf.append('this.outputValLengthBuffer = setOutputValLengthBuffer;')
         return buf
-#    def getKeyValSet(basename, indexStr):
+
     def getSig(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupport key type bsvec')
@@ -1365,8 +1432,8 @@ class BsvecVisitor(NativeTypeVisitor):
             buf.append(', int[] setOutputValLengthBuffer')
         return buf
     def getSetLengths(self):
-        return [ 'this.outputLength = outputValIntLookAsideBuffer.length;',
-                 'this.outputAuxLength = outputValIndices.length;' ]
+        return [ 'this.outputLength = this.getArrayLength("outputValIntLookAsideBuffer");',
+                 'this.outputAuxLength = this.getArrayLength("outputValIndices");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -1864,15 +1931,15 @@ def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputVa
     fp.write('\n')
     writePostKernelSetupDeclaration(fp, isMapper, nativeOutputKeyType, nativeOutputValueType)
 
-    writeln(visitor(nativeOutputKeyType).getKeyValSetup('outputKey', False, True), 2, fp)
-    writeln(visitor(nativeOutputValueType).getKeyValSetup('outputVal', False, False), 2, fp)
+    writeln(visitor(nativeOutputKeyType).getKeyValSetup('outputKey', False, True, False), 2, fp)
+    writeln(visitor(nativeOutputValueType).getKeyValSetup('outputVal', False, False, False), 2, fp)
 
     fp.write('\n')
     fp.write('        this.memIncr = setMemIncr;\n')
     fp.write('        this.memIncr[0] = 0;\n')
     fp.write('\n')
 
-    writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
+    # writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
     fp.write('        this.outputIterMarkers = outputIterMarkers;\n')
 
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
@@ -1920,16 +1987,16 @@ def writePreKernelSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInput
     #     fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxFloatIncr')
 
     # fp.write(', int[] setMemIncr, int setOutputsPerInput, int[] outputIterMarkers) {\n')
-    fp.write(') {\n')
+    fp.write(', int setOutputsPerInput) {\n')
 
-def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType):
+def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
     writePreKernelSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInputValueType)
 
-    writeln(visitor(nativeInputKeyType).getKeyValSetup('inputKey', True, True), 2, fp)
-    writeln(visitor(nativeInputValueType).getKeyValSetup('inputVal', True, False), 2, fp)
-    # writeln(visitor(nativeOutputKeyType).getKeyValSetup('outputKey', False, True), 2, fp)
-    # writeln(visitor(nativeOutputValueType).getKeyValSetup('outputVal', False, False), 2, fp)
+    writeln(visitor(nativeInputKeyType).getKeyValSetup('inputKey', True, True, False), 2, fp)
+    writeln(visitor(nativeInputValueType).getKeyValSetup('inputVal', True, False, False), 2, fp)
+    writeln(visitor(nativeOutputKeyType).getKeyValSetup('outputKey', False, True, True), 2, fp)
+    writeln(visitor(nativeOutputValueType).getKeyValSetup('outputVal', False, False, True), 2, fp)
 
     if isMapper:
         fp.write('        this.nWrites = setNWrites;\n')
@@ -1940,34 +2007,28 @@ def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValue
         fp.write('        this.nKeys = setNKeys;\n')
         fp.write('        this.nVals = setNVals;\n')
 
-    # fp.write('\n')
-    # fp.write('        this.memIncr = setMemIncr;\n')
-    # fp.write('        this.memIncr[0] = 0;\n')
+    fp.write('\n')
+    fp.write('        this.memIncr = null;\n')
     fp.write('        this.outputsPerInput = setOutputsPerInput;\n')
     fp.write('\n')
 
-    # writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
-    # fp.write('        this.outputIterMarkers = outputIterMarkers;\n')
+    writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
+    fp.write('        this.outputIterMarkers = null;\n')
 
     if isVariableLength(nativeInputValueType):
         fp.write('        this.individualInputValsCount = setIndividualInputValsCount;\n')
         fp.write('\n')
 
-    # if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
-    #     fp.write('        this.memAuxIntIncr = setMemAuxIntIncr;\n')
-    #     fp.write('        this.memAuxDoubleIncr = setMemAuxDoubleIncr;\n')
-    #     fp.write('        this.memAuxIntIncr[0] = 0;\n')
-    #     fp.write('        this.memAuxDoubleIncr[0] = 0;\n')
-    #     fp.write('\n')
-    # elif nativeOutputValueType == 'ivec':
-    #     fp.write('        this.memAuxIncr = setMemAuxIncr;\n')
-    #     fp.write('        this.memAuxIncr[0] = 0;\n')
-    # elif nativeOutputValueType == 'fsvec':
-    #     fp.write('        this.memAuxIntIncr = setMemAuxIntIncr;\n')
-    #     fp.write('        this.memAuxFloatIncr = setMemAuxFloatIncr;\n')
-    #     fp.write('        this.memAuxIntIncr[0] = 0;\n')
-    #     fp.write('        this.memAuxFloatIncr[0] = 0;\n')
-    #     fp.write('\n')
+    if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
+        fp.write('        this.memAuxIntIncr = null;\n')
+        fp.write('        this.memAuxDoubleIncr = null;\n')
+        fp.write('\n')
+    elif nativeOutputValueType == 'ivec':
+        fp.write('        this.memAuxIncr = null;\n')
+    elif nativeOutputValueType == 'fsvec':
+        fp.write('        this.memAuxIntIncr = null;\n')
+        fp.write('        this.memAuxFloatIncr = null;\n')
+        fp.write('\n')
 
     if profileMemoryUtilization:
         fp.write('        System.out.println("'+('Mapper' if isMapper else 'Reducer')+': Input using "+\n')
@@ -1988,6 +2049,7 @@ def writeInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nati
     fp.write('        this.setStrided(false);\n')
     fp.write('\n')
     fp.write('        this.arrayLengths.put("outputIterMarkers", this.clContext.getBufferSize() * this.getOutputPairsPerInput());\n')
+    fp.write('        this.arrayLengths.put("memIncr", 1);\n')
     writeln(visitor(nativeOutputKeyType).getArrayLengthInit('outputKey',
         'this.clContext.getBufferSize() * this.getOutputPairsPerInput()',
             isMapper, True), 2, fp)
@@ -2276,7 +2338,6 @@ def generatePrepareForRead(fp, isMapper, nativeInputKeyType, nativeInputValType,
     fp.write('    public void prepareForRead(HadoopCLOutputBuffer genericOutputBuffer) {\n')
     fp.write('        '+outputBufferClass+' outputBuffer = ('+outputBufferClass+')genericOutputBuffer;\n')
     fp.write('        this.postKernelSetup(')
-    fp.write(', ')
     write(visitor(nativeOutputKeyType).getFillParameter('outputBuffer.outputKey', False, isMapper), 0, fp)
     fp.write(', ')
     write(visitor(nativeOutputValType).getFillParameter('outputBuffer.outputVal', False, isMapper), 0, fp)
@@ -2373,17 +2434,7 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     #     fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
 
     # fp.write(', outputBuffer.memIncr, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
-    fp.write(');\n')
-    fp.write('    }\n')
-    fp.write('\n')
-
-def writeGetArrayLength(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
-    fp.write('    @Override\n')
-    fp.write('    public int getArrayLength(String inArr) {\n')
-    fp.write('        if (!this.arrayLengths.containsKey(inArr)) {\n')
-    fp.write('            throw new RuntimeException("Querying for array length of invalid array "+inArr);\n')
-    fp.write('        }\n')
-    fp.write('        return this.arrayLengths.get(inArr);\n')
+    fp.write(', this.outputsPerInput);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -2500,7 +2551,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     generateKernelDecl(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
     writePostKernelSetupMethod(kernelfp, isMapper, nativeOutputKeyType, nativeOutputValueType)
-    writePreKernelSetupMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType)
+    writePreKernelSetupMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
     writeInitMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
     kernelfp.write('    public Class<? extends HadoopCLInputBuffer> getInputBufferClass() { return '+inputBufferClassName(isMapper, inputKeyType, inputValueType)+'.class; }\n')

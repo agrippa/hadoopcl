@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.HashSet;
 import java.io.IOException;
 import java.lang.InterruptedException;
 import org.apache.hadoop.mapreduce.Reducer.Context;
@@ -22,20 +23,23 @@ public abstract class HadoopCLOutputReducerBuffer extends HadoopCLOutputBuffer {
         this.nWrites = new int[this.clContext.getBufferSize()];
     }
 
-    public void copyOverFromInput(HadoopCLInputBuffer inputBuffer) {
-        this.nKeys = ((HadoopCLInputReducerBuffer)inputBuffer).nKeys;
-        System.arraycopy(inputBuffer.nWrites, 0, this.nWrites, 0, this.nWrites.length);
-        this.prof = inputBuffer.prof;
+    @Override
+    public void copyOverFromKernel(HadoopCLKernel genericKernel) {
+        HadoopCLReducerKernel kernel = (HadoopCLReducerKernel)genericKernel;
+        this.itersFinished = constructIterSet();
+        this.nKeys = kernel.nKeys;
+        this.prof = kernel.openclProfile;
     }
 
     @Override
-    public void constructIterSet() {
-      itersFinished.clear();
+    public HashSet<Integer> constructIterSet() {
+      HashSet<Integer> itersFinished = new HashSet<Integer>();
       for (int i = 0; i < this.nKeys; i++) {
         if (this.nWrites[i] >= 0) {
           itersFinished.add(i);
         }
       }
+      return itersFinished;
     }
 
     @Override

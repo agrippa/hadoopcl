@@ -17,6 +17,7 @@ public class BufferRunner implements Runnable {
     private final HadoopCLLimitedQueue<HadoopCLInputBuffer> toRun;
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
     private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
+    private final LinkedList<HadoopCLKernel> toCopyFromOpenCL; // exclusive
 
     // exclusive
     private final HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair> running;
@@ -37,6 +38,7 @@ public class BufferRunner implements Runnable {
         this.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
         this.toRunPrivate = new LinkedList<HadoopCLInputBuffer>();
         this.toWrite = new LinkedList<OutputBufferSoFar>();
+        this.toCopyFromOpenCL = new LinkedList<HadoopCLKernel>();
 
         this.running = new HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair>();
 
@@ -62,7 +64,13 @@ public class BufferRunner implements Runnable {
             input.clearNWrites();
         }
         log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
+
+        OpenCLDriver.resourcesLock.lock();
+
         this.toRun.add(input);
+        OpenCLDriver.resourcesAvailable.signalAll();
+
+        OpenCLDriver.resourcesLock.unlock();
     }
 
     private HadoopCLKernel newKernelInstance() {
@@ -112,7 +120,7 @@ public class BufferRunner implements Runnable {
         }
         if (success) {
             inputBuffer.getProfile().startKernel();
-            running.put(kernel, new HadoopCLInputOutputBufferPair(inputBuffer));
+            running.put(kernel, new HadoopCLInputOutputBufferPair(inputBuffer, kernel));
         }
         return success;
     }
@@ -150,11 +158,34 @@ public class BufferRunner implements Runnable {
         return result;
     }
 
+    private void handleOpenCLCopy(HadoopCLKernel complete,
+            HadoopCLOutputBuffer output) {
+        complete.prepareForRead(output);
+        complete.waitFor();
+
+        output.copyOverFromKernel(complete);
+        output.tracker = complete.tracker.clone();
+
+        log("    Adding "+output.id+" to output buffers to write");
+        toWrite.add(new OutputBufferSoFar(output, 0));
+        freeKernels.free(complete);
+    }
+
     @Override
     public void run() {
         boolean mainDone = false;
         boolean forwardProgress = true;
         log("Entering BufferRunner");
+
+        OpenCLDriver.resourcesLock.lock();
+        while (this.toRun.isEmpty()) {
+            try {
+                OpenCLDriver.resourcesAvailable.await();
+            } catch(InterruptedException ie) {
+                throw new RuntimeException(ie);
+            }
+        }
+        OpenCLDriver.resourcesLock.unlock();
 
         /*
          * I removed the condition !toWrite.isEmpty() because I'd rather
@@ -179,22 +210,23 @@ public class BufferRunner implements Runnable {
                     this.toWrite.add(cont);
 
                     log("      forwardProgress="+forwardProgress+" previously="+previously+" soFar="+cont.soFar()+" toWrite.size()="+this.toWrite.size());
-                    boolean successfulUnlock = false;
+                    boolean locked = false;
                     try {
+                        
                         if (!forwardProgress) {
                             OpenCLDriver.resourcesLock.lock();
-                            OpenCLDriver.spillLock.unlock();
-                            successfulUnlock = true;
-                            OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
-                            OpenCLDriver.resourcesAvailable.await();
-                            OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                            locked = true;
+                            log("        spillInProgress="+OpenCLDriver.spillInProgress);
+                            if (OpenCLDriver.spillInProgress) {
+                                OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
+                                OpenCLDriver.resourcesAvailable.await();
+                                OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                            }
                         }
                     } catch (InterruptedException ie) {
                     } finally {
-                        if (!successfulUnlock) {
-                            OpenCLDriver.spillLock.unlock();
-                        } else {
-                          OpenCLDriver.resourcesLock.unlock();
+                        if (locked) {
+                            OpenCLDriver.resourcesLock.unlock();
                         }
                     }
                 } else {
@@ -209,6 +241,18 @@ public class BufferRunner implements Runnable {
 
             forwardProgress = false;
 
+            if (!toCopyFromOpenCL.isEmpty()) {
+                HadoopCLKernel kernel = toCopyFromOpenCL.poll();
+                HadoopCLOutputBuffer output =
+                    allocOutputBufferWithInit(kernel.getOutputPairsPerInput());
+                if (output != null) {
+                    forwardProgress = true;
+                    handleOpenCLCopy(kernel, output);
+                } else {
+                    toCopyFromOpenCL.add(kernel);
+                }
+            }
+
             /*
              * Kernel Completion Handling
              */
@@ -217,66 +261,55 @@ public class BufferRunner implements Runnable {
             // if (!completed.isEmpty()) {
             //     log("  Detected "+completed.size()+" completed kernels, out of "+running.size()+" running");
             if (complete != null) {
-                forwardProgress = true;
                 // Try to either re-run incomplete kernels, or just
                 // set the output buffers up for dumping
-                // for (HadoopCLKernel k : completed) {
-                    HadoopCLKernel k = complete;
-                    HadoopCLInputOutputBufferPair pair = running.remove(k);
+                final HadoopCLInputOutputBufferPair pair = running.remove(complete);
+                final HadoopCLInputBuffer input = pair.inputBuffer();
+                forwardProgress = true;
 
-                    HadoopCLOutputBuffer output = allocOutputBufferWithInit(k.getOutputPairsPerInput());
-                    if (output == null) {
-                        running.put(k, pair); // put it back to get it later
+                log("  Detected completed kernel "+complete.id);
+                OpenCLDriver.logger.log("recovering completed kernel "+
+                    complete.tracker.toString()+" for "+input.tracker.toString(),
+                    this.clContext);
+
+                try {
+                  pair.wrapperThread().join();
+                } catch(InterruptedException ie) {
+                  throw new RuntimeException(ie);
+                }
+
+                input.getProfile().stopKernel();
+                complete.openclProfile = input.prof;
+
+                HadoopCLOutputBuffer output =
+                    allocOutputBufferWithInit(complete.getOutputPairsPerInput());
+
+                if (output == null) {
+                    toCopyFromOpenCL.add(complete);
+                } else {
+                    handleOpenCLCopy(complete, output);
+                }
+
+                boolean completedAll = input.completedAll();
+                if (completedAll) {
+                    log("    Input buffer "+input.id+" completed all work, releasing it and kernel "+complete.id);
+                    profiles.add(input.getProfile());
+                    freeInputBuffers.free(input);
+                } else {
+                    input.tracker.incrementAttempt();
+                    log("    Input buffer "+input.id+" has not finished all work");
+                    HadoopCLKernel newKernel = newKernelInstance();
+                    if (newKernel != null && startKernel(newKernel, input)) {
+                        log("      Successfully re-launched kernel "+complete.id+" on "+input.id);
+                        running.put(newKernel, new HadoopCLInputOutputBufferPair(input, newKernel));
                     } else {
-                        HadoopCLInputBuffer input = pair.inputBuffer();
-                        // HadoopCLOutputBuffer output = pair.outputBuffer();
-
-                        OpenCLDriver.logger.log("recovering completed kernel "+
-                            k.tracker.toString()+" for "+input.tracker.toString(),
-                            this.clContext);
-
-                        k.prepareForRead(output);
-                        try {
-                          pair.wrapperThread().join();
-                        } catch(InterruptedException ie) {
-                          throw new RuntimeException(ie);
-                        }
-
-                        int errCode = k.waitFor();
-                        input.getProfile().stopKernel();
-
-                        output.copyOverFromInput(input);
-                        output.constructIterSet();
-                        log("    Adding "+output.id+" to output buffers to write");
-                        toWrite.add(new OutputBufferSoFar(output, 0));
-                        boolean completedAll = input.completedAll();
-                        if (input.completedAll()) {
-                            log("    Input buffer "+input.id+" completed all work, releasing it and kernel "+k.id);
-                            profiles.add(input.getProfile());
-                            freeInputBuffers.free(input);
-                            freeKernels.free(k);
-                        } else {
-                            input.tracker.incrementAttempt();
-                            log("    Input buffer "+input.id+" has not finished all work");
-                            // HadoopCLOutputBuffer outputBuffer = allocOutputBufferWithInit(k.getOutputPairsPerInput());
-                            // if (outputBuffer != null) {
-                            //     log("      Successfully allocated output buffer "+outputBuffer.id+" for input "+input.id);
-                                if (!startKernel(k, input)) {
-                                    log("      Failed to start kernel "+k.id+" on "+input.id);
-                                    toRunPrivate.add(input);
-                                    // freeOutputBuffers.free(outputBuffer);
-                                    freeKernels.free(k);
-                                } else {
-                                    log("      Successfully launched kernel "+k.id+" on "+input.id+" -> "+outputBuffer.id);
-                                }
-                            // } else {
-                            //     log("      Failed allocating an output buffer for "+input.id+", releasing input "+input.id+" and kernel "+k.id);
-                            //     toRunPrivate.add(input);
-                            //     freeKernels.free(k);
-                            // }
+                        log("      Failed to re-try input "+input.id);
+                        toRunPrivate.add(input);
+                        if (newKernel != null) {
+                            freeKernels.free(newKernel);
                         }
                     }
-                // }
+                }
             }
 
             /*
@@ -354,23 +387,22 @@ public class BufferRunner implements Runnable {
                     if (soFar != null) {
                       forwardProgress = soFar.soFar() > previously;
                       log("      forwardProgress="+forwardProgress+" previously="+previously+" soFar="+soFar.soFar()+" toWrite.size()="+this.toWrite.size());
-                      boolean successfulUnlock = false;
+                      boolean locked = false;
                       try {
                         if (!forwardProgress) {
                           OpenCLDriver.resourcesLock.lock();
-                          OpenCLDriver.spillLock.unlock();
-                          successfulUnlock = true;
-                          OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
-                          OpenCLDriver.resourcesAvailable.await();
-                          OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                          locked = true;
+                          if (OpenCLDriver.spillInProgress) {
+                            OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
+                            OpenCLDriver.resourcesAvailable.await();
+                            OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                          }
                         }
                       } catch (InterruptedException ie) {
                       } finally {
-                        if (!successfulUnlock) {
-                          OpenCLDriver.spillLock.unlock();
-                        } else {
-                          OpenCLDriver.resourcesLock.unlock();
-                        }
+                          if (locked) {
+                              OpenCLDriver.resourcesLock.unlock();
+                          }
                       }
                     }
                 } while(soFar != null);

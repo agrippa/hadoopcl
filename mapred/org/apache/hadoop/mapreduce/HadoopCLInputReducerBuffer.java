@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.HashSet;
 import java.io.IOException;
 import java.lang.InterruptedException;
 import org.apache.hadoop.mapreduce.Reducer.Context;
@@ -85,5 +86,4 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
             (tempBuffer2 == null ? 0 : tempBuffer2.space()) +
             (tempBuffer3 == null ? 0 : tempBuffer3.space());
     }
-
 }

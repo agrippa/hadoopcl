@@ -3,6 +3,7 @@ package org.apache.hadoop.mapreduce;
 import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
+import java.util.HashSet;
 import java.io.IOException;
 import java.lang.InterruptedException;
 import com.amd.aparapi.Kernel;

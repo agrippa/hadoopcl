@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.HashSet;
 import com.amd.aparapi.Kernel;
 import com.amd.aparapi.device.Device;
 import com.amd.aparapi.Range;
@@ -20,6 +21,7 @@ public abstract class HadoopCLKernel extends Kernel {
 
     protected HadoopOpenCLContext clContext;
     protected IHadoopCLAccumulatedProfile javaProfile;
+    protected HadoopCLProfile openclProfile;
 
     protected double[] globalsVal;
     protected float[] globalsFval;
@@ -435,5 +437,13 @@ public abstract class HadoopCLKernel extends Kernel {
       } else {
         return TaskType.REDUCER;
       }
+    }
+
+    @Override
+    public int getArrayLength(String inArr) {
+        if (!this.arrayLengths.containsKey(inArr)) {
+            throw new RuntimeException("Querying for array length of invalid array "+inArr);
+        }
+        return this.arrayLengths.get(inArr);
     }
 }
