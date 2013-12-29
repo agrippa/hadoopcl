@@ -21,6 +21,8 @@ public abstract class HadoopCLBuffer {
     protected final static AtomicInteger idIncr = new AtomicInteger(0);
     public int id = -1;
 
+    public abstract boolean completedAll();
+
     public long space() {
         return 4 * nWrites.length;
     }

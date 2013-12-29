@@ -33,6 +33,7 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
         return this.nPairs > 0;
     }
 
+    @Override
     public boolean completedAll() {
         /*
         int count = 0;

@@ -14,6 +14,7 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
 
     public void copyOverFromKernel(HadoopCLKernel kernel) { }
     public HashSet<Integer> constructIterSet() { return null; }
+    public boolean completedAll() { return true; }
 
     public boolean isEnd() {
       return true;

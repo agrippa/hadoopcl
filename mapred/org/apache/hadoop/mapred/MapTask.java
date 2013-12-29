@@ -1311,12 +1311,16 @@ public class MapTask extends Task {
               }
 
               try {
-                OpenCLDriver.logger.log("Blocking on spillDone", "mapper");
+                if (OpenCLDriver.logger != null) {
+                    OpenCLDriver.logger.log("Blocking on spillDone", "mapper");
+                }
                 while (kvstart != kvend) {
                   reporter.progress();
                   spillDone.await();
                 }
-                OpenCLDriver.logger.log("Unblocking on spillDone", "mapper");
+                if (OpenCLDriver.logger != null) {
+                    OpenCLDriver.logger.log("Unblocking on spillDone", "mapper");
+                }
               } catch (InterruptedException e) {
                   throw (IOException)new IOException(
                       "Buffer interrupted while waiting for the writer"

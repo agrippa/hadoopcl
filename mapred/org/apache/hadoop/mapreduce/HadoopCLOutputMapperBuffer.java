@@ -22,6 +22,21 @@ public abstract class HadoopCLOutputMapperBuffer extends HadoopCLOutputBuffer {
     }
 
     @Override
+    public boolean completedAll() {
+        /*
+        int count = 0;
+        for (int i = 0; i < this.nPairs; i++) {
+          if (nWrites[i] == -1) count++;
+        }
+        System.out.println("Did not complete "+count);
+        */
+        for(int i = 0; i < this.nPairs; i++) {
+            if(nWrites[i] == -1) return false;
+        }
+        return true;
+    }
+
+    @Override
     public void copyOverFromKernel(HadoopCLKernel genericKernel) {
         HadoopCLMapperKernel kernel = (HadoopCLMapperKernel)genericKernel;
         this.itersFinished = constructIterSet();

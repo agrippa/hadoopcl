@@ -50,6 +50,7 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
         return this.nKeys > 0;
     }
 
+    @Override
     public boolean completedAll() {
         // int count = 0;
         // for (int i = 0; i < this.nKeys; i++) {

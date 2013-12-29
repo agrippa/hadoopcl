@@ -12,7 +12,6 @@ public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
     public abstract void reset();
     public abstract void addKeyAndValue(TaskInputOutputContext context) throws IOException, InterruptedException;
     public abstract boolean hasWork();
-    public abstract boolean completedAll();
     public abstract void addTypedValue(Object val);
     public abstract void addTypedKey(Object key);
 

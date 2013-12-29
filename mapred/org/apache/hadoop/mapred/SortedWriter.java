@@ -61,6 +61,7 @@ public class SortedWriter<K extends Comparable<K>, V extends Comparable<V>> exte
 
     public void close() throws IOException {
 
+
       new QuickSort().sort(this, 0, buffered.size());
 
       // Do sorted writes

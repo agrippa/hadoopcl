@@ -180,7 +180,7 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
       count++;
     }
     long stop = System.currentTimeMillis();
-    System.err.println("DIAGNOSTICS: "+count+" keys processed, Reducer Total time "+(stop-start)+", "+this.getClass().toString());
+    System.out.println("DIAGNOSTICS: "+count+" keys processed, Reducer Total time "+(stop-start)+", "+this.getClass().toString());
     cleanup(context);
   }
 }

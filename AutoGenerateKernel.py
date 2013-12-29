@@ -1987,7 +1987,7 @@ def writePostKernelSetupDeclaration(fp, isMapper, nativeOutputKeyType, nativeOut
     elif nativeOutputValueType == 'fsvec':
         fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxFloatIncr')
 
-    fp.write(', int[] setMemIncr, int[] setMemRetry, int setOutputsPerInput, int[] outputIterMarkers) {\n')
+    fp.write(', int[] setMemIncr, int[] setMemRetry, int[] setNWrites, int setOutputsPerInput, int[] outputIterMarkers) {\n')
 
 
 def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
@@ -2000,6 +2000,7 @@ def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputVa
     fp.write('\n')
     fp.write('        this.memIncr = setMemIncr;\n')
     fp.write('        this.memRetry = setMemRetry;\n')
+    fp.write('        this.nWrites = setNWrites;\n')
     # fp.write('        this.memIncr[0] = 0;\n')
     fp.write('\n')
 
@@ -2417,7 +2418,7 @@ def generatePrepareForRead(fp, isMapper, nativeInputKeyType, nativeInputValType,
     elif nativeOutputValType == 'fsvec':
         fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
 
-    fp.write(', outputBuffer.memIncr, outputBuffer.memRetry, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
+    fp.write(', outputBuffer.memIncr, outputBuffer.memRetry, outputBuffer.nWrites, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
     fp.write('    }\n')
     fp.write('\n')
 
