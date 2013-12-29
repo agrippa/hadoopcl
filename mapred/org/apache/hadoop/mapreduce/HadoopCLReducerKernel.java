@@ -35,6 +35,15 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
         return 16;
     }
 
+    @Override
+    public boolean relaunchKernel() throws IOException, InterruptedException {
+        int globalSize = (this.nKeys + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
+        globalSize *= clContext.getThreadsPerGroup();
+
+        return this.reExecute(this.clContext.getDevice().createRange(globalSize, clContext.getThreadsPerGroup())) != null;
+    }
+
+    @Override
     public boolean launchKernel() throws IOException, InterruptedException {
         int globalSize = (this.nKeys + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
         globalSize *= clContext.getThreadsPerGroup();
@@ -70,7 +79,10 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
                     stopOffset = input_keyIndex[iter+1];
                 }
                 callReduce(startOffset, stopOffset);
-                if (outOfMemory()) iter = end;
+                if (outOfMemory()) {
+                    this.memRetry[0] = 1;
+                    iter = end;
+                }
             }
         }
 

@@ -37,6 +37,7 @@ public abstract class HadoopCLKernel extends Kernel {
 
     protected int[] outputIterMarkers;
     protected int[] memIncr;
+    protected int[] memRetry;
     protected int outputsPerInput;
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
     private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
@@ -47,6 +48,7 @@ public abstract class HadoopCLKernel extends Kernel {
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
     public abstract Class<? extends HadoopCLOutputBuffer> getOutputBufferClass();
     public abstract boolean launchKernel() throws IOException, InterruptedException;
+    public abstract boolean relaunchKernel() throws IOException, InterruptedException;
     public abstract void init(HadoopOpenCLContext clContext);
     public abstract int getOutputPairsPerInput();
     public abstract IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;

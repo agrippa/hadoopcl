@@ -26,11 +26,20 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
     protected abstract void callMap();
     /**********************************/
 
+    @Override
     public boolean launchKernel() throws IOException, InterruptedException {
         int globalSize = (this.nPairs + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
         globalSize *= clContext.getThreadsPerGroup();
 
         return this.execute(this.clContext.getDevice().createRange(globalSize, clContext.getThreadsPerGroup())) != null;
+    }
+
+    @Override
+    public boolean relaunchKernel() throws IOException, InterruptedException {
+        int globalSize = (this.nPairs + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
+        globalSize *= clContext.getThreadsPerGroup();
+
+        return this.reExecute(this.clContext.getDevice().createRange(globalSize, clContext.getThreadsPerGroup())) != null;
     }
 
     @Override
@@ -55,7 +64,10 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
             if (nWrites[iter] == -1) {
                 nWrites[iter] = 0;
                 callMap();
-                if (outOfMemory()) iter = end;
+                if (outOfMemory()) {
+                    this.memRetry[0] = 1;
+                    iter = end;
+                }
             }
         }
     }
