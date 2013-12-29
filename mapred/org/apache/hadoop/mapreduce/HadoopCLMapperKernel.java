@@ -55,6 +55,7 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
             if (nWrites[iter] == -1) {
                 nWrites[iter] = 0;
                 callMap();
+                if (outOfMemory()) iter = end;
             }
         }
     }

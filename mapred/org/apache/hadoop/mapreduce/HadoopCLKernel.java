@@ -55,6 +55,11 @@ public abstract class HadoopCLKernel extends Kernel {
 
     public abstract void deviceStrength(DeviceStrength str);
     public abstract Device.TYPE[] validDevices();
+    public abstract boolean equalInputOutputTypes();
+
+    public boolean outOfMemory() {
+        return false;
+    }
 
     public void setGlobals(int[] globalsInd, double[] globalsVal,
             float[] globalsFval, int[] globalIndices, int nGlobals,
@@ -131,7 +136,6 @@ public abstract class HadoopCLKernel extends Kernel {
     public boolean doIntermediateReduction() {
         return false;
     }
-    public abstract boolean equalInputOutputTypes();
 
     @Override
     public boolean equals(Object obj) {

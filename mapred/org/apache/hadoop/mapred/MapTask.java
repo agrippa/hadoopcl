@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.mapreduce.BufferRunner;
 import org.apache.hadoop.mapreduce.OpenCLDriver;
 
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_INPUT_RECORDS;
@@ -948,8 +949,6 @@ public class MapTask extends Task {
     private final ReentrantLock spillLock = new ReentrantLock();
     private final Condition spillDone = spillLock.newCondition();
     private final Condition spillReady = spillLock.newCondition();
-    private final ReentrantLock resourcesLock = new ReentrantLock();
-    private final Condition resourcesAvailable = resourcesLock.newCondition();
     private final BlockingBuffer bb = new BlockingBuffer();
     private volatile boolean spillThreadRunning = false;
     private final SpillThread spillThread = new SpillThread();
@@ -1395,19 +1394,13 @@ public class MapTask extends Task {
       public void run() {
         spillLock.lock();
 
-        OpenCLDriver.resourcesLock = resourcesLock;
-        OpenCLDriver.resourcesAvailable = resourcesAvailable;
-
         spillThreadRunning = true;
         try {
           while (true) {
 
-            try {
-              resourcesLock.lock();
-              OpenCLDriver.spillInProgress = false;
-              resourcesAvailable.signalAll();
-            } finally {
-              resourcesLock.unlock();
+            synchronized(BufferRunner.somethingHappened) {
+                BufferRunner.somethingHappened.set(true);
+                BufferRunner.somethingHappened.notify();
             }
 
             spillDone.signalAll();
@@ -1416,9 +1409,6 @@ public class MapTask extends Task {
               spillReady.await();
             }
             try {
-              OpenCLDriver.resourcesLock.lock();
-              OpenCLDriver.spillInProgress = true;
-              OpenCLDriver.resourcesLock.unlock();
               spillLock.unlock();
 
               sortAndSpill();

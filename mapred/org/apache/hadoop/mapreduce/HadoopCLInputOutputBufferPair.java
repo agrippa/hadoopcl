@@ -14,11 +14,9 @@ public class HadoopCLInputOutputBufferPair {
           public void run() {
             kernel.waitForCompletion();
 
-            try {
-              OpenCLDriver.resourcesLock.lock();
-              OpenCLDriver.resourcesAvailable.signal();
-            } finally {
-              OpenCLDriver.resourcesLock.unlock();
+            synchronized(BufferRunner.somethingHappened) {
+                BufferRunner.somethingHappened.set(true);
+                BufferRunner.somethingHappened.notify();
             }
           }
         });

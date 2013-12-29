@@ -61,7 +61,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
             increment = getGlobalSize();
         }
 
-        for(int iter = start; iter < end; iter += increment) {
+        for(int iter = start; iter < end && !outOfMemory(); iter += increment) {
             if (nWrites[iter] == -1) {
                 nWrites[iter] = 0;
                 int startOffset = input_keyIndex[iter];
@@ -70,6 +70,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
                     stopOffset = input_keyIndex[iter+1];
                 }
                 callReduce(startOffset, stopOffset);
+                if (outOfMemory()) iter = end;
             }
         }
 

@@ -13,7 +13,7 @@ public class HadoopCLLogger {
 
   public void log(String msg, String ctxType) {
     if (this.enabled) {
-      System.err.println("TIMING | "+ctxType+" | "+System.currentTimeMillis()+" | "+msg);
+      System.out.println("TIMING | "+ctxType+" | "+System.currentTimeMillis()+" | "+msg);
     }
   }
 }

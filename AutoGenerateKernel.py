@@ -69,7 +69,11 @@ class NativeTypeVisitor:
         raise NotImplementedError('Missing getKeyValSet')
     def getSig(self, basename, isKey):
         raise NotImplementedError()
+    def getWriteWithOffsetSeg(self, basename, isKey):
+        raise NotImplementedError()
     def getWriteMethodBody(self, basename, isKey):
+        raise NotImplementedError()
+    def getWriteWithOffsetMethodBody(self, basename, isKey):
         raise NotImplementedError()
     def getIterArg(self, ):
         raise NotImplementedError()
@@ -603,10 +607,18 @@ class SvecVisitor(NativeTypeVisitor):
         if isKey:
             raise RuntimeError('Unsupport key type svec')
         return [ 'int[] '+basename+'Indices, double[] '+basename+'Vals, int len' ]
+    def getWriteWithOffsetSig(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupport key type svec')
+        return [ 'int[] '+basename+'Indices, int indicesOffset, double[] '+basename+'Vals, int valsOffset, int len' ]
     def getWriteMethodBody(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupported key type svec')
         return [ basename+'Obj.set('+basename+'Indices, '+basename+'Vals, len);' ]
+    def getWriteWithOffsetMethodBody(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupported key type svec')
+        return [ basename+'Obj.set('+basename+'Indices, indicesOffset, '+basename+'Vals, valsOffset, len);' ]
     def getIterArg(self):
         return [ 'HadoopCLSvecValueIterator valIter' ]
     def getKernelCall(self, basename, isKey):
@@ -634,7 +646,8 @@ class SvecVisitor(NativeTypeVisitor):
         return buf
     def getSetLengths(self):
         return [ 'this.outputLength = this.getArrayLength("outputValIntLookAsideBuffer");',
-                 'this.outputAuxLength = this.getArrayLength("outputValIndices");' ]
+                 'this.outputAuxIntLength = this.getArrayLength("outputValIndices");',
+                 'this.outputAuxDoubleLength = this.getArrayLength("outputValVals");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -855,10 +868,18 @@ class IvecVisitor(NativeTypeVisitor):
         if isKey:
             raise RuntimeError('Unsupport key type svec')
         return [ 'int[] '+basename+', int len' ]
+    def getWriteWithOffsetSig(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupport key type svec')
+        return [ 'int[] '+basename+', int offset, int len' ]
     def getWriteMethodBody(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupported key type svec')
         return [ basename+'Obj.set('+basename+', len);' ]
+    def getWriteWithOffsetMethodBody(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupported key type svec')
+        return [ basename+'Obj.set('+basename+', offset, len);' ]
     def getIterArg(self):
         return [ 'HadoopCLIvecValueIterator valIter' ]
     def getKernelCall(self, basename, isKey):
@@ -880,7 +901,7 @@ class IvecVisitor(NativeTypeVisitor):
         return buf
     def getSetLengths(self):
         return [ 'this.outputLength = this.getArrayLength("outputLookAsideBuffer");',
-                 'this.outputAuxLength = this.getArrayLength("output");' ]
+                 'this.outputAuxIntLength = this.getArrayLength("output");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -1109,10 +1130,18 @@ class FsvecVisitor(NativeTypeVisitor):
         if isKey:
             raise RuntimeError('Unsupport key type fsvec')
         return [ 'int[] '+basename+'Indices, float[] '+basename+'Vals, int len' ]
+    def getWriteWithOffsetSig(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupport key type fsvec')
+        return [ 'int[] '+basename+'Indices, int indicesOffset, float[] '+basename+'Vals, int valsOffset, int len' ]
     def getWriteMethodBody(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupported key type fsvec')
         return [ basename+'Obj.set('+basename+'Indices, '+basename+'Vals, len);' ]
+    def getWriteWithOffsetMethodBody(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupported key type fsvec')
+        return [ basename+'Obj.set('+basename+'Indices, indicesOffset, '+basename+'Vals, valsOffset, len);' ]
     def getIterArg(self):
         return [ 'HadoopCLFsvecValueIterator valIter' ]
     def getKernelCall(self, basename, isKey):
@@ -1140,7 +1169,8 @@ class FsvecVisitor(NativeTypeVisitor):
         return buf
     def getSetLengths(self):
         return [ 'this.outputLength = this.getArrayLength("outputValIntLookAsideBuffer");',
-                 'this.outputAuxLength = this.getArrayLength("outputValIndices");' ]
+                 'this.outputAuxIntLength = this.getArrayLength("outputValIndices");',
+                 'this.outputAuxFloatLength = this.getArrayLength("outputValVals");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -1403,10 +1433,18 @@ class BsvecVisitor(NativeTypeVisitor):
         if isKey:
             raise RuntimeError('Unsupport key type bsvec')
         return [ 'int[] '+basename+'Indices, double[] '+basename+'Vals, int len' ]
+    def getWriteWithOffsetSig(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupport key type bsvec')
+        return [ 'int[] '+basename+'Indices, int indicesOffset, double[] '+basename+'Vals, int valsOffset, int len' ]
     def getWriteMethodBody(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupported key type bsvec')
         return [ basename+'Obj.set('+basename+'Indices, '+basename+'Vals, len);' ]
+    def getWriteWithOffsetMethodBody(self, basename, isKey):
+        if isKey:
+            raise RuntimeError('Unsupported key type bsvec')
+        return [ basename+'Obj.set('+basename+'Indices, indicesOffset, '+basename+'Vals, valsOffset, len);' ]
     def getIterArg(self):
         return [ 'HadoopCLSvecValueIterator valIter' ]
     def getKernelCall(self, basename, isKey):
@@ -1433,7 +1471,8 @@ class BsvecVisitor(NativeTypeVisitor):
         return buf
     def getSetLengths(self):
         return [ 'this.outputLength = this.getArrayLength("outputValIntLookAsideBuffer");',
-                 'this.outputAuxLength = this.getArrayLength("outputValIndices");' ]
+                 'this.outputAuxIntLength = this.getArrayLength("outputValIndices");',
+                 'this.outputAuxDoubleLength = this.getArrayLength("outputValVals");' ]
     def getAddValueMethodMapper(self):
         return [ 'this.inputValLookAsideBuffer[this.nPairs] = this.individualInputValsCount;',
                  'if (this.enableStriding) {',
@@ -1695,7 +1734,31 @@ def outputBufferClassName(isMapper, inputKeyType, inputValueType):
 #     return classNameHelper(isMapper, inputKeyType, inputValueType, outputKeyType, 
 #             outputValueType, 'HadoopCL', 'Buffer')
 
+def generateWriteWithOffsetSig(outputKeyType, outputValType, fp):
+    fp.write('\n')
+    fp.write('    protected boolean write(')
+    write(visitor(outputKeyType).getSig('key', True), 0, fp)
+    fp.write(', ')
+    write(visitor(outputValType).getWriteWithOffsetSig('val', False), 0, fp)
+    fp.write(') {\n')
+
+def generateWriteWithOffsetMethod(fp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType):
+    generateWriteWithOffsetSig(nativeOutputKeyType, nativeOutputValueType, fp)
+    fp.write('        this.javaProfile.stopKernel();\n')
+    fp.write('        this.javaProfile.startWrite();\n')
+    fp.write('        final '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
+    fp.write('        final '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
+    writeln(visitor(nativeOutputKeyType).getWriteMethodBody('key', True), 2, fp)
+    writeln(visitor(nativeOutputValueType).getWriteWithOffsetMethodBody('val', False), 2, fp)
+    fp.write('        try { clContext.getContext().write(keyObj, valObj); } catch(Exception ex) { throw new RuntimeException(ex); }\n')
+    fp.write('        this.javaProfile.stopWrite();\n')
+    fp.write('        this.javaProfile.startKernel();\n')
+    fp.write('        return true;\n')
+    fp.write('    }\n')
+    fp.write('\n')
+
 def generateWriteSig(outputKeyType, outputValType, fp):
+    fp.write('\n')
     fp.write('    protected boolean write(')
     write(visitor(outputKeyType).getSig('key', True), 0, fp)
     fp.write(', ')
@@ -2525,17 +2588,19 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         output_fp.write('    protected int[] memAuxDoubleIncr;\n')
         kernelfp.write('    protected int[] memAuxIntIncr;\n')
         kernelfp.write('    protected int[] memAuxDoubleIncr;\n')
-        kernelfp.write('    protected int outputAuxLength;\n')
+        kernelfp.write('    protected int outputAuxIntLength;\n')
+        kernelfp.write('    protected int outputAuxDoubleLength;\n')
     elif nativeOutputValueType == 'ivec':
         output_fp.write('    protected int[] memAuxIncr;\n')
         kernelfp.write('    protected int[] memAuxIncr;\n')
-        kernelfp.write('    protected int outputAuxLength;\n')
+        kernelfp.write('    protected int outputAuxIntLength;\n')
     elif nativeOutputValueType == 'fsvec':
         output_fp.write('    protected int[] memAuxIntIncr;\n')
         output_fp.write('    protected int[] memAuxFloatIncr;\n')
         kernelfp.write('    protected int[] memAuxIntIncr;\n')
         kernelfp.write('    protected int[] memAuxFloatIncr;\n')
-        kernelfp.write('    protected int outputAuxLength;\n')
+        kernelfp.write('    protected int outputAuxIntLength;\n')
+        kernelfp.write('    protected int outputAuxFloatLength;\n')
 
     kernelfp.write('\n')
     input_fp.write('\n')
@@ -2628,6 +2693,8 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     # generateCloneIncompleteMethod(bufferfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
     generateWriteMethod(kernelfp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType)
+    if isVariableLength(nativeOutputValueType):
+        generateWriteWithOffsetMethod(kernelfp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType)
 
     generateKernelCall(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
