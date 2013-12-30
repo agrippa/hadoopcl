@@ -36,15 +36,21 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   private RecordWriter<KEYOUT,VALUEOUT> output;
   private StatusReporter reporter;
   private OutputCommitter committer;
+  private final ContextType ctxType;
+
+  public static enum ContextType {
+      Mapper, Reducer, Combiner
+  }
 
   public TaskInputOutputContext(Configuration conf, TaskAttemptID taskid,
                                 RecordWriter<KEYOUT,VALUEOUT> output,
                                 OutputCommitter committer,
-                                StatusReporter reporter) {
+                                StatusReporter reporter, ContextType setType) {
     super(conf, taskid);
     this.output = output;
     this.reporter = reporter;
     this.committer = committer;
+    this.ctxType = setType;
   }
 
   /**
@@ -71,6 +77,10 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
    */
   public abstract VALUEIN getCurrentValue() throws IOException, 
                                                    InterruptedException;
+
+  public ContextType getContextType() {
+      return this.ctxType;
+  }
 
   /**
    * Generate an output key/value pair.

@@ -58,6 +58,7 @@ import org.apache.hadoop.util.ResourceCalculatorPlugin;
 import org.apache.hadoop.util.ResourceCalculatorPlugin.ProcResourceValues;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext.ContextType;
 
 /** 
  * Base class for tasks.
@@ -1332,7 +1333,7 @@ abstract public class Task implements Writable, Configurable {
             org.apache.hadoop.mapreduce.StatusReporter.class,
             RawComparator.class,
             Class.class,
-            Class.class});
+            Class.class, ContextType.class });
     } catch (NoSuchMethodException nme) {
       throw new IllegalArgumentException("Can't find constructor");
     }
@@ -1352,7 +1353,7 @@ abstract public class Task implements Writable, Configurable {
                       org.apache.hadoop.mapreduce.OutputCommitter committer,
                       org.apache.hadoop.mapreduce.StatusReporter reporter,
                       RawComparator<INKEY> comparator,
-                      Class<INKEY> keyClass, Class<INVALUE> valueClass
+                      Class<INKEY> keyClass, Class<INVALUE> valueClass, ContextType setType
   ) throws IOException, ClassNotFoundException {
     try {
 
@@ -1360,7 +1361,7 @@ abstract public class Task implements Writable, Configurable {
                                             rIter, inputKeyCounter, 
                                             inputValueCounter, output, 
                                             committer, reporter, comparator, 
-                                            keyClass, valueClass);
+                                            keyClass, valueClass, setType);
     } catch (InstantiationException e) {
       throw new IOException("Can't create Context", e);
     } catch (InvocationTargetException e) {
@@ -1527,7 +1528,7 @@ abstract public class Task implements Writable, Configurable {
                                                 new OutputConverter(collector),
                                                 committer,
                                                 reporter, comparator, keyClass,
-                                                valueClass);
+                                                valueClass, ContextType.Combiner);
       reducer.run(reducerContext);
     } 
   }

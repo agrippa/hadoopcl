@@ -81,6 +81,7 @@ import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext.ContextType;
 
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapreduce.security.SecureShuffleUtils;
@@ -652,7 +653,7 @@ class ReduceTask extends Task {
                                                reduceInputValueCounter, 
                                                trackedRW, committer,
                                                reporter, comparator, keyClass,
-                                               valueClass);
+                                               valueClass, ContextType.Reducer);
     reducer.run(reducerContext);
     trackedRW.close(reducerContext);
   }

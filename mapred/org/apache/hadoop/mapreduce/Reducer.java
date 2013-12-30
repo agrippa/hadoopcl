@@ -128,11 +128,11 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
                    StatusReporter reporter,
                    RawComparator<KEYIN> comparator,
                    Class<KEYIN> keyClass,
-                   Class<VALUEIN> valueClass
+                   Class<VALUEIN> valueClass, ContextType setType
                    ) throws IOException, InterruptedException {
       super(conf, taskid, input, inputKeyCounter, inputValueCounter,
             output, committer, reporter, 
-            comparator, keyClass, valueClass);
+            comparator, keyClass, valueClass, setType);
     }
   }
 

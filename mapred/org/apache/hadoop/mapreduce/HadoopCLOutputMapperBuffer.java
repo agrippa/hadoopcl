@@ -18,7 +18,7 @@ public abstract class HadoopCLOutputMapperBuffer extends HadoopCLOutputBuffer {
         this.isGPU = this.clContext.isGPU();
         this.memIncr = new int[1];
         this.memRetry = new int[1];
-        this.nWrites = new int[this.clContext.getBufferSize()];
+        this.nWrites = new int[this.clContext.getInputBufferSize()];
     }
 
     @Override
@@ -39,8 +39,8 @@ public abstract class HadoopCLOutputMapperBuffer extends HadoopCLOutputBuffer {
     @Override
     public void copyOverFromKernel(HadoopCLKernel genericKernel) {
         HadoopCLMapperKernel kernel = (HadoopCLMapperKernel)genericKernel;
-        this.itersFinished = constructIterSet();
         this.nPairs = kernel.nPairs;
+        this.itersFinished = constructIterSet();
         this.prof = kernel.openclProfile;
     }
 

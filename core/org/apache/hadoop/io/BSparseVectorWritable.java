@@ -132,12 +132,12 @@ public class BSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
-    private int indicesOffset() {
+    public int indicesOffset() {
         return this.overrideIndicesOffset == -1 ? 0 :
             this.overrideIndicesOffset;
     }
 
-    private int valsOffset() {
+    public int valsOffset() {
         return this.overrideValsOffset == -1 ? 0 : this.overrideValsOffset;
     }
 

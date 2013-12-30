@@ -17,9 +17,9 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
 
     public void baseInit(HadoopOpenCLContext clContext) {
         this.clContext = clContext;
-        this.nWrites = new int[this.clContext.getBufferSize()];
+        this.nWrites = new int[this.clContext.getInputBufferSize()];
         this.nPairs = 0;
-        this.capacity = this.clContext.getBufferSize();
+        this.capacity = this.clContext.getInputBufferSize();
         this.isGPU = this.clContext.isGPU();
         this.enableStriding = this.clContext.runningOnGPU();
         // this.enableStriding  =false;

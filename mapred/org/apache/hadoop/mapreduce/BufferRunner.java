@@ -165,9 +165,11 @@ public class BufferRunner implements Runnable {
         output.tracker = complete.tracker.clone();
 
         log("    Adding "+output.id+" to output buffers to write");
+
+        boolean completedAll = output.completedAll();
         toWrite.add(new OutputBufferSoFar(output, 0));
 
-        if (!output.completedAll()) {
+        if (!completedAll) {
         // if (output.memRetry[0] != 0) {
             log("      Retrying kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
             complete.tracker.incrementAttempt();
@@ -363,7 +365,7 @@ public class BufferRunner implements Runnable {
          * not just constantly throwing exceptions
          */
         while (!mainDone || !running.isEmpty() ||
-                !toRunPrivate.isEmpty()) {
+                !toRunPrivate.isEmpty() || !toCopyFromOpenCL.isEmpty()) {
 
             boolean forwardProgress = false;
             /*

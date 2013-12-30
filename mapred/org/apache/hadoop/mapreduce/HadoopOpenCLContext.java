@@ -24,6 +24,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext.ContextType;
 import java.nio.IntBuffer;
 import java.nio.FloatBuffer;
 import java.nio.DoubleBuffer;
@@ -42,7 +43,8 @@ public class HadoopOpenCLContext {
     private int deviceId;
     private int isGPU;
     private Range r;
-    private int bufferSize;
+    private final int inputBufferSize;
+    private final int outputBufferSize;
     private final int preallocIntLength;
     private final int preallocFloatLength;
     private final int preallocDoubleLength;
@@ -66,7 +68,7 @@ public class HadoopOpenCLContext {
 
       this.hadoopContext = setHadoopContext;
 
-      if(contextType.equals("reducer") && this.hadoopContext.getTaskAttemptID().isMap()) {
+      if (this.hadoopContext.getContextType() == ContextType.Combiner) {
           this.isCombiner = true;
           this.type = "combiner";
       } else {
@@ -84,6 +86,8 @@ public class HadoopOpenCLContext {
       this.enableBufferRunnerDiagnostics = conf.getBoolean("opencl.buffer.diagnostics", false);
       this.enableProfilingPrints = conf.getBoolean("opencl.profiling", false);
       this.doHighLevelProfiling = conf.getBoolean("opencl.highlevel", false);
+      this.inputBufferSize = conf.getInt("opencl."+this.type+".inputBufferSize", 32768);
+      this.outputBufferSize = conf.getInt("opencl."+this.type+".outputBufferSize", 32768);
 
       init(contextType, conf, globals);
     }
@@ -96,7 +100,7 @@ public class HadoopOpenCLContext {
           this.globals.init(conf);
         }
 
-        if(this.isCombiner) {
+        if (this.isCombiner) {
             final Device.TYPE combinerType;
             if (!conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL").equals("FAIL")) {
               final String combinerTypeString = conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL");
@@ -158,13 +162,6 @@ public class HadoopOpenCLContext {
             this.r = null;
         } else {
             this.r = getDevice().createRange(getNGroups() * getThreadsPerGroup(), getThreadsPerGroup());
-        }
-
-        String bufferSizeStr = System.getProperty("opencl."+contextType+".bufferSize."+this.deviceString);
-        if(bufferSizeStr != null) {
-            this.bufferSize = Integer.parseInt(bufferSizeStr);
-        } else {
-            this.bufferSize = 1048576;
         }
 
         String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
@@ -299,8 +296,12 @@ public class HadoopOpenCLContext {
         return this.r;
     }
 
-    public int getBufferSize() {
-        return this.bufferSize;
+    public int getInputBufferSize() {
+        return this.inputBufferSize;
+    }
+
+    public int getOutputBufferSize() {
+        return this.outputBufferSize;
     }
 
     public int getPreallocIntLength() { return this.preallocIntLength; }

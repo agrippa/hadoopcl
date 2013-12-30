@@ -65,9 +65,9 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                        StatusReporter reporter,
                        RawComparator<KEYIN> comparator,
                        Class<KEYIN> keyClass,
-                       Class<VALUEIN> valueClass
+                       Class<VALUEIN> valueClass, ContextType setType
                        ) throws InterruptedException, IOException{
-    super(conf, taskid, output, committer, reporter);
+    super(conf, taskid, output, committer, reporter, setType);
     this.input = input;
     this.inputKeyCounter = inputKeyCounter;
     this.inputValueCounter = inputValueCounter;

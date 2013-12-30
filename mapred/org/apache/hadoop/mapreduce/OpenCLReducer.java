@@ -12,6 +12,7 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader.BinaryKeyValues;
 import java.nio.ByteBuffer;
 import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext.ContextType;
 
 import java.lang.Float;
 import java.lang.Class;
@@ -62,7 +63,7 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
 
         OpenCLDriver driver = null;
         try {
-            boolean isCombiner = context.getTaskAttemptID().isMap();
+            boolean isCombiner = context.getContextType() == ContextType.Combiner;
             driver = new OpenCLDriver("reducer", context, isCombiner ? context.getOCLCombinerClass() : context.getOCLReducerClass());
         } catch(java.lang.ClassNotFoundException ce) {
             throw new RuntimeException("Failed to load reducer kernel class");

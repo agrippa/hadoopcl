@@ -21,7 +21,7 @@ public abstract class HadoopCLOutputReducerBuffer extends HadoopCLOutputBuffer {
         this.isGPU = this.clContext.isGPU();
         this.memIncr = new int[1];
         this.memRetry = new int[1];
-        this.nWrites = new int[this.clContext.getBufferSize()];
+        this.nWrites = new int[this.clContext.getInputBufferSize()];
     }
 
     @Override
@@ -40,8 +40,8 @@ public abstract class HadoopCLOutputReducerBuffer extends HadoopCLOutputBuffer {
     @Override
     public void copyOverFromKernel(HadoopCLKernel genericKernel) {
         HadoopCLReducerKernel kernel = (HadoopCLReducerKernel)genericKernel;
-        this.itersFinished = constructIterSet();
         this.nKeys = kernel.nKeys;
+        this.itersFinished = constructIterSet();
         this.prof = kernel.openclProfile;
     }
 
