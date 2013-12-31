@@ -109,7 +109,7 @@ public class BufferRunner implements Runnable {
         kernel.fill(inputBuffer);
         try {
             OpenCLDriver.logger.log("launching kernel "+
-                kernel.tracker.toString()+" on "+inputBuffer.tracker.toString(),
+                kernel.tracker.toString(),
                 this.clContext);
             success = kernel.launchKernel();
         } catch(Exception io) {
@@ -182,6 +182,9 @@ public class BufferRunner implements Runnable {
             } catch (InterruptedException ie) {
                 throw new RuntimeException(ie);
             }
+            OpenCLDriver.logger.log("launching kernel "+
+                complete.tracker.toString(),
+                this.clContext);
             complete.openclProfile.startKernel();
             running.put(complete, new HadoopCLInputOutputBufferPair(complete));
         } else {
@@ -302,7 +305,8 @@ public class BufferRunner implements Runnable {
         boolean forwardProgress = false;
 
         HadoopCLInputBuffer inputBuffer;
-        while ((inputBuffer = getInputBuffer()) != null) {
+        if ((inputBuffer = getInputBuffer()) != null) {
+        // while ((inputBuffer = getInputBuffer()) != null) {
             HadoopCLKernel k = newKernelInstance();
             if (k != null) {
                 log("    Allocated kernel "+k.id+" for processing of input buffer "+inputBuffer.id);
@@ -320,7 +324,8 @@ public class BufferRunner implements Runnable {
             } else {
                 log("    Failed to allocate kernel, marking "+inputBuffer.id+" for retry");
                 toRunPrivate.add(inputBuffer);
-                break;
+                // break;
+                return forwardProgress;
             }
         }
 
@@ -333,6 +338,7 @@ public class BufferRunner implements Runnable {
             return;
         } else {
             synchronized (BufferRunner.somethingHappened) {
+                OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
                 while (BufferRunner.somethingHappened.get() == false) {
                     try {
                         BufferRunner.somethingHappened.wait();
@@ -340,6 +346,7 @@ public class BufferRunner implements Runnable {
                         throw new RuntimeException(ie);
                     }
                 }
+                OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
                 BufferRunner.somethingHappened.set(false);
             }
         }
