@@ -1312,6 +1312,7 @@ public class MapTask extends Task {
 
               try {
                 if (OpenCLDriver.logger != null) {
+                    // LOG:PROFILE
                     OpenCLDriver.logger.log("Blocking on spillDone", "mapper");
                 }
                 while (kvstart != kvend) {
@@ -1319,6 +1320,7 @@ public class MapTask extends Task {
                   spillDone.await();
                 }
                 if (OpenCLDriver.logger != null) {
+                    // LOG:PROFILE
                     OpenCLDriver.logger.log("Unblocking on spillDone", "mapper");
                 }
               } catch (InterruptedException e) {
