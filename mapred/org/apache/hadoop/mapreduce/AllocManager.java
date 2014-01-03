@@ -16,13 +16,21 @@ public abstract class AllocManager<Type> {
     protected final AtomicInteger idIncr = new AtomicInteger(0);
     protected final ReentrantLock lock;
     protected final Condition cond;
+    protected final HadoopOpenCLContext clContext;
+    private final boolean enableLogs;
+
+    protected void log(String s) {
+        if (enableLogs) {
+            System.err.println(System.currentTimeMillis()+"|"+this.clContext.typeName()+" "+s);
+        }
+    }
 
     public long timeWaiting() {
         return this.timeWaiting;
     }
 
     public AllocManager(String name, int setMax,
-            Class<? extends Type> toInstantiate, boolean exclusive) {
+            Class<? extends Type> toInstantiate, boolean exclusive, HadoopOpenCLContext clContext) {
         this.nAllocated = 0;
         this.maxAllocated = setMax;
         this.free = new LinkedList<Type>();
@@ -35,6 +43,8 @@ public abstract class AllocManager<Type> {
             this.lock = new ReentrantLock();
             this.cond = this.lock.newCondition();
         }
+        this.enableLogs = clContext.enableBufferRunnerDiagnostics();
+        this.clContext = clContext;
     }
 
     private void doLock() {

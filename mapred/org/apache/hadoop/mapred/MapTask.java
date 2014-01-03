@@ -979,7 +979,13 @@ public class MapTask extends Task {
       indexCacheList = new ArrayList<SpillRecord>();
       
       //sanity checks
-      final float spillper = job.getFloat("io.sort.spill.percent",(float)0.8);
+      final float spillper;
+      if (isOpenCL()) {
+          spillper = job.getFloat("io.sort.spill.percent.hadoopcl",(float)0.8);
+      } else {
+          spillper = job.getFloat("io.sort.spill.percent",(float)0.8);
+      }
+
       final float recper = job.getFloat("io.sort.record.percent",(float)0.05);
       final int sortmb = job.getInt("io.sort.mb", 100);
       if (spillper > (float)1.0 || spillper < (float)0.0) {
@@ -1396,6 +1402,14 @@ public class MapTask extends Task {
 
     protected class SpillThread extends Thread {
 
+      private int diffWithWrap(int bottom, int top, int limit) {
+          if (top > bottom) {
+              return top - bottom;
+          } else {
+              return (limit - bottom) + top;
+          }
+      }
+
       @Override
       public void run() {
         spillLock.lock();
@@ -1432,6 +1446,27 @@ public class MapTask extends Task {
               }
               kvstart = kvend;
               bufstart = bufend;
+
+              // System.out.println("Finishing sortAndSpill");
+              // System.out.println("  kvend="+kvend);
+              // System.out.println("  kvindex="+kvindex);
+              // System.out.println("  kvoffsets.length="+kvoffsets.length);
+              // System.out.println("  bufend="+bufend);
+              // System.out.println("  bufindex="+bufindex);
+              // System.out.println("  kvbuffer.length="+kvbuffer.length);
+              int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
+              // System.out.println("  newDiff="+newDiff);
+              double newWorkRatio = (double)newDiff / (double)kvoffsets.length;
+              // System.out.println("newWorkRatio = "+newWorkRatio);
+              if (newWorkRatio > 0.15) {
+                  LOG.info("Spilling map output: immediate relaunch = " + newWorkRatio);
+                  LOG.info("bufstart = " + bufstart + "; bufend = " + bufmark +
+                           "; bufvoid = " + bufvoid);
+                  LOG.info("kvstart = " + kvstart + "; kvend = " + kvindex +
+                           "; length = " + kvoffsets.length);
+                  kvend = kvindex;
+                  bufend = bufmark;
+              }
             }
           }
         } catch (InterruptedException e) {
@@ -1759,6 +1794,7 @@ public class MapTask extends Task {
           for(int i = 0; i < numSpills; i++) {
             IndexRecord indexRecord = indexCacheList.get(i).getIndex(parts);
 
+            System.out.println("Spilling partition "+parts+" to file "+filename[i]);
             Segment<K,V> s =
               new Segment<K,V>(job, rfs, filename[i], indexRecord.startOffset,
                                indexRecord.partLength, codec, true);

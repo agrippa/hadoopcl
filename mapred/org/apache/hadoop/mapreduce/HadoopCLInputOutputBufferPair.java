@@ -18,7 +18,7 @@ public class HadoopCLInputOutputBufferPair {
             synchronized(BufferRunner.somethingHappened) {
                 toCopyFromOpenCL.add(kernel);
                 BufferRunner.somethingHappened.set(true);
-                BufferRunner.somethingHappened.notify();
+                BufferRunner.somethingHappened.notifyAll();
             }
           }
         });

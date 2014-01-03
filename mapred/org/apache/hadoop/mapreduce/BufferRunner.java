@@ -23,6 +23,8 @@ public class BufferRunner implements Runnable {
     private final ConcurrentLinkedQueue<HadoopCLKernel> toCopyFromOpenCL;
 
     public static final AtomicBoolean somethingHappened = new AtomicBoolean(false);
+    public static final AtomicBoolean somethingHappenedCombiner = new AtomicBoolean(false);
+    private final AtomicBoolean somethingHappenedLocal;
     private boolean mainDone;
 
     // exclusive
@@ -56,6 +58,12 @@ public class BufferRunner implements Runnable {
 
         this.enableLogs = clContext.enableBufferRunnerDiagnostics();
         this.mainDone = false;
+
+        if (this.clContext.isCombiner()) {
+            this.somethingHappenedLocal = somethingHappenedCombiner;
+        } else {
+            this.somethingHappenedLocal = somethingHappened;
+        }
     }
 
     public List<HadoopCLProfile> profiles() {
@@ -76,10 +84,10 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
 
-        synchronized (BufferRunner.somethingHappened) {
+        synchronized (this.somethingHappenedLocal) {
             this.toRun.add(input);
-            BufferRunner.somethingHappened.set(true);
-            BufferRunner.somethingHappened.notify();
+            this.somethingHappenedLocal.set(true);
+            this.somethingHappenedLocal.notify();
         }
     }
 
@@ -118,9 +126,9 @@ public class BufferRunner implements Runnable {
                 // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
                 toCopyFromOpenCL.add(kernel);
                 kernelsActive.getAndDecrement();
-                synchronized (BufferRunner.somethingHappened) {
-                    BufferRunner.somethingHappened.set(true);
-                    BufferRunner.somethingHappened.notify();
+                synchronized (somethingHappenedLocal) {
+                    somethingHappenedLocal.set(true);
+                    somethingHappenedLocal.notify();
                 }
             }
         }).start();
@@ -373,23 +381,23 @@ public class BufferRunner implements Runnable {
     }
 
     private void waitForMoreWork() {
-        boolean local = BufferRunner.somethingHappened.getAndSet(false);
+        boolean local = this.somethingHappenedLocal.getAndSet(false);
         if (local) {
             return;
         } else {
-            synchronized (BufferRunner.somethingHappened) {
+            synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
-                while (BufferRunner.somethingHappened.get() == false) {
+                while (this.somethingHappenedLocal.get() == false) {
                     try {
-                        BufferRunner.somethingHappened.wait();
+                        this.somethingHappenedLocal.wait();
                     } catch (InterruptedException ie) {
                         throw new RuntimeException(ie);
                     }
                 }
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
-                BufferRunner.somethingHappened.set(false);
+                this.somethingHappenedLocal.set(false);
             }
         }
     }
@@ -397,10 +405,10 @@ public class BufferRunner implements Runnable {
     @Override
     public void run() {
 
-        synchronized (BufferRunner.somethingHappened) {
+        synchronized (this.somethingHappenedLocal) {
             while (toRun.isEmpty()) {
                 try {
-                    BufferRunner.somethingHappened.wait();
+                    this.somethingHappenedLocal.wait();
                 } catch (InterruptedException ie) {
                     throw new RuntimeException(ie);
                 }

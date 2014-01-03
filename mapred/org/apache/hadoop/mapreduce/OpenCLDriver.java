@@ -222,9 +222,9 @@ public class OpenCLDriver {
                 this.clContext.nGlobalBuckets());
 
         inputManager = new BufferManager<HadoopCLInputBuffer>("\""+this.clContext.typeName()+" inputs\"", nInputBuffers,
-            kernel.getInputBufferClass(), globalSpace, false);
+            kernel.getInputBufferClass(), globalSpace, false, this.clContext);
         outputManager = new BufferManager<HadoopCLOutputBuffer>("\""+this.clContext.typeName()+" outputs\"", nOutputBuffers,
-            kernel.getOutputBufferClass(), globalSpace, true);
+            kernel.getOutputBufferClass(), globalSpace, true, this.clContext);
         kernelManager = new KernelManager("\""+this.clContext.typeName()+"kernels\"", nKernels,
                 kernelClass, this.clContext);
 

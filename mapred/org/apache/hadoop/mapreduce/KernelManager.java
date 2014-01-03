@@ -4,13 +4,11 @@ import java.util.List;
 import java.util.LinkedList;
 
 public class KernelManager extends AllocManager<HadoopCLKernel> {
-    private final HadoopOpenCLContext clContext;
 
     public KernelManager(String name, int setMax,
             Class<? extends HadoopCLKernel> toInstantiate,
             HadoopOpenCLContext clContext) {
-        super(name, setMax, toInstantiate, true);
-        this.clContext = clContext;
+        super(name, setMax, toInstantiate, true, clContext);
     }
 
     public TypeAlloc<HadoopCLKernel> nonBlockingAlloc() {

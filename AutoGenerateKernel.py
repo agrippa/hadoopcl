@@ -2196,7 +2196,7 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType):
         else:
           keysName = 'inputKeys'
         if isVariableLength(nativeInputValueType):
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.individualInputValsCount + this.tempBuffer2.size() > this.inputValIndices.length);\n')
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.individualInputValsCount + this.tempBuffer2.size() >= this.inputValIndices.length);\n')
         elif nativeInputValueType == 'pair' or nativeInputValueType == 'ipair':
           fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals + this.numBufferedValues() > this.inputVals1.length);\n')
         else:
