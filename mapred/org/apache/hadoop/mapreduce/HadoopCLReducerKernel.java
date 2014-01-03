@@ -21,7 +21,6 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
     protected int nVals;
 
     public void baseInit(HadoopOpenCLContext clContext) {
-        int valuesPerKeyGuess = 16;
         this.clContext = clContext;
         this.deviceID = this.clContext.getDeviceId();
         this.isGPU = this.clContext.isGPU();

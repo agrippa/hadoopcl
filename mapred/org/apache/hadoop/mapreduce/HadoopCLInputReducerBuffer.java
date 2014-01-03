@@ -30,7 +30,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     }
 
     public void baseInit(HadoopOpenCLContext clContext) {
-        int valuesPerKeyGuess = 16;
         this.clContext = clContext;
         this.keyIndex = new int[this.clContext.getInputBufferSize()];
         this.nWrites = new int[this.clContext.getInputBufferSize()];
