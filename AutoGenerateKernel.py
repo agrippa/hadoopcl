@@ -2143,7 +2143,6 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
         fp.write('        this.nVals = 0;\n')
         if isVariableLength(nativeInputValueType):
           fp.write('        this.individualInputValsCount = 0;\n')
-        fp.write('        this.maxInputValsPerInputKey = 0;\n')
 
     fp.write('    }\n')
     fp.write('\n')

@@ -22,8 +22,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     protected HadoopCLResizableArray tempBuffer2 = null;
     protected HadoopCLResizableArray tempBuffer3 = null;
 
-    public int maxInputValsPerInputKey;
-
     protected abstract void bufferInputValue(Object obj);
     protected abstract void useBufferedValues();
 
@@ -39,7 +37,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
         this.nKeys = 0;
         this.nVals = 0;
         this.isGPU = this.clContext.isGPU();
-        this.maxInputValsPerInputKey = 0;
     }
 
     public int getInputValPerInputKey() {
@@ -68,10 +65,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
         addTypedKey(((Context)context).getCurrentKey());
         this.keyIndex[this.nKeys] = this.nVals;
         this.nKeys = this.nKeys + 1;
-
-        if(this.numBufferedValues() > this.maxInputValsPerInputKey) {
-            this.maxInputValsPerInputKey = this.numBufferedValues();
-        }
 
         this.useBufferedValues();
 
