@@ -45,6 +45,7 @@ public class HadoopOpenCLContext {
     private Range r;
     private final int inputBufferSize;
     private final int outputBufferSize;
+    private final int inputValMultiplier;
     private final int preallocIntLength;
     private final int preallocFloatLength;
     private final int preallocDoubleLength;
@@ -88,6 +89,7 @@ public class HadoopOpenCLContext {
       this.doHighLevelProfiling = conf.getBoolean("opencl.highlevel", false);
       this.inputBufferSize = conf.getInt("opencl."+this.type+".inputBufferSize", 32768);
       this.outputBufferSize = conf.getInt("opencl."+this.type+".outputBufferSize", 32768);
+      this.inputValMultipler = conf.getInt("opencl."+this.type+".val_multiplier", 5);
 
       init(contextType, conf, globals);
     }
@@ -360,5 +362,9 @@ public class HadoopOpenCLContext {
 
     public boolean doHighLevelProfiling() {
       return this.doHighLevelProfiling;
+    }
+
+    public int getInputValMultiplier() {
+      return this.inputValMultipler;
     }
 }

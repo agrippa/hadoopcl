@@ -538,15 +538,14 @@ class SvecVisitor(NativeTypeVisitor):
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
                 if isMapper:
-                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * 5);\n')
-                    buf.append(basename+'Vals = new HadoopCLResizableDoubleArray(('+size+') * 5);\n')
+                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
+                    buf.append(basename+'Vals = new HadoopCLResizableDoubleArray(('+size+') * this.clContext.getInputValMultiplier());\n')
                 else:
-                    buf.append(basename+'Indices = new int[('+size+') * 5];\n')
-                    buf.append(basename+'Vals = new double[('+size+') * 5];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
-                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
                 buf.append(basename+'Indices = new int[this.clContext.getPreallocIntLength()];\n')
                 buf.append(basename+'Vals = new double[this.clContext.getPreallocDoubleLength()];\n')
         if not isKey and isInput:
@@ -819,12 +818,11 @@ class IvecVisitor(NativeTypeVisitor):
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
                 if isMapper:
-                    buf.append(basename+' = new HadoopCLResizableIntArray(('+size+') * 5);\n')
+                    buf.append(basename+' = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
                 else:
-                    buf.append(basename+' = new int[('+size+') * 5];\n')
+                    buf.append(basename+' = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
                 buf.append(basename+' = new int[this.clContext.getPreallocIntLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
@@ -1058,15 +1056,14 @@ class FsvecVisitor(NativeTypeVisitor):
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
                 if isMapper:
-                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * 5);\n')
-                    buf.append(basename+'Vals = new HadoopCLResizableFloatArray(('+size+') * 5);\n')
+                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
+                    buf.append(basename+'Vals = new HadoopCLResizableFloatArray(('+size+') * this.clContext.getInputValMultiplier());\n')
                 else:
-                    buf.append(basename+'Indices = new int[('+size+') * 5];\n')
-                    buf.append(basename+'Vals = new float[('+size+') * 5];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                    buf.append(basename+'Vals = new float[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'FloatLookAsideBuffer = new int['+size+'];\n')
-                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
                 buf.append(basename+'Indices = new int[this.clContext.getPreallocIntLength()];\n')
                 buf.append(basename+'Vals = new float[this.clContext.getPreallocFloatLength()];\n')
         if not isKey and isInput:
@@ -1362,15 +1359,14 @@ class BsvecVisitor(NativeTypeVisitor):
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
                 if isMapper:
-                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * 5);\n')
-                    buf.append(basename+'Vals = new HadoopCLResizableDoubleArray(('+size+') * 5);\n')
+                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
+                    buf.append(basename+'Vals = new HadoopCLResizableDoubleArray(('+size+') * this.clContext.getInputValMultiplier());\n')
                 else:
-                    buf.append(basename+'Indices = new int[('+size+') * 5];\n')
-                    buf.append(basename+'Vals = new double[('+size+') * 5];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
-                # buf.append('int bigger = this.clContext.getPreallocLength() > ('+size+') * 5 ? this.clContext.getPreallocLength() : ('+size+') * 5;\n')
                 buf.append(basename+'Indices = new int[this.clContext.getPreallocIntLength()];\n')
                 buf.append(basename+'Vals = new double[this.clContext.getPreallocDoubleLength()];\n')
         if not isKey and isInput:
