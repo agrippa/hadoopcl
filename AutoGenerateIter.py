@@ -73,25 +73,18 @@ class NativeToJavaVisitor(IterTypeVisitor):
 
 class ImportVisitor(IterTypeVisitor):
     def processPrimitive(self, typ):
-        return ['import org.apache.hadoop.io.HadoopCLResizable'+typ.capitalize()+'Array;' ]
+        return ['' ]
     def processPair(self):
-        return ['import org.apache.hadoop.io.HadoopCLResizableDoubleArray;' ]
+        return ['' ]
     def processIPair(self):
-        return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;', 
-                'import org.apache.hadoop.io.HadoopCLResizableDoubleArray;' ]
+        return ['' ]
     def processSvec(self):
-        return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
-                'import org.apache.hadoop.io.HadoopCLResizableDoubleArray;',
-                'import java.util.HashMap;', 'import java.util.List;',
+        return ['import java.util.HashMap;', 'import java.util.List;',
                 'import java.util.ArrayList;' ]
     def processIvec(self):
-        return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
-                'import java.util.HashMap;', 'import java.util.List;',
-                'import java.util.ArrayList;' ]
+        return [ 'import java.util.ArrayList;' ]
     def processFsvec(self):
-        return ['import org.apache.hadoop.io.HadoopCLResizableIntArray;',
-                'import org.apache.hadoop.io.HadoopCLResizableFloatArray;',
-                'import java.util.HashMap;', 'import java.util.List;',
+        return ['import java.util.HashMap;', 'import java.util.List;',
                 'import java.util.ArrayList;' ]
 
 class FieldDeclarationVisitor(IterTypeVisitor):

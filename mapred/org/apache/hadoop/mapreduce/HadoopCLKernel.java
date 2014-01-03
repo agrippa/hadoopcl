@@ -452,4 +452,56 @@ public abstract class HadoopCLKernel extends Kernel {
         }
         return this.arrayLengths.get(inArr);
     }
+
+    private int newSize(int currentSize, int targetSize) {
+        int n = (int)(currentSize * 1.3);
+        n = (n > targetSize ? n : targetSize);
+        return n;
+    }
+
+    protected int[] ensureCapacity(int[] arr, int newLength) {
+        if (arr.length < newLength) {
+            int n = newSize(arr.length, newLength);
+            int[] newArr = new int[n];
+            System.arraycopy(arr, 0, newArr, 0, arr.length);
+            return newArr;
+        } else {
+            return arr;
+        }
+    }
+
+    protected long[] ensureCapacity(long[] arr, int newLength) {
+        if (arr.length < newLength) {
+            int n = newSize(arr.length, newLength);
+            long[] newArr = new long[n];
+            System.arraycopy(arr, 0, newArr, 0, arr.length);
+            return newArr;
+        } else {
+            return arr;
+        }
+    }
+
+    protected float[] ensureCapacity(float[] arr, int newLength) {
+        if (arr.length < newLength) {
+            int n = newSize(arr.length, newLength);
+            float[] newArr = new float[n];
+            System.arraycopy(arr, 0, newArr, 0, arr.length);
+            return newArr;
+        } else {
+            return arr;
+        }
+    }
+
+    protected double[] ensureCapacity(double[] arr, int newLength) {
+        if (arr.length < newLength) {
+            int n = newSize(arr.length, newLength);
+            double[] newArr = new double[n];
+            System.arraycopy(arr, 0, newArr, 0, arr.length);
+            return newArr;
+        } else {
+            return arr;
+        }
+    }
+
+
 }

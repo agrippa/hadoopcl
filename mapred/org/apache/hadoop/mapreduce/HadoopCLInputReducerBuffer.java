@@ -9,7 +9,6 @@ import com.amd.aparapi.Kernel;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.HadoopCLResizableArray;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -17,10 +16,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     public int[] keyIndex;
     public int nKeys;
     public int nVals;
-
-    // protected HadoopCLResizableArray tempBuffer1 = null;
-    // protected HadoopCLResizableArray tempBuffer2 = null;
-    // protected HadoopCLResizableArray tempBuffer3 = null;
 
     // protected abstract void bufferInputValue(Object obj);
     // protected abstract void useBufferedValues();

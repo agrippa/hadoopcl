@@ -9,7 +9,6 @@ import com.amd.aparapi.Kernel;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.HadoopCLResizableArray;
 import java.util.List;
 import java.util.ArrayList;
 

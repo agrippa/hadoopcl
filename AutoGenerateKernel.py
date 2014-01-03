@@ -506,12 +506,8 @@ class SvecVisitor(NativeTypeVisitor):
         buf = [ ]
         if isInput:
             buf.append('public int[] '+basename+'LookAsideBuffer;')
-            if not isKernel and isMapper:
-                buf.append('public HadoopCLResizableIntArray '+basename+'Indices;')
-                buf.append('public HadoopCLResizableDoubleArray '+basename+'Vals;')
-            else:
-                buf.append('public int[] '+basename+'Indices;')
-                buf.append('public double[] '+basename+'Vals;')
+            buf.append('public int[] '+basename+'Indices;')
+            buf.append('public double[] '+basename+'Vals;')
         else:
             buf.append('public int[] '+basename+'IntLookAsideBuffer;')
             buf.append('public int[] '+basename+'DoubleLookAsideBuffer;')
@@ -537,12 +533,8 @@ class SvecVisitor(NativeTypeVisitor):
         else:
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                if isMapper:
-                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
-                    buf.append(basename+'Vals = new HadoopCLResizableDoubleArray(('+size+') * this.clContext.getInputValMultiplier());\n')
-                else:
-                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
-                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
@@ -659,10 +651,8 @@ class SvecVisitor(NativeTypeVisitor):
                  '        this.sortedVals.put(actual.size(), newList);',
                  '    }',
                  '} else {',
-                 '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
-                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices, this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals, this.individualInputValsCount, actual.size());',
                  # '    for (int i = 0; i < actual.size(); i++) {',
                  # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
                  # '            actual.indices()[i]);',
@@ -718,10 +708,7 @@ class SvecVisitor(NativeTypeVisitor):
     def getFillParameter(self, basename, isInput, isMapper):
         buf = [ ]
         if isInput:
-            if isMapper:
-                buf.append(basename+'LookAsideBuffer, (int[])('+basename+'Indices.getArray()), (double[])('+basename+'Vals.getArray())')
-            else:
-                buf.append(basename+'LookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
+            buf.append(basename+'LookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
         else:
             buf.append(basename+'IntLookAsideBuffer, '+basename+'DoubleLookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
         return buf
@@ -758,8 +745,8 @@ class SvecVisitor(NativeTypeVisitor):
         if isInput:
             if isMapper:
                 return [ '(inputValLookAsideBuffer.length * 4) +',
-                         '(inputValIndices.length() * 4) +',
-                         '(inputValVals.length() * 8);' ]
+                         '(inputValIndices.length * 4) +',
+                         '(inputValVals.length * 8);' ]
             else:
                 return [ '(inputValLookAsideBuffer.length * 4) +',
                          '(inputValIndices.length * 4) +',
@@ -792,10 +779,7 @@ class IvecVisitor(NativeTypeVisitor):
         buf = [ ]
         if isInput:
             buf.append('public int[] '+basename+'LookAsideBuffer;')
-            if not isKernel and isMapper:
-                buf.append('public HadoopCLResizableIntArray '+basename+';')
-            else:
-                buf.append('public int[] '+basename+';')
+            buf.append('public int[] '+basename+';')
         else:
             buf.append('public int[] '+basename+'LookAsideBuffer;')
             buf.append('public int[] '+basename+';')
@@ -813,10 +797,7 @@ class IvecVisitor(NativeTypeVisitor):
         else:
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                if isMapper:
-                    buf.append(basename+' = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
-                else:
-                    buf.append(basename+' = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                buf.append(basename+' = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+' = new int[this.clContext.getPreallocIntLength()];\n')
@@ -914,8 +895,7 @@ class IvecVisitor(NativeTypeVisitor):
                  # '            actual.vals()[i]);',
                  # '    }',
                  '} else {',
-                 '    this.inputVal.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    System.arraycopy(actual.vals(), 0, this.inputVal.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputVal, this.individualInputValsCount, actual.size());',
                  # '    for (int i = 0; i < actual.size(); i++) {',
                  # '        this.inputVal.unsafeSet(this.individualInputValsCount + i,',
                  # '            actual.vals()[i]);',
@@ -961,10 +941,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getFillParameter(self, basename, isInput, isMapper):
         buf = [ ]
         if isInput:
-            if isMapper:
-                buf.append(basename+'LookAsideBuffer, (int[])('+basename+'.getArray())')
-            else:
-                buf.append(basename+'LookAsideBuffer, '+basename)
+            buf.append(basename+'LookAsideBuffer, '+basename)
         else:
             buf.append(basename+'IntLookAsideBuffer, '+basename+'DoubleLookAsideBuffer, '+basename)
         return buf
@@ -994,7 +971,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getSpace(self, isMapper, isInput, isKey):
         if isInput:
             return [ '(inputValLookAsideBuffer.length * 4) +',
-                     '(inputVal.length() * 4);' ]
+                     '(inputVal.length * 4);' ]
         else:
             return [ '(outputValIntLookAsideBuffer.length * 4) +',
                      '(outputVal.length * 4) +',
@@ -1017,12 +994,8 @@ class FsvecVisitor(NativeTypeVisitor):
         buf = [ ]
         if isInput:
             buf.append('public int[] '+basename+'LookAsideBuffer;')
-            if not isKernel and isMapper:
-                buf.append('public HadoopCLResizableIntArray '+basename+'Indices;')
-                buf.append('public HadoopCLResizableFloatArray '+basename+'Vals;')
-            else:
-                buf.append('public int[] '+basename+'Indices;')
-                buf.append('public float[] '+basename+'Vals;')
+            buf.append('public int[] '+basename+'Indices;')
+            buf.append('public float[] '+basename+'Vals;')
         else:
             buf.append('public int[] '+basename+'IntLookAsideBuffer;')
             buf.append('public int[] '+basename+'FloatLookAsideBuffer;')
@@ -1048,12 +1021,8 @@ class FsvecVisitor(NativeTypeVisitor):
         else:
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                if isMapper:
-                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
-                    buf.append(basename+'Vals = new HadoopCLResizableFloatArray(('+size+') * this.clContext.getInputValMultiplier());\n')
-                else:
-                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
-                    buf.append(basename+'Vals = new float[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                buf.append(basename+'Vals = new float[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'FloatLookAsideBuffer = new int['+size+'];\n')
@@ -1183,10 +1152,8 @@ class FsvecVisitor(NativeTypeVisitor):
                  # '            actual.vals()[i]);',
                  # '    }',
                  '} else {',
-                 '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
-                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices, this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals, this.individualInputValsCount, actual.size());',
                  # '    for (int i = 0; i < actual.size(); i++) {',
                  # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
                  # '            actual.indices()[i]);',
@@ -1242,10 +1209,7 @@ class FsvecVisitor(NativeTypeVisitor):
     def getFillParameter(self, basename, isInput, isMapper):
         buf = [ ]
         if isInput:
-            if isMapper:
-                buf.append(basename+'LookAsideBuffer, (int[])('+basename+'Indices.getArray()), (float[])('+basename+'Vals.getArray())')
-            else:
-                buf.append(basename+'LookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
+            buf.append(basename+'LookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
         else:
             buf.append(basename+'IntLookAsideBuffer, '+basename+'FloatLookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
         return buf
@@ -1282,8 +1246,8 @@ class FsvecVisitor(NativeTypeVisitor):
         if isInput:
             if isMapper:
                 return [ '(inputValLookAsideBuffer.length * 4) +',
-                         '(inputValIndices.length() * 4) +',
-                         '(inputValVals.length() * 8);' ]
+                         '(inputValIndices.length * 4) +',
+                         '(inputValVals.length * 8);' ]
             else:
                 return [ '(inputValLookAsideBuffer.length * 4) +',
                          '(inputValIndices.length * 4) +',
@@ -1316,12 +1280,8 @@ class BsvecVisitor(NativeTypeVisitor):
         buf = [ ]
         if isInput:
             buf.append('public int[] '+basename+'LookAsideBuffer;')
-            if not isKernel and isMapper:
-                buf.append('public HadoopCLResizableIntArray '+basename+'Indices;')
-                buf.append('public HadoopCLResizableDoubleArray '+basename+'Vals;')
-            else:
-                buf.append('public int[] '+basename+'Indices;')
-                buf.append('public double[] '+basename+'Vals;')
+            buf.append('public int[] '+basename+'Indices;')
+            buf.append('public double[] '+basename+'Vals;')
         else:
             buf.append('public int[] '+basename+'IntLookAsideBuffer;')
             buf.append('public int[] '+basename+'DoubleLookAsideBuffer;')
@@ -1347,12 +1307,8 @@ class BsvecVisitor(NativeTypeVisitor):
         else:
             if isInput:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                if isMapper:
-                    buf.append(basename+'Indices = new HadoopCLResizableIntArray(('+size+') * this.clContext.getInputValMultiplier());\n')
-                    buf.append(basename+'Vals = new HadoopCLResizableDoubleArray(('+size+') * this.clContext.getInputValMultiplier());\n')
-                else:
-                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
-                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
@@ -1480,10 +1436,8 @@ class BsvecVisitor(NativeTypeVisitor):
                  # '            actual.vals()[i]);',
                  # '    }',
                  '} else {',
-                 '    this.inputValIndices.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    this.inputValVals.ensureCapacity(this.individualInputValsCount + actual.size());',
-                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices.getArray(), this.individualInputValsCount, actual.size());',
-                 '    System.arraycopy(actual.vals(), 0, this.inputValVals.getArray(), this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.indices(), 0, this.inputValIndices, this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), 0, this.inputValVals, this.individualInputValsCount, actual.size());',
                  # '    for (int i = 0; i < actual.size(); i++) {',
                  # '        this.inputValIndices.unsafeSet(this.individualInputValsCount + i,',
                  # '            actual.indices()[i]);',
@@ -1539,10 +1493,7 @@ class BsvecVisitor(NativeTypeVisitor):
     def getFillParameter(self, basename, isInput, isMapper):
         buf = [ ]
         if isInput:
-            if isMapper:
-                buf.append(basename+'LookAsideBuffer, (int[])('+basename+'Indices.getArray()), (double[])('+basename+'Vals.getArray())')
-            else:
-                buf.append(basename+'LookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
+            buf.append(basename+'LookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
         else:
             buf.append(basename+'IntLookAsideBuffer, '+basename+'DoubleLookAsideBuffer, '+basename+'Indices, '+basename+'Vals')
         return buf
@@ -1579,8 +1530,8 @@ class BsvecVisitor(NativeTypeVisitor):
         if isInput:
             if isMapper:
                 return [ '(inputValLookAsideBuffer.length * 4) +',
-                         '(inputValIndices.length() * 4) +',
-                         '(inputValVals.length() * 8);' ]
+                         '(inputValIndices.length * 4) +',
+                         '(inputValVals.length * 8);' ]
             else:
                 return [ '(inputValLookAsideBuffer.length * 4) +',
                          '(inputValIndices.length * 4) +',
@@ -2111,17 +2062,12 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
         fp.write('        this.nPairs = 0;\n')
         if nativeInputValueType == 'svec' or nativeInputValueType == 'bsvec':
             fp.write('        this.individualInputValsCount = 0;\n')
-            fp.write('        this.inputValIndices.reset();\n')
-            fp.write('        this.inputValVals.reset();\n')
             fp.write('        this.sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
         elif nativeInputValueType == 'ivec':
             fp.write('        this.individualInputValsCount = 0;\n')
-            fp.write('        this.inputVal.reset();\n')
             fp.write('        this.sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
         elif nativeInputValueType == 'fsvec':
             fp.write('        this.individualInputValsCount = 0;\n')
-            fp.write('        this.inputValIndices.reset();\n')
-            fp.write('        this.inputValVals.reset();\n')
             fp.write('        this.sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
     else:
         fp.write('        this.nKeys = 0;\n')
@@ -2142,28 +2088,28 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, ha
             fp.write('        if (this.enableStriding) {\n')
             fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
             fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length();\n')
+            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
             fp.write('        }\n')
         elif nativeInputValueType == 'bsvec':
             fp.write('        BSparseVectorWritable curr = (BSparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('        if (this.enableStriding) {\n')
             fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
             fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length();\n')
+            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
             fp.write('        }\n')
         elif nativeInputValueType == 'ivec':
             fp.write('        IntegerVectorWritable curr = (IntegerVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('        if (this.enableStriding) {\n')
             fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
             fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputVal.length();\n')
+            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputVal.length;\n')
             fp.write('        }\n')
         elif nativeInputValueType == 'fsvec':
             fp.write('        FSparseVectorWritable curr = (FSparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('        if (this.enableStriding) {\n')
             fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
             fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length();\n')
+            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
             fp.write('        }\n')
 
         else:
@@ -2385,17 +2331,17 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('                    IndValWrapper curr = pairsIter.next();\n')
         fp.write('                    inputBuffer.inputValLookAsideBuffer[index] = inputBuffer.individualInputValsCount;\n')
         if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
-            fp.write('                    inputBuffer.inputValIndices.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
-            fp.write('                    inputBuffer.inputValVals.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
+            fp.write('                    inputBuffer.inputValIndices = ensureCapacity(inputBuffer.inputValIndices, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
+            fp.write('                    inputBuffer.inputValVals = ensureCapacity(inputBuffer.inputValVals, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
         else:
-            fp.write('                    inputBuffer.inputVal.ensureCapacity( (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
+            fp.write('                    inputBuffer.inputVal = ensureCapacity(inputBuffer.inputVal, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
         fp.write('                    for (int i = 0; i < curr.length; i++) {\n')
         if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
-            fp.write('                        inputBuffer.inputValIndices.unsafeSet(index + (i * inputBuffer.nPairs), curr.indices[i]);\n')
+            fp.write('                        inputBuffer.inputValIndices[index + (i * inputBuffer.nPairs)] = curr.indices[i];\n')
             prefix = 'd' if (nativeInputValType == 'svec' or nativeInputValType == 'bsvec') else 'f'
-            fp.write('                        inputBuffer.inputValVals.unsafeSet(index + (i * inputBuffer.nPairs), curr.'+prefix+'vals[i]);\n')
+            fp.write('                        inputBuffer.inputValVals[index + (i * inputBuffer.nPairs)] = curr.'+prefix+'vals[i];\n')
         else:
-            fp.write('                        inputBuffer.inputVal.unsafeSet(index + (i * inputBuffer.nPairs), curr.indices[i]);\n')
+            fp.write('                        inputBuffer.inputVal[index + (i * inputBuffer.nPairs)] = curr.indices[i];\n')
         fp.write('                    }\n')
         fp.write('                    inputBuffer.individualInputValsCount += curr.length;\n')
         fp.write('                    index++;\n')
