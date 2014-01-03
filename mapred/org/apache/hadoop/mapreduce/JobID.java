@@ -155,4 +155,5 @@ public class JobID extends org.apache.hadoop.mapred.ID
         + " is not properly formed");
   }
   
+  public JobID clone() { throw new UnsupportedOperationException(); }
 }

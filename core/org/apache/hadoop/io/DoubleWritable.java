@@ -25,7 +25,7 @@ import java.io.IOException;
 /**
  * Writable for Double values.
  */
-public class DoubleWritable implements WritableComparable {
+public class DoubleWritable implements WritableComparable<DoubleWritable> {
 
   private double value = 0.0;
   
@@ -64,9 +64,13 @@ public class DoubleWritable implements WritableComparable {
     return (int)Double.doubleToLongBits(value);
   }
   
-  public int compareTo(Object o) {
-    DoubleWritable other = (DoubleWritable)o;
+  public int compareTo(DoubleWritable other) {
     return (value < other.value ? -1 : (value == other.value ? 0 : 1));
+  }
+
+  @Override
+  public DoubleWritable clone() {
+      return new DoubleWritable(this.value);
   }
   
   public String toString() {

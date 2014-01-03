@@ -195,6 +195,15 @@ public class FSparseVectorWritable implements WritableComparable {
         }
     }
 
+    public FSparseVectorWritable clone() {
+        FSparseVectorWritable c = new FSparseVectorWritable();
+        c.indices = new int[this.size()];
+        c.vals = new float[this.size()];
+        System.arraycopy(this.indices(), this.indicesOffset(), c.indices, 0, this.size());
+        System.arraycopy(this.vals(), this.valsOffset(), c.vals, 0, this.size());
+        return c;
+    }
+
     public String toString(int n) {
         StringBuffer str = new StringBuffer();
         str.append("{ ");

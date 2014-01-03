@@ -361,4 +361,6 @@ public class DatanodeInfo extends DatanodeID implements Node {
     this.hostName = Text.readString(in);
     setAdminState(WritableUtils.readEnum(in, AdminStates.class));
   }
+
+  public DatanodeInfo clone() { throw new UnsupportedOperationException(); }
 }

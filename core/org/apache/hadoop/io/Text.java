@@ -591,4 +591,8 @@ public class Text extends BinaryComparable
     }
     return size;
   }
+
+  public Text clone() {
+      throw new UnsupportedOperationException();
+  }
 }

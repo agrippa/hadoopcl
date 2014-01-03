@@ -29,7 +29,8 @@ import org.apache.hadoop.io.WritableComparable;
  * 
  */
 public abstract class Record implements WritableComparable, Cloneable {
-  
+ 
+  public Record clone() { throw new UnsupportedOperationException(); } 
   /**
    * Serialize a record with tag (ususally field name)
    * @param rout Record output destination

@@ -173,6 +173,12 @@ public class BytesWritable extends BinaryComparable
     return false;
   }
 
+  public BytesWritable clone() {
+      byte[] arr = new byte[this.getLength()];
+      System.arraycopy(this.bytes, 0, arr, 0, this.getLength());
+      return new BytesWritable(arr);
+  }
+
   /**
    * Generate the stream of bytes as hex pairs separated by ' '.
    */

@@ -51,5 +51,6 @@ package org.apache.hadoop.io;
  *     }
  * </pre></blockquote></p>
  */
-public interface WritableComparable<T> extends Writable, Comparable<T> {
+public interface WritableComparable<T> extends Writable, Comparable<T>, Cloneable {
+    public T clone();
 }

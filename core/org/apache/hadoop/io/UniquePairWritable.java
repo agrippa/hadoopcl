@@ -87,6 +87,10 @@ public class UniquePairWritable implements WritableComparable {
     }
   }
 
+  public UniquePairWritable clone() {
+      return new UniquePairWritable(ival, val1, val2);
+  }
+
   public String toString() {
     return "("+Integer.toString(ival)+","+Double.toString(val1)+","+Double.toString(val2)+")";
   }

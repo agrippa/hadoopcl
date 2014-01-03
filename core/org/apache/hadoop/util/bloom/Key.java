@@ -175,4 +175,8 @@ public class Key implements WritableComparable<Key> {
     }
     return result;
   }
+
+  public Key clone() {
+      throw new UnsupportedOperationException();
+  }
 }

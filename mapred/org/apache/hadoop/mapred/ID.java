@@ -37,4 +37,6 @@ public abstract class ID extends org.apache.hadoop.mapreduce.ID {
   protected ID() {
   }
 
+  public ID clone() { throw new UnsupportedOperationException(); }
+
 }

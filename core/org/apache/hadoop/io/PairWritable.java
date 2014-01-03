@@ -70,6 +70,10 @@ public class PairWritable implements WritableComparable {
     }
   }
 
+  public PairWritable clone() {
+      return new PairWritable(this.val1, this.val2);
+  }
+
   public String toString() {
     return "("+Double.toString(val1)+","+Double.toString(val2)+")";
   }

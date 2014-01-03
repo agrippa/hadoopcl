@@ -23,7 +23,7 @@ import java.io.*;
 /** 
  * A WritableComparable for booleans. 
  */
-public class BooleanWritable implements WritableComparable {
+public class BooleanWritable implements WritableComparable<BooleanWritable> {
   private boolean value;
 
   /** 
@@ -80,10 +80,14 @@ public class BooleanWritable implements WritableComparable {
 
   /**
    */
-  public int compareTo(Object o) {
+  public int compareTo(BooleanWritable o) {
     boolean a = this.value;
-    boolean b = ((BooleanWritable) o).value;
+    boolean b = o.value;
     return ((a == b) ? 0 : (a == false) ? -1 : 1);
+  }
+
+  public BooleanWritable clone() {
+      return new BooleanWritable(this.value);
   }
   
   public String toString() {

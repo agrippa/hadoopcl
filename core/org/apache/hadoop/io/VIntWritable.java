@@ -46,6 +46,8 @@ public class VIntWritable implements WritableComparable {
     WritableUtils.writeVInt(out, value);
   }
 
+  public VIntWritable clone() { return new VIntWritable(this.value); }
+
   /** Returns true iff <code>o</code> is a VIntWritable with the same value. */
   public boolean equals(Object o) {
     if (!(o instanceof VIntWritable))

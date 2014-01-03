@@ -145,4 +145,5 @@ class JVMId extends ID {
         + " is not properly formed");
   }
 
+  public JVMId clone() { throw new UnsupportedOperationException(); }
 }

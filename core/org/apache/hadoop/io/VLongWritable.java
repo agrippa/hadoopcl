@@ -38,6 +38,8 @@ public class VLongWritable implements WritableComparable {
   /** Return the value of this LongWritable. */
   public long get() { return value; }
 
+  public VLongWritable clone() { return new VLongWritable(this.value); }
+
   public void readFields(DataInput in) throws IOException {
     value = WritableUtils.readVLong(in);
   }

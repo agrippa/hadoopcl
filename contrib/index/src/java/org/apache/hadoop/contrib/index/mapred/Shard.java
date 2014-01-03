@@ -236,5 +236,7 @@ public class Shard implements WritableComparable {
   public int hashCode() {
     return (int) version ^ dir.hashCode() ^ (int) gen;
   }
+  
+  public Shard clone() { throw new UnsupportedOperationException(); }
 
 }

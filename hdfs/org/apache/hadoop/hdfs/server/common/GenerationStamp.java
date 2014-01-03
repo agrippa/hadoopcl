@@ -111,4 +111,6 @@ public class GenerationStamp implements WritableComparable<GenerationStamp> {
   public int hashCode() {
     return 37 * 17 + (int) (genstamp^(genstamp>>>32));
   }
+
+  public GenerationStamp clone() { throw new UnsupportedOperationException(); }
 }

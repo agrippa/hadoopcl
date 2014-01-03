@@ -86,4 +86,5 @@ public class DocumentID implements WritableComparable {
     throw new IOException(this.getClass().getName()
         + ".readFields should never be called");
   }
+  public DocumentID clone() { throw new UnsupportedOperationException(); }
 }

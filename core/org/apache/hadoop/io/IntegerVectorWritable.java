@@ -2,7 +2,7 @@ package org.apache.hadoop.io;
 
 import java.io.*;
 
-public class IntegerVectorWritable implements WritableComparable {
+public class IntegerVectorWritable implements WritableComparable<IntegerVectorWritable> {
     private int[] vals;
     private int overrideLength;
     private HadoopCLResizableIntArray valsRes;
@@ -114,8 +114,7 @@ public class IntegerVectorWritable implements WritableComparable {
         return Math.sqrt(sum);
     }
 
-    public int compareTo(Object o) {
-        IntegerVectorWritable other = (IntegerVectorWritable)o;
+    public int compareTo(IntegerVectorWritable other) {
         double thisDist = this.distFromOrigin();
         double otherDist = other.distFromOrigin();
         if(thisDist < otherDist) {
@@ -125,6 +124,13 @@ public class IntegerVectorWritable implements WritableComparable {
         } else {
             return 0;
         }
+    }
+
+    public IntegerVectorWritable clone() {
+        IntegerVectorWritable c = new IntegerVectorWritable();
+        c.vals = new int[this.size()];
+        System.arraycopy(this.vals, 0, c.vals, 0, this.size());
+        return c;
     }
 
     public String toString(int n) {

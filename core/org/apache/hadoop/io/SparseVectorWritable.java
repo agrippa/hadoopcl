@@ -2,7 +2,7 @@ package org.apache.hadoop.io;
 
 import java.io.*;
 
-public class SparseVectorWritable implements WritableComparable {
+public class SparseVectorWritable implements WritableComparable<SparseVectorWritable> {
     private int[] indices;
     private double[] vals;
     private int overrideIndicesOffset;
@@ -183,8 +183,7 @@ public class SparseVectorWritable implements WritableComparable {
         return Math.sqrt(sum);
     }
 
-    public int compareTo(Object o) {
-        SparseVectorWritable other = (SparseVectorWritable)o;
+    public int compareTo(SparseVectorWritable other) {
         double thisDist = this.distFromOrigin();
         double otherDist = other.distFromOrigin();
         if(thisDist < otherDist) {
@@ -194,6 +193,15 @@ public class SparseVectorWritable implements WritableComparable {
         } else {
             return 0;
         }
+    }
+
+    public SparseVectorWritable clone() {
+        SparseVectorWritable c = new SparseVectorWritable();
+        c.indices = new int[this.size()];
+        c.vals = new double[this.size()];
+        System.arraycopy(this.indices(), this.indicesOffset(), c.indices, 0, this.size());
+        System.arraycopy(this.vals(), this.valsOffset(), c.vals, 0, this.size());
+        return c;
     }
 
     public String toString(int n) {

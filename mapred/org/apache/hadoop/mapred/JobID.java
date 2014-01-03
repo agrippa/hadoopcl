@@ -113,4 +113,6 @@ public class JobID extends org.apache.hadoop.mapreduce.JobID {
     return builder;
   }
 
+  public JobID clone() { throw new UnsupportedOperationException(); }
+
 }

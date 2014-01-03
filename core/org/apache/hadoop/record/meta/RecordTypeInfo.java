@@ -147,5 +147,7 @@ public class RecordTypeInfo extends org.apache.hadoop.record.Record
     }
     throw new UnsupportedOperationException("compareTo() is not supported");
   }
+
+  public RecordTypeInfo clone() { throw new UnsupportedOperationException(); } 
 }
 

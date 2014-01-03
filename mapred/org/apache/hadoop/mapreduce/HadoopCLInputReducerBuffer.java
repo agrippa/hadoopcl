@@ -18,16 +18,16 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     public int nKeys;
     public int nVals;
 
-    protected HadoopCLResizableArray tempBuffer1 = null;
-    protected HadoopCLResizableArray tempBuffer2 = null;
-    protected HadoopCLResizableArray tempBuffer3 = null;
+    // protected HadoopCLResizableArray tempBuffer1 = null;
+    // protected HadoopCLResizableArray tempBuffer2 = null;
+    // protected HadoopCLResizableArray tempBuffer3 = null;
 
-    protected abstract void bufferInputValue(Object obj);
-    protected abstract void useBufferedValues();
+    // protected abstract void bufferInputValue(Object obj);
+    // protected abstract void useBufferedValues();
 
-    public int numBufferedValues() {
-        return tempBuffer1.size();
-    }
+    // public int numBufferedValues() {
+    //     return tempBuffer1.size();
+    // }
 
     public void baseInit(HadoopOpenCLContext clContext) {
         this.clContext = clContext;
@@ -58,21 +58,22 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     @Override
     public void addKeyAndValue(TaskInputOutputContext context) throws IOException, InterruptedException {
         addTypedKey(((Context)context).getCurrentKey());
-        this.keyIndex[this.nKeys] = this.nVals;
-        this.nKeys = this.nKeys + 1;
+        // this.keyIndex[this.nKeys] = this.nVals;
+        // this.nKeys = this.nKeys + 1;
 
-        this.useBufferedValues();
+        addTypedValue(((Context)context).getCurrentValue());
+        // this.useBufferedValues();
 
-        this.tempBuffer1.reset();
-        if(this.tempBuffer2 != null) tempBuffer2.reset();
-        if(this.tempBuffer3 != null) tempBuffer3.reset();
+        // this.tempBuffer1.reset();
+        // if(this.tempBuffer2 != null) tempBuffer2.reset();
+        // if(this.tempBuffer3 != null) tempBuffer3.reset();
     }
 
     @Override
     public long space() {
-        return super.space() + (4 * keyIndex.length) + 
+        return super.space() + (4 * keyIndex.length) /* + 
             (tempBuffer1 == null ? 0 : tempBuffer1.space()) +
             (tempBuffer2 == null ? 0 : tempBuffer2.space()) +
-            (tempBuffer3 == null ? 0 : tempBuffer3.space());
+            (tempBuffer3 == null ? 0 : tempBuffer3.space()) */ ;
     }
 }

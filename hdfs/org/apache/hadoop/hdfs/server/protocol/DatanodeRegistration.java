@@ -130,4 +130,6 @@ public class DatanodeRegistration extends DatanodeID implements Writable {
     storageInfo.cTime = in.readLong();
     exportedKeys.readFields(in);
   }
+
+  public DatanodeRegistration clone() { throw new UnsupportedOperationException(); }
 }

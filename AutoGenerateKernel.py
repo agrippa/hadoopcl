@@ -178,7 +178,7 @@ class PrimitiveVisitor(NativeTypeVisitor):
     def getAddValueMethodMapper(self):
         return [ 'this.inputVals[this.nPairs] = actual.get();' ]
     def getAddValueMethodReducer(self):
-        return [ 'this.inputVals[this.nVals] = actual.get();' ]
+        return [ 'this.inputVals[this.nVals++] = actual.get();' ]
     def getAddKeyMethod(self, index):
         return [ 'this.inputKeys['+index+'] = actual.get();' ]
     def getLimitSetter(self):
@@ -287,7 +287,7 @@ class PairVisitor(NativeTypeVisitor):
                  'this.inputVals2[this.nPairs] = actual.getVal2();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputVals1[this.nVals] = actual.getVal1();',
-                 'this.inputVals2[this.nVals] = actual.getVal2();' ]
+                 'this.inputVals2[this.nVals++] = actual.getVal2();' ]
     def getAddKeyMethod(self, index):
         return [ 'this.inputKeys1['+index+'] = actual.getVal1();',
                  'this.inputKeys2['+index+'] = actual.getVal2();' ]
@@ -418,7 +418,7 @@ class IpairVisitor(NativeTypeVisitor):
     def getAddValueMethodReducer(self):
         return [ 'this.inputValIds[this.nVals] = actual.getIVal();',
                  'this.inputVals1[this.nVals] = actual.getVal1();',
-                 'this.inputVals2[this.nVals] = actual.getVal2();' ]
+                 'this.inputVals2[this.nVals++] = actual.getVal2();' ]
     def getAddKeyMethod(self, index):
         return [ 'this.inputKeyIds['+index+'] = actual.getIVal();',
                  'this.inputKeys1['+index+'] = actual.getVal1();',
@@ -672,13 +672,9 @@ class SvecVisitor(NativeTypeVisitor):
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
-        return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
+        return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
                  'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
                  'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
-                 # 'for(int i = 0 ; i < actual.size(); i++) {',
-                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -927,11 +923,8 @@ class IvecVisitor(NativeTypeVisitor):
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
-        return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
+        return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
                  'System.arraycopy(this.inputVal, this.individualInputValsCount, actual.getArray(), 0, actual.size());',
-                 # 'for(int i = 0 ; i < actual.size(); i++) {',
-                 # '    this.inputVal[this.individualInputValsCount + i] = actual.getArray()[i];',
-                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1203,13 +1196,9 @@ class FsvecVisitor(NativeTypeVisitor):
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
-        return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
+        return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
                  'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
                  'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
-                 # 'for(int i = 0 ; i < actual.size(); i++) {',
-                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1504,13 +1493,9 @@ class BsvecVisitor(NativeTypeVisitor):
                  '}',
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
-        return [ 'this.inputValLookAsideBuffer[this.nVals] = this.individualInputValsCount;',
+        return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
                  'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
                  'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
-                 # 'for(int i = 0 ; i < actual.size(); i++) {',
-                 # '    this.inputValIndices[this.individualInputValsCount + i] = actual.indices()[i];',
-                 # '    this.inputValVals[this.individualInputValsCount + i] = actual.vals()[i];',
-                 # '}',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1896,9 +1881,9 @@ def writeOriginalInputInitMethod(fp, nativeInputKeyType, nativeInputValueType):
     fp.write('    public void init(int outputsPerInput, HadoopOpenCLContext clContext) {\n')
     fp.write('        baseInit(clContext);\n')
     fp.write('\n')
-    if not isMapper:
-        writeln(visitor(nativeInputValueType).getOriginalInitMethod(), 2, fp)
-        fp.write('\n')
+    # if not isMapper:
+    #     writeln(visitor(nativeInputValueType).getOriginalInitMethod(), 2, fp)
+    #     fp.write('\n')
 
     writeln(visitor(nativeInputKeyType).getKeyValInit('inputKey',
         'this.clContext.getInputBufferSize()', False, True, isMapper, True), 2, fp)
@@ -2099,20 +2084,25 @@ def writeAddKeyMethod(fp, hadoopInputKeyType, nativeInputKeyType):
     if isMapper:
         writeln(visitor(nativeInputKeyType).getAddKeyMethod('this.nPairs'), 2, fp)
     else:
-        writeln(visitor(nativeInputKeyType).getAddKeyMethod('this.nKeys'), 2, fp)
+        fp.write('        if (this.currentKey == null || !this.currentKey.equals(actual)) {\n')
+        fp.write('            this.keyIndex[this.nKeys] = this.nVals;\n')
+        writeln(visitor(nativeInputKeyType).getAddKeyMethod('this.nKeys'), 3, fp)
+        fp.write('            this.nKeys++;\n')
+        fp.write('            this.currentKey = actual.clone();\n')
+        fp.write('        }\n')
     fp.write('    }\n')
     fp.write('\n')
 
-def writeTransferBufferedValues(fp, isMapper):
-    fp.write('    @Override\n')
-    fp.write('    public void transferBufferedValues(HadoopCLBuffer buffer) {\n')
-    if isMapper:
-        fp.write('        // NOOP\n')
-    else:
-        fp.write('        this.tempBuffer1.copyTo(((HadoopCLInputReducerBuffer)buffer).tempBuffer1);\n')
-        fp.write('        if(this.tempBuffer2 != null) this.tempBuffer2.copyTo(((HadoopCLInputReducerBuffer)buffer).tempBuffer2);\n')
-        fp.write('        if(this.tempBuffer3 != null) this.tempBuffer3.copyTo(((HadoopCLInputReducerBuffer)buffer).tempBuffer3);\n')
-    fp.write('    }\n')
+# def writeTransferBufferedValues(fp, isMapper):
+#     fp.write('    @Override\n')
+#     fp.write('    public void transferBufferedValues(HadoopCLBuffer buffer) {\n')
+#     if isMapper:
+#         fp.write('        // NOOP\n')
+#     else:
+#         fp.write('        this.tempBuffer1.copyTo(((HadoopCLInputReducerBuffer)buffer).tempBuffer1);\n')
+#         fp.write('        if(this.tempBuffer2 != null) this.tempBuffer2.copyTo(((HadoopCLInputReducerBuffer)buffer).tempBuffer2);\n')
+#         fp.write('        if(this.tempBuffer3 != null) this.tempBuffer3.copyTo(((HadoopCLInputReducerBuffer)buffer).tempBuffer3);\n')
+#     fp.write('    }\n')
 
 def writeResetMethod(fp, isMapper, nativeInputValueType):
     fp.write('    @Override\n')
@@ -2137,12 +2127,13 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
         fp.write('        this.nKeys = 0;\n')
         fp.write('        this.nVals = 0;\n')
         if isVariableLength(nativeInputValueType):
-          fp.write('        this.individualInputValsCount = 0;\n')
+            fp.write('        this.individualInputValsCount = 0;\n')
+        fp.write('        this.currentKey = null;\n')
 
     fp.write('    }\n')
     fp.write('\n')
 
-def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType):
+def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, hadoopInputValueType):
     fp.write('    @Override\n')
     fp.write('    public boolean isFull(TaskInputOutputContext context) throws IOException, InterruptedException {\n')
     if isMapper:
@@ -2179,22 +2170,23 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType):
             fp.write('        return this.nPairs == this.capacity();\n')
     else:
         fp.write('        Context reduceContext = (Context)context;\n')
-        fp.write('        tempBuffer1.reset();\n')
-        fp.write('        if(tempBuffer2 != null) tempBuffer2.reset();\n')
-        fp.write('        if(tempBuffer3 != null) tempBuffer3.reset();\n')
-        fp.write('        for(Object v : reduceContext.getValues()) {\n')
-        fp.write('            bufferInputValue(v);\n')
-        fp.write('        }\n')
+        # fp.write('        tempBuffer1.reset();\n')
+        # fp.write('        if(tempBuffer2 != null) tempBuffer2.reset();\n')
+        # fp.write('        if(tempBuffer3 != null) tempBuffer3.reset();\n')
+        # fp.write('        for(Object v : reduceContext.getValues()) {\n')
+        # fp.write('            bufferInputValue(v);\n')
+        # fp.write('        }\n')
         if nativeInputKeyType == 'pair' or nativeInputKeyType == 'ipair':
           keysName = 'inputKeys1'
         else:
           keysName = 'inputKeys'
         if isVariableLength(nativeInputValueType):
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.individualInputValsCount + this.tempBuffer2.size() >= this.inputValIndices.length);\n')
+          fp.write('        '+hadoopInputValueType+'Writable curr = ('+hadoopInputValueType+'Writable)reduceContext.getCurrentValue();\n')
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.individualInputValsCount + curr.size() > this.inputValIndices.length);\n')
         elif nativeInputValueType == 'pair' or nativeInputValueType == 'ipair':
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals + this.numBufferedValues() > this.inputVals1.length);\n')
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals1.length);\n')
         else:
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals + this.numBufferedValues() > this.inputVals.length);\n')
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals.length);\n')
 
     fp.write('    }\n')
     fp.write('\n')
@@ -2457,11 +2449,11 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     fp.write('    }\n')
     fp.write('\n')
 
-def writeResetForAnotherAttempt(fp, isMapper, nativeInputKeyType, nativeInputValueType):
-    fp.write('    @Override\n')
-    fp.write('    public void resetForAnotherAttempt() {\n')
-    fp.write('        // NO-OP at the moment, but might be necessary later\n')
-    fp.write('    }\n\n')
+# def writeResetForAnotherAttempt(fp, isMapper, nativeInputKeyType, nativeInputValueType):
+#     fp.write('    @Override\n')
+#     fp.write('    public void resetForAnotherAttempt() {\n')
+#     fp.write('        // NO-OP at the moment, but might be necessary later\n')
+#     fp.write('    }\n\n')
 
 def writeSpace(fp, isMapper, keyType, valType, isInput):
     fp.write('    @Override\n')
@@ -2522,6 +2514,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     if not isMapper:
         writeln(visitor(nativeInputValueType).getBufferedDecl(), 1, kernelfp)
+        input_fp.write('    private '+hadoopInputKeyType+'Writable currentKey;\n')
 
     kernelfp.write('\n')
     if nativeInputValueType == 'svec' or nativeInputValueType == 'fsvec' or nativeInputValueType == 'bsvec':
@@ -2607,33 +2600,33 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     generateFill(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
     generatePrepareForRead(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
-    if not isMapper:
-        input_fp.write('    @Override\n')
-        input_fp.write('    public void bufferInputValue(Object obj) {\n')
-        input_fp.write('        '+hadoopInputValueType+'Writable actual = ('+hadoopInputValueType+'Writable)obj;\n')
-        writeln(visitor(nativeInputValueType).getBufferInputValue(), 2, input_fp)
-        input_fp.write('    }\n')
-        input_fp.write('\n')
-        input_fp.write('    @Override\n')
-        input_fp.write('    public void useBufferedValues() {\n')
-        writeln(visitor(nativeInputValueType).getUseBufferedValues(), 2, input_fp)
-        input_fp.write('        this.nVals += this.tempBuffer1.size();\n')
-        input_fp.write('    }\n')
+    # if not isMapper:
+    #     input_fp.write('    @Override\n')
+    #     input_fp.write('    public void bufferInputValue(Object obj) {\n')
+    #     input_fp.write('        '+hadoopInputValueType+'Writable actual = ('+hadoopInputValueType+'Writable)obj;\n')
+    #     writeln(visitor(nativeInputValueType).getBufferInputValue(), 2, input_fp)
+    #     input_fp.write('    }\n')
+    #     input_fp.write('\n')
+    #     input_fp.write('    @Override\n')
+    #     input_fp.write('    public void useBufferedValues() {\n')
+    #     writeln(visitor(nativeInputValueType).getUseBufferedValues(), 2, input_fp)
+    #     input_fp.write('        this.nVals += this.tempBuffer1.size();\n')
+    #     input_fp.write('    }\n')
 
     writeAddValueMethod(input_fp, hadoopInputValueType, nativeInputValueType)
 
     writeAddKeyMethod(input_fp, hadoopInputKeyType, nativeInputKeyType)
 
-    writeIsFullMethod(input_fp, isMapper, nativeInputKeyType, nativeInputValueType)
+    writeIsFullMethod(input_fp, isMapper, nativeInputKeyType, nativeInputValueType, hadoopInputValueType)
     writeResetMethod(input_fp, isMapper, nativeInputValueType)
 
-    writeTransferBufferedValues(input_fp, isMapper)
+    # writeTransferBufferedValues(input_fp, isMapper)
 
     writeToHadoopMethod(output_fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType, nativeOutputKeyType, nativeOutputValueType)
 
     writeInitBeforeKernelMethod(output_fp, isMapper, nativeOutputKeyType, nativeOutputValueType)
 
-    writeResetForAnotherAttempt(input_fp, isMapper, nativeInputKeyType, nativeInputValueType)
+    # writeResetForAnotherAttempt(input_fp, isMapper, nativeInputKeyType, nativeInputValueType)
 
     writeSpace(input_fp, isMapper, nativeInputKeyType, nativeInputValueType, True)
     writeSpace(output_fp, isMapper, nativeOutputKeyType, nativeOutputValueType, False)

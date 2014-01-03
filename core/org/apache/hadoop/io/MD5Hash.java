@@ -217,5 +217,8 @@ public class MD5Hash implements WritableComparable<MD5Hash> {
     }
   }
 
+  public MD5Hash clone() {
+      throw new UnsupportedOperationException();
+  }
 
 }

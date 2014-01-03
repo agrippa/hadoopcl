@@ -200,6 +200,15 @@ public class BSparseVectorWritable implements WritableComparable {
         }
     }
 
+    public BSparseVectorWritable clone() {
+        BSparseVectorWritable c = new BSparseVectorWritable();
+        c.indices = new int[this.size()];
+        c.vals = new double[this.size()];
+        System.arraycopy(this.indices(), this.indicesOffset(), c.indices, 0, this.size());
+        System.arraycopy(this.vals(), this.valsOffset(), c.vals, 0, this.size());
+        return c;
+    }
+
     public String toString(int n) {
         StringBuffer str = new StringBuffer();
         str.append("{ ");

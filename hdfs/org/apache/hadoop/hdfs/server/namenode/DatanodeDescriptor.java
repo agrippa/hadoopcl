@@ -572,4 +572,6 @@ public class DatanodeDescriptor extends DatanodeInfo {
   void processedBlockReport() {
     firstBlockReport = false;
   }
+
+  public DatanodeDescriptor clone() { throw new UnsupportedOperationException(); }
 }

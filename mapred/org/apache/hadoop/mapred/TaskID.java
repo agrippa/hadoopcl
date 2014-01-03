@@ -135,4 +135,6 @@ public class TaskID extends org.apache.hadoop.mapreduce.TaskID {
     return (TaskID) org.apache.hadoop.mapreduce.TaskID.forName(str);
   }
 
+  public TaskID clone() { throw new UnsupportedOperationException(); }
+
 }

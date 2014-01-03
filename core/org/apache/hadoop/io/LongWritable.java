@@ -21,7 +21,7 @@ package org.apache.hadoop.io;
 import java.io.*;
 
 /** A WritableComparable for longs. */
-public class LongWritable implements WritableComparable {
+public class LongWritable implements WritableComparable<LongWritable> {
   private long value;
 
   public LongWritable() {}
@@ -55,10 +55,15 @@ public class LongWritable implements WritableComparable {
   }
 
   /** Compares two LongWritables. */
-  public int compareTo(Object o) {
+  public int compareTo(LongWritable o) {
     long thisValue = this.value;
-    long thatValue = ((LongWritable)o).value;
+    long thatValue = o.value;
     return (thisValue<thatValue ? -1 : (thisValue==thatValue ? 0 : 1));
+  }
+
+  @Override
+  public LongWritable clone() {
+      return new LongWritable(this.value);
   }
 
   public String toString() {

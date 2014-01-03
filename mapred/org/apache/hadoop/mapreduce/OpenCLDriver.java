@@ -255,7 +255,7 @@ public class OpenCLDriver {
             //     outputManager, th0, runner, buffer);
             // System.err.println("DIAGNOSTICS: OpenCLDriver estimating space usage of "+spaceEstimate+" bytes");
 
-            if (this.clContext.isMapper()) {
+            // if (this.clContext.isMapper()) {
                 // No mappers have a filled in transferBufferedValues,
                 // so we don't need to hold two input buffers at once
                 // and can release the current one immediately before
@@ -271,21 +271,21 @@ public class OpenCLDriver {
                 } else {
                     buffer.reset();
                 }
-            } else {
-                BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
-                HadoopCLInputBuffer newBuffer = newBufferContainer.obj();
+            // } else {
+            //     BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+            //     HadoopCLInputBuffer newBuffer = newBufferContainer.obj();
 
-                if (newBufferContainer.isFresh()) {
-                    newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
-                } else {
-                    newBuffer.reset();
-                }
+            //     if (newBufferContainer.isFresh()) {
+            //         newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
+            //     } else {
+            //         newBuffer.reset();
+            //     }
 
-                buffer.transferBufferedValues(newBuffer);
-                buffer.getProfile().stopRead(buffer);
-                runner.addWork(buffer);
-                buffer = newBuffer;
-            }
+            //     buffer.transferBufferedValues(newBuffer);
+            //     buffer.getProfile().stopRead(buffer);
+            //     runner.addWork(buffer);
+            //     buffer = newBuffer;
+            // }
             buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
             buffer.resetProfile();
             buffer.getProfile().startRead(buffer);

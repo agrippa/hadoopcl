@@ -114,4 +114,6 @@ public class CheckpointSignature extends StorageInfo
     editsTime = in.readLong();
     checkpointTime = in.readLong();
   }
+
+  public CheckpointSignature clone() { throw new UnsupportedOperationException(); }
 }

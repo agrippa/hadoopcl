@@ -186,4 +186,6 @@ public class DatanodeID implements WritableComparable<DatanodeID> {
     // setting the field.
     this.infoPort = in.readShort() & 0x0000ffff;
   }
+
+  public DatanodeID clone() { throw new UnsupportedOperationException(); }
 }

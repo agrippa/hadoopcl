@@ -31,7 +31,7 @@ import org.apache.commons.logging.*;
  *
  * @deprecated replaced by Text
  */
-public class UTF8 implements WritableComparable {
+public class UTF8 implements WritableComparable<UTF8> {
   private static final Log LOG= LogFactory.getLog(UTF8.class);
   private static final DataInputBuffer IBUF = new DataInputBuffer();
 
@@ -124,8 +124,7 @@ public class UTF8 implements WritableComparable {
   }
 
   /** Compare two UTF8s. */
-  public int compareTo(Object o) {
-    UTF8 that = (UTF8)o;
+  public int compareTo(UTF8 that) {
     return WritableComparator.compareBytes(bytes, 0, length,
                                            that.bytes, 0, that.length);
   }
@@ -287,4 +286,7 @@ public class UTF8 implements WritableComparable {
     }
   }
 
+  public UTF8 clone() {
+      throw new UnsupportedOperationException();
+  }
 }

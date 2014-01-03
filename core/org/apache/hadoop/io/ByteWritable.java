@@ -21,7 +21,7 @@ package org.apache.hadoop.io;
 import java.io.*;
 
 /** A WritableComparable for a single byte. */
-public class ByteWritable implements WritableComparable {
+public class ByteWritable implements WritableComparable<ByteWritable> {
   private byte value;
 
   public ByteWritable() {}
@@ -56,10 +56,14 @@ public class ByteWritable implements WritableComparable {
   }
 
   /** Compares two ByteWritables. */
-  public int compareTo(Object o) {
+  public int compareTo(ByteWritable o) {
     int thisValue = this.value;
-    int thatValue = ((ByteWritable)o).value;
+    int thatValue = o.value;
     return (thisValue < thatValue ? -1 : (thisValue == thatValue ? 0 : 1));
+  }
+
+  public ByteWritable clone() {
+      return new ByteWritable(this.value);
   }
 
   public String toString() {

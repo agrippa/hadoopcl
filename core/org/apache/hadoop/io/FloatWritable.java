@@ -21,7 +21,7 @@ package org.apache.hadoop.io;
 import java.io.*;
 
 /** A WritableComparable for floats. */
-public class FloatWritable implements WritableComparable {
+public class FloatWritable implements WritableComparable<FloatWritable> {
   private float value;
 
   public FloatWritable() {}
@@ -55,10 +55,15 @@ public class FloatWritable implements WritableComparable {
   }
 
   /** Compares two FloatWritables. */
-  public int compareTo(Object o) {
+  public int compareTo(FloatWritable o) {
     float thisValue = this.value;
-    float thatValue = ((FloatWritable)o).value;
+    float thatValue = o.value;
     return (thisValue<thatValue ? -1 : (thisValue==thatValue ? 0 : 1));
+  }
+
+  @Override
+  public FloatWritable clone() {
+      return new FloatWritable(this.value);
   }
 
   public String toString() {

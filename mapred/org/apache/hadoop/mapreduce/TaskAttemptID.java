@@ -171,4 +171,5 @@ public class TaskAttemptID extends org.apache.hadoop.mapred.ID {
         + " is not properly formed");
   }
 
+  public TaskAttemptID clone() { throw new UnsupportedOperationException(); }
 }

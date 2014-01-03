@@ -45,6 +45,7 @@ public class NullWritable implements WritableComparable {
   public boolean equals(Object other) { return other instanceof NullWritable; }
   public void readFields(DataInput in) throws IOException {}
   public void write(DataOutput out) throws IOException {}
+  public NullWritable clone() { return THIS; }
 
   /** A Comparator &quot;optimized&quot; for NullWritable. */
   public static class Comparator extends WritableComparator {
