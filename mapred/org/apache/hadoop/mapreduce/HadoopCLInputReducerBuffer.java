@@ -38,10 +38,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
         this.isGPU = this.clContext.isGPU();
     }
 
-    public int getInputValPerInputKey() {
-        return 16;
-    }
-
     public boolean hasWork() {
         return this.nKeys > 0;
     }

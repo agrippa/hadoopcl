@@ -30,10 +30,6 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
     protected abstract void callReduce(int startOffset, int stopOffset);
     /**********************************/
 
-    public int getInputValPerInputKey() {
-        return 16;
-    }
-
     @Override
     public boolean relaunchKernel() throws IOException, InterruptedException {
         int globalSize = (this.nKeys + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();

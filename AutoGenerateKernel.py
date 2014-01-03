@@ -1901,7 +1901,6 @@ def writeOriginalInputInitMethod(fp, nativeInputKeyType, nativeInputValueType):
     fp.write('        baseInit(clContext);\n')
     fp.write('\n')
     if not isMapper:
-        fp.write('        int inputValPerInputKey = this.getInputValPerInputKey();\n')
         writeln(visitor(nativeInputValueType).getOriginalInitMethod(), 2, fp)
         fp.write('\n')
 
@@ -1913,7 +1912,7 @@ def writeOriginalInputInitMethod(fp, nativeInputKeyType, nativeInputValueType):
             'this.clContext.getInputBufferSize()', False, True, isMapper, False), 2, fp)
     else:
         writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
-            'this.clContext.getInputBufferSize() * inputValPerInputKey',
+            'this.clContext.getInputBufferSize()',
                 False, True, isMapper, False), 2, fp)
 
     fp.write('        this.initialized = true;\n')
