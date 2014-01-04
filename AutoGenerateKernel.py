@@ -663,8 +663,8 @@ class SvecVisitor(NativeTypeVisitor):
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
-                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
-                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 'System.arraycopy(actual.indices(), 0, this.inputValIndices, this.individualInputValsCount, actual.size());',
+                 'System.arraycopy(actual.vals(), 0, this.inputValVals, this.individualInputValsCount, actual.size());',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -904,7 +904,7 @@ class IvecVisitor(NativeTypeVisitor):
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
-                 'System.arraycopy(this.inputVal, this.individualInputValsCount, actual.getArray(), 0, actual.size());',
+                 'System.arraycopy(actual.getArray(), 0, this.inputVal, this.individualInputValsCount, actual.size());',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1164,8 +1164,8 @@ class FsvecVisitor(NativeTypeVisitor):
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
-                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
-                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 'System.arraycopy(actual.indices(), 0, this.inputValIndices, this.individualInputValsCount, actual.size());',
+                 'System.arraycopy(actual.vals(), 0, this.inputValVals, this.individualInputValsCount, actual.size());',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1448,8 +1448,8 @@ class BsvecVisitor(NativeTypeVisitor):
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
-                 'System.arraycopy(this.inputValIndices, this.individualInputValsCount, actual.indices(), 0, actual.size());',
-                 'System.arraycopy(this.inputValVals, this.individualInputValsCount, actual.vals(), 0, actual.size());',
+                 'System.arraycopy(actual.indices(), 0, this.inputValIndices, this.individualInputValsCount, actual.size());',
+                 'System.arraycopy(actual.vals(), 0, this.inputValVals, this.individualInputValsCount, actual.size());',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
