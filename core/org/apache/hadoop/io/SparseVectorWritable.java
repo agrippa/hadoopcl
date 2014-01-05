@@ -31,6 +31,18 @@ public class SparseVectorWritable implements WritableComparable<SparseVectorWrit
         this.overrideValsOffset = -1;
     }
 
+    public SparseVectorWritable(int[] indices, int indicesOffset, double[] vals, int valsOffset, int length) {
+        this.indices = new int[length];
+        this.vals = new double[length];
+        System.arraycopy(indices, indicesOffset, this.indices, 0, length);
+        System.arraycopy(vals, valsOffset, this.vals, 0, length);
+        this.indicesRes = null;
+        this.valsRes = null;
+        this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
+    }
+
     public SparseVectorWritable(HadoopCLResizableIntArray indices, HadoopCLResizableDoubleArray vals) {
         this.indicesRes = indices;
         this.valsRes = vals;

@@ -19,6 +19,13 @@ public class IntegerVectorWritable implements WritableComparable<IntegerVectorWr
         this.overrideLength = -1;
     }
 
+    public IntegerVectorWritable(int[] vals, int offset, int length) {
+        this.vals = new int[length];
+        System.arraycopy(vals, offset, this.vals, 0, length);
+        this.valsRes = null;
+        this.overrideLength = -1;
+    }
+
     public IntegerVectorWritable(HadoopCLResizableIntArray vals) {
         this.valsRes = vals;
         this.vals = null;

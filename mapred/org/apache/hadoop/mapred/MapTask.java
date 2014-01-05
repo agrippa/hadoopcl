@@ -1447,6 +1447,8 @@ public class MapTask extends Task {
               kvstart = kvend;
               bufstart = bufend;
 
+              int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
+              double newWorkRatio = (double)newDiff / (double)kvoffsets.length;
               // System.out.println("Finishing sortAndSpill");
               // System.out.println("  kvend="+kvend);
               // System.out.println("  kvindex="+kvindex);
@@ -1454,10 +1456,8 @@ public class MapTask extends Task {
               // System.out.println("  bufend="+bufend);
               // System.out.println("  bufindex="+bufindex);
               // System.out.println("  kvbuffer.length="+kvbuffer.length);
-              int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
               // System.out.println("  newDiff="+newDiff);
-              double newWorkRatio = (double)newDiff / (double)kvoffsets.length;
-              // System.out.println("newWorkRatio = "+newWorkRatio);
+              // System.out.println("  newWorkRatio = "+newWorkRatio);
               if (newWorkRatio > 0.15) {
                   LOG.info("Spilling map output: immediate relaunch = " + newWorkRatio);
                   LOG.info("bufstart = " + bufstart + "; bufend = " + bufmark +
@@ -1794,7 +1794,6 @@ public class MapTask extends Task {
           for(int i = 0; i < numSpills; i++) {
             IndexRecord indexRecord = indexCacheList.get(i).getIndex(parts);
 
-            System.out.println("Spilling partition "+parts+" to file "+filename[i]);
             Segment<K,V> s =
               new Segment<K,V>(job, rfs, filename[i], indexRecord.startOffset,
                                indexRecord.partLength, codec, true);
