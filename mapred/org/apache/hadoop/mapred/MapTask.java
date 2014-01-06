@@ -52,6 +52,7 @@ import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
@@ -706,7 +707,7 @@ public class MapTask extends Task {
     }
   }
   
-  private class NewOutputCollector<K extends Comparable<K>, V extends Comparable<V>>
+  private class NewOutputCollector<K extends Comparable<K> & Writable, V extends Comparable<V> & Writable>
     extends org.apache.hadoop.mapreduce.RecordWriter<K,V> {
     private final MapOutputCollector<K,V> collector;
     private final org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner;
@@ -902,7 +903,7 @@ public class MapTask extends Task {
     }
   }
 
-  class MapOutputBuffer<K extends Comparable<K>, V extends Comparable<V>> 
+  class MapOutputBuffer<K extends Comparable<K> & Writable, V extends Comparable<V> & Writable> 
       implements MapOutputCollector<K, V>, IndexedSortable {
     private final int partitions;
     private final JobConf job;
@@ -1534,7 +1535,7 @@ public class MapTask extends Task {
               }
             } else {
               writer = new SortedWriter<K, V>(job, out, keyClass, valClass, codec,
-                                        spilledRecordsCounter);
+                                        spilledRecordsCounter, comparator);
               // writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
               //                           spilledRecordsCounter);
               int spstart = spindex;
