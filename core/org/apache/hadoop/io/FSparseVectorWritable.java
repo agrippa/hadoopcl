@@ -31,19 +31,6 @@ public class FSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
-    public FSparseVectorWritable(int[] indices, int indicesOffset, float[] vals, int valsOffset, int length) {
-        this.indices = new int[length];
-        this.vals = new float[length];
-        System.arraycopy(indices, indicesOffset, this.indices, 0, length);
-        System.arraycopy(vals, valsOffset, this.vals, 0, length);
-        this.indicesRes = null;
-        this.valsRes = null;
-        this.overrideLength = -1;
-        this.overrideIndicesOffset = -1;
-        this.overrideValsOffset = -1;
-
-    }
-
     public FSparseVectorWritable(HadoopCLResizableIntArray indices, HadoopCLResizableFloatArray vals) {
         this.indicesRes = indices;
         this.valsRes = vals;
