@@ -1320,7 +1320,7 @@ public class MapTask extends Task {
               try {
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    OpenCLDriver.logger.log("Blocking on spillDone", "mapper");
+                    // OpenCLDriver.logger.log("Blocking on spillDone", "mapper");
                 }
                 while (kvstart != kvend) {
                   reporter.progress();
@@ -1328,7 +1328,7 @@ public class MapTask extends Task {
                 }
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    OpenCLDriver.logger.log("Unblocking on spillDone", "mapper");
+                    // OpenCLDriver.logger.log("Unblocking on spillDone", "mapper");
                 }
               } catch (InterruptedException e) {
                   throw (IOException)new IOException(
@@ -1449,7 +1449,8 @@ public class MapTask extends Task {
               bufstart = bufend;
 
               int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
-              double newWorkRatio = (double)newDiff / (double)kvoffsets.length;
+              double newKvRatio = (double)newDiff / (double)kvoffsets.length;
+              double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
               // System.out.println("Finishing sortAndSpill");
               // System.out.println("  kvend="+kvend);
               // System.out.println("  kvindex="+kvindex);
@@ -1458,15 +1459,15 @@ public class MapTask extends Task {
               // System.out.println("  bufindex="+bufindex);
               // System.out.println("  kvbuffer.length="+kvbuffer.length);
               // System.out.println("  newDiff="+newDiff);
-              // System.out.println("  newWorkRatio = "+newWorkRatio);
-              if (newWorkRatio > 0.15) {
-                  LOG.info("Spilling map output: immediate relaunch = " + newWorkRatio);
-                  LOG.info("bufstart = " + bufstart + "; bufend = " + bufmark +
-                           "; bufvoid = " + bufvoid);
-                  LOG.info("kvstart = " + kvstart + "; kvend = " + kvindex +
-                           "; length = " + kvoffsets.length);
+              // System.out.println("newWorkRatio = "+newWorkRatio);
+              if (newKvRatio > 0.15) {
+                  LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
                   kvend = kvindex;
                   bufend = bufmark;
+                  LOG.info("bufstart = " + bufstart + "; bufend = " + bufend +
+                           "; bufvoid = " + bufvoid);
+                  LOG.info("kvstart = " + kvstart + "; kvend = " + kvend +
+                           "; length = " + kvoffsets.length);
               }
             }
           }

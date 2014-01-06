@@ -123,7 +123,7 @@ public class BufferRunner implements Runnable {
                 // LOG:DIAGNOSTIC
                 // log("  Detected completed kernel "+kernel.id);
                 // LOG:PROFILE
-                OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
+                // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
                 toCopyFromOpenCL.add(kernel);
                 kernelsActive.getAndDecrement();
                 synchronized (somethingHappenedLocal) {
@@ -143,7 +143,7 @@ public class BufferRunner implements Runnable {
         kernel.fill(inputBuffer);
         try {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(), this.clContext);
+            // OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(), this.clContext);
             success = kernel.launchKernel();
         } catch(Exception io) {
             throw new RuntimeException(io);
@@ -221,7 +221,7 @@ public class BufferRunner implements Runnable {
                 throw new RuntimeException(ie);
             }
             // LOG:PROFILE
-            OpenCLDriver.logger.log("launching kernel "+complete.tracker.toString(), this.clContext);
+            // OpenCLDriver.logger.log("launching kernel "+complete.tracker.toString(), this.clContext);
             complete.openclProfile.startKernel();
             kernelsActive.getAndIncrement();
             spawnKernelTrackingThread(complete);
@@ -387,7 +387,7 @@ public class BufferRunner implements Runnable {
         } else {
             synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
-                OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
+                // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
                 while (this.somethingHappenedLocal.get() == false) {
                     try {
                         this.somethingHappenedLocal.wait();
@@ -396,7 +396,7 @@ public class BufferRunner implements Runnable {
                     }
                 }
                 // LOG:PROFILE
-                OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                // OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
                 this.somethingHappenedLocal.set(false);
             }
         }
