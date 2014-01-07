@@ -127,6 +127,7 @@ public class BufferRunner implements Runnable {
                 toCopyFromOpenCL.add(kernel);
                 kernelsActive.getAndDecrement();
                 synchronized (somethingHappenedLocal) {
+                    kernel.openclProfile.stopKernel();
                     somethingHappenedLocal.set(true);
                     somethingHappenedLocal.notify();
                 }
@@ -204,7 +205,8 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
 
-        boolean completedAll = output.completedAll();
+        boolean completedAll = output.memRetry[0] == 0;
+        // boolean completedAll = output.completedAll();
         toWrite.add(new OutputBufferSoFar(output, 0));
 
         if (!completedAll) {

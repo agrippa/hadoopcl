@@ -1678,8 +1678,6 @@ def generateWriteWithOffsetMethod(fp, nativeOutputKeyType, nativeOutputValueType
     generateWriteWithOffsetSig(nativeOutputKeyType, nativeOutputValueType, fp)
     fp.write('        this.javaProfile.stopKernel();\n')
     fp.write('        this.javaProfile.startWrite();\n')
-    fp.write('        final '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
-    fp.write('        final '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
     writeln(visitor(nativeOutputKeyType).getWriteMethodBody('key', True), 2, fp)
     writeln(visitor(nativeOutputValueType).getWriteWithOffsetMethodBody('val', False), 2, fp)
     fp.write('        try { clContext.getContext().write(keyObj, valObj); } catch(Exception ex) { throw new RuntimeException(ex); }\n')
@@ -1701,8 +1699,6 @@ def generateWriteMethod(fp, nativeOutputKeyType, nativeOutputValueType, hadoopOu
     generateWriteSig(nativeOutputKeyType, nativeOutputValueType, fp)
     fp.write('        this.javaProfile.stopKernel();\n')
     fp.write('        this.javaProfile.startWrite();\n')
-    fp.write('        final '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
-    fp.write('        final '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
     writeln(visitor(nativeOutputKeyType).getWriteMethodBody('key', True), 2, fp)
     writeln(visitor(nativeOutputValueType).getWriteMethodBody('val', False), 2, fp)
     fp.write('        try { clContext.getContext().write(keyObj, valObj); } catch(Exception ex) { throw new RuntimeException(ex); }\n')
@@ -2584,6 +2580,9 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     # generateCloneIncompleteMethod(bufferfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
+    kernelfp.write('\n')
+    kernelfp.write('    private final '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
+    kernelfp.write('    private final '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
     generateWriteMethod(kernelfp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType)
     if isVariableLength(nativeOutputValueType):
         generateWriteWithOffsetMethod(kernelfp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType)

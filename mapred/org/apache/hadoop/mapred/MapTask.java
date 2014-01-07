@@ -1460,7 +1460,7 @@ public class MapTask extends Task {
               // System.out.println("  kvbuffer.length="+kvbuffer.length);
               // System.out.println("  newDiff="+newDiff);
               // System.out.println("newWorkRatio = "+newWorkRatio);
-              if (newKvRatio > 0.15) {
+              if (newKvRatio > 0.30) {
                   LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
                   kvend = kvindex;
                   bufend = bufmark;
