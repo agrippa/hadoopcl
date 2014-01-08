@@ -1565,6 +1565,9 @@ public class MapTask extends Task {
             spillRec.putIndex(rec, i);
 
             writer = null;
+          } catch (Exception ex) {
+            ex.printStackTrace();
+            throw new RuntimeException(ex);
           } finally {
             if (null != writer) writer.close();
           }

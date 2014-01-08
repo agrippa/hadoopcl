@@ -47,6 +47,12 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
         this.freeHelper(k);
     }
 
+    public void dispose() {
+        for (HadoopCLKernel k : free) {
+            k.dispose();
+        }
+    }
+
     private String str() {
         StringBuffer sb = new StringBuffer();
         sb.append("[ ");

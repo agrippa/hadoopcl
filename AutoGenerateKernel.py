@@ -532,9 +532,14 @@ class SvecVisitor(NativeTypeVisitor):
             buf.append(basename+'Vals = null;')
         else:
             if isInput:
-                buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
-                buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                if isMapper:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+')];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                else:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
@@ -796,8 +801,12 @@ class IvecVisitor(NativeTypeVisitor):
             buf.append(basename+' = null;')
         else:
             if isInput:
-                buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+' = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                if isMapper:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+')];\n')
+                    buf.append(basename+' = new int[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                else:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                    buf.append(basename+' = new int[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
             else:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+' = new int[this.clContext.getPreallocIntLength()];\n')
@@ -1020,9 +1029,14 @@ class FsvecVisitor(NativeTypeVisitor):
             buf.append(basename+'Vals = null;')
         else:
             if isInput:
-                buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
-                buf.append(basename+'Vals = new float[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                if isMapper:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+')];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'Vals = new float[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                else:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'Vals = new float[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'FloatLookAsideBuffer = new int['+size+'];\n')
@@ -1306,9 +1320,14 @@ class BsvecVisitor(NativeTypeVisitor):
             buf.append(basename+'Vals = null;')
         else:
             if isInput:
-                buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
-                buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                if isMapper:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+')];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                else:
+                    buf.append(basename+'LookAsideBuffer = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
+                    buf.append(basename+'Indices = new int[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'Vals = new double[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
             else:
                 buf.append(basename+'IntLookAsideBuffer = new int['+size+'];\n')
                 buf.append(basename+'DoubleLookAsideBuffer = new int['+size+'];\n')
@@ -2124,7 +2143,7 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, ha
           keysName = 'inputKeys'
         if isVariableLength(nativeInputValueType):
           fp.write('        '+hadoopInputValueType+'Writable curr = ('+hadoopInputValueType+'Writable)reduceContext.getCurrentValue();\n')
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.individualInputValsCount + curr.size() > this.inputValIndices.length);\n')
+          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputValLookAsideBuffer.length || this.individualInputValsCount + curr.size() > this.inputValIndices.length);\n')
         elif nativeInputValueType == 'pair' or nativeInputValueType == 'ipair':
           fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals1.length);\n')
         else:

@@ -29,6 +29,7 @@ public class BufferRunner implements Runnable {
 
     // exclusive
     // private final HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair> running;
+    // private final List<HadoopCLKernel> running;
     private final AtomicInteger kernelsActive;
 
     private final Class kernelClass;
@@ -51,6 +52,7 @@ public class BufferRunner implements Runnable {
         this.toCopyFromOpenCL = new ConcurrentLinkedQueue<HadoopCLKernel>();
 
         // this.running = new HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair>();
+        // this.running = new LinkedList<HadoopCLKernel>();
         kernelsActive = new AtomicInteger();
 
         this.clContext = clContext;
@@ -82,7 +84,7 @@ public class BufferRunner implements Runnable {
             input.clearNWrites();
         }
         // LOG:DIAGNOSTIC
-        // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
+        log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
 
         synchronized (this.somethingHappenedLocal) {
             this.toRun.add(input);
@@ -98,7 +100,8 @@ public class BufferRunner implements Runnable {
 
     // private List<HadoopCLKernel> getCompleteKernels() {
     //     List<HadoopCLKernel> complete = new LinkedList<HadoopCLKernel>();
-    //     for (HadoopCLKernel k : this.running.keySet()) {
+    //     // for (HadoopCLKernel k : this.running.keySet()) {
+    //     for (HadoopCLKernel k : this.running) {
     //         if (k.isComplete()) {
     //             complete.add(k);
     //         }
@@ -107,7 +110,7 @@ public class BufferRunner implements Runnable {
     // }
 
     // private HadoopCLKernel getFirstCompleteKernel() {
-    //     for (HadoopCLKernel k : this.running.keySet()) {
+    //     for (HadoopCLKernel k : this.running) {
     //         if (k.isComplete()) {
     //             return k;
     //         }
@@ -121,7 +124,7 @@ public class BufferRunner implements Runnable {
             public void run() {
                 kernel.waitForCompletion();
                 // LOG:DIAGNOSTIC
-                // log("  Detected completed kernel "+kernel.id);
+                log("  Detected completed kernel "+kernel.id);
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
                 toCopyFromOpenCL.add(kernel);
@@ -155,6 +158,7 @@ public class BufferRunner implements Runnable {
             kernel.openclProfile.startKernel();
             spawnKernelTrackingThread(kernel);
             // running.put(kernel, new HadoopCLInputOutputBufferPair(kernel));
+            // running.add(kernel);
         }
         return success;
     }
@@ -167,12 +171,12 @@ public class BufferRunner implements Runnable {
             soFar.buffer().getProfile().stopWrite(soFar.buffer());
             if (newProgress == -1) {
                 // LOG:DIAGNOSTIC
-                // log("    Done writing "+soFar.buffer().id+", releasing");
+                log("    Done writing "+soFar.buffer().id+", releasing");
                 this.freeOutputBuffers.free(soFar.buffer());
                 return null;
             } else {
                 // LOG:DIAGNOSTIC
-                // log("    Unable to complete output buffer, putting "+soFar.buffer().id+" back in toWrite with "+soFar.soFar()+" so far");
+                log("    Unable to complete output buffer, putting "+soFar.buffer().id+" back in toWrite with "+soFar.soFar()+" so far");
                 soFar.setSoFar(newProgress);
                 return soFar;
             }
@@ -203,7 +207,7 @@ public class BufferRunner implements Runnable {
         output.tracker = complete.tracker.clone();
 
         // LOG:DIAGNOSTIC
-        // log("    Adding "+output.id+" to output buffers to write");
+        log("    Adding "+output.id+" to output buffers to write");
 
         boolean completedAll = output.memRetry[0] == 0;
         // boolean completedAll = output.completedAll();
@@ -211,7 +215,7 @@ public class BufferRunner implements Runnable {
 
         if (!completedAll) {
             // LOG:DIAGNOSTIC
-            // log("      Retrying kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
+            log("      Retrying kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
             complete.tracker.incrementAttempt();
             try {
                 if (!complete.relaunchKernel()) {
@@ -228,9 +232,10 @@ public class BufferRunner implements Runnable {
             kernelsActive.getAndIncrement();
             spawnKernelTrackingThread(complete);
             // running.put(complete, new HadoopCLInputOutputBufferPair(complete));
+            // running.add(complete);
         } else {
             // LOG:DIAGNOSTIC
-            // log("      Releasing kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
+            log("      Releasing kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
             freeKernels.free(complete);
         }
     }
@@ -241,7 +246,7 @@ public class BufferRunner implements Runnable {
         OutputBufferSoFar soFar = null;
         while ((soFar = toWrite.poll()) != null) {
             // LOG:DIAGNOSTIC
-            // log("    Got output buffer "+soFar.buffer().id+" to write");
+            log("    Got output buffer "+soFar.buffer().id+" to write");
 
             int previously = soFar.soFar();
             OutputBufferSoFar cont = handleOutputBuffer(soFar);
@@ -288,7 +293,8 @@ public class BufferRunner implements Runnable {
     //     for (HadoopCLKernel complete : completed) {
     //         // Try to either re-run incomplete kernels, or just
     //         // set the output buffers up for dumping
-    //         final HadoopCLInputOutputBufferPair pair = running.remove(complete);
+    //         // final HadoopCLInputOutputBufferPair pair = running.remove(complete);
+    //         running.remove(complete);
     //         forwardProgress = true;
 
     //         log("  Detected completed kernel "+complete.id);
@@ -296,11 +302,11 @@ public class BufferRunner implements Runnable {
     //             complete.tracker.toString(), this.clContext);
 
     //         complete.openclProfile.stopKernel();
-    //         try {
-    //           pair.wrapperThread().join();
-    //         } catch(InterruptedException ie) {
-    //           throw new RuntimeException(ie);
-    //         }
+    //         // try {
+    //         //   pair.wrapperThread().join();
+    //         // } catch(InterruptedException ie) {
+    //         //   throw new RuntimeException(ie);
+    //         // }
 
     //         HadoopCLOutputBuffer output =
     //             allocOutputBufferWithInit(complete.getOutputPairsPerInput());
@@ -324,12 +330,12 @@ public class BufferRunner implements Runnable {
         if (inputBufferContainer != null) {
             if (inputBufferContainer.get() == null) {
                 // LOG:DIAGNOSTIC
-                // log("   Got DONE signal from main");
+                log("   Got DONE signal from main");
                 this.mainDone = true;
             } else {
                 inputBuffer = inputBufferContainer.get();
                 // LOG:DIAGNOSTIC
-                // log("  Got input buffer "+inputBuffer.id+" from main");
+                log("  Got input buffer "+inputBuffer.id+" from main");
             }
         }
 
@@ -340,7 +346,7 @@ public class BufferRunner implements Runnable {
             }
             if (inputBuffer != null) {
                 // LOG:DIAGNOSTIC
-                // log("  Got input buffer "+inputBuffer.id+" from retry list");
+                log("  Got input buffer "+inputBuffer.id+" from retry list");
             }
         }
 
@@ -356,11 +362,11 @@ public class BufferRunner implements Runnable {
             HadoopCLKernel k = newKernelInstance();
             if (k != null) {
                 // LOG:DIAGNOSTIC
-                // log("    Allocated kernel "+k.id+" for processing of input buffer "+inputBuffer.id);
+                log("    Allocated kernel "+k.id+" for processing of input buffer "+inputBuffer.id);
                 
                 if (!startKernel(k, inputBuffer)) {
                     // LOG:DIAGNOSTIC
-                    // log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing kernel "+k.id);
+                    log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing kernel "+k.id);
                     toRunPrivate.add(inputBuffer);
                     freeKernels.free(k);
                 } else {
@@ -368,11 +374,11 @@ public class BufferRunner implements Runnable {
                     profiles.add(inputBuffer.getProfile());
                     freeInputBuffers.free(inputBuffer);
                     // LOG:DIAGNOSTIC
-                    // log("    Successfully started kernel "+k.id+" on "+inputBuffer.id);
+                    log("    Successfully started kernel "+k.id+" on "+inputBuffer.id);
                 }
             } else {
                 // LOG:DIAGNOSTIC
-                // log("    Failed to allocate kernel, marking "+inputBuffer.id+" for retry");
+                log("    Failed to allocate kernel, marking "+inputBuffer.id+" for retry");
                 toRunPrivate.add(inputBuffer);
                 // break;
                 return forwardProgress;
@@ -390,9 +396,10 @@ public class BufferRunner implements Runnable {
             synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
-                while (this.somethingHappenedLocal.get() == false) {
+                while (this.somethingHappenedLocal.get() == false /* && getFirstCompleteKernel() == null */ ) {
                     try {
-                        this.somethingHappenedLocal.wait();
+                        this.somethingHappenedLocal.wait(100);
+                        // this.somethingHappenedLocal.wait();
                     } catch (InterruptedException ie) {
                         throw new RuntimeException(ie);
                     }
@@ -425,7 +432,7 @@ public class BufferRunner implements Runnable {
          */
         while (!mainDone || /* !running.isEmpty() || */
                 !toRunPrivate.isEmpty() || !toCopyFromOpenCL.isEmpty() || 
-                kernelsActive.get() > 0) {
+                kernelsActive.get() > 0 ) {
 
             boolean forwardProgress = false;
             /*
@@ -454,7 +461,7 @@ public class BufferRunner implements Runnable {
         }
 
         // LOG:DIAGNOSTIC
-        // log("    At end, "+toWrite.size()+" output buffers remaining to write");
+        log("    At end, "+toWrite.size()+" output buffers remaining to write");
         while (!toWrite.isEmpty()) {
             boolean forwardProgress = doOutputBuffers();
             if (!forwardProgress) {

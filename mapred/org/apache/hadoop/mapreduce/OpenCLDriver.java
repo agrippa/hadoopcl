@@ -178,7 +178,9 @@ public class OpenCLDriver {
 
     OpenCLDriver.processingFinish = -1;
     OpenCLDriver.processingStart = System.currentTimeMillis();
-    OpenCLDriver.inputsRead = 0;
+    if (this.clContext.isMapper()) {
+        OpenCLDriver.inputsRead = 0;
+    }
 
     long startupTime = System.currentTimeMillis() - this.startTime;
     // LOG:PROFILE
@@ -292,7 +294,9 @@ public class OpenCLDriver {
         }
 
         buffer.addKeyAndValue(this.context);
-        OpenCLDriver.inputsRead++;
+        if (this.clContext.isMapper()) {
+            OpenCLDriver.inputsRead++;
+        }
         buffer.getProfile().addItemProcessed();
     }
     buffer.getProfile().stopRead(buffer);
@@ -304,6 +308,7 @@ public class OpenCLDriver {
     runner.addWork(null);
 
     thread.join();
+    kernelManager.dispose();
 
     OpenCLDriver.processingFinish = System.currentTimeMillis();
 

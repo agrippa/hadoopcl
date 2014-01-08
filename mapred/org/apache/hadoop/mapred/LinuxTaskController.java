@@ -229,7 +229,6 @@ class LinuxTaskController extends TaskController {
           attemptId,
           currentWorkDirectory.toString(),
           commandFile};
-      System.out.println("Running "+taskControllerExe+" from Linux Task Controller");
       shExec = new ShellCommandExecutor(command);
 
       if (LOG.isDebugEnabled()) {

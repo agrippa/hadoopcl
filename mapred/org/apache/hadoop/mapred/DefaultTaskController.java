@@ -116,21 +116,6 @@ public class DefaultTaskController extends TaskController {
       FileSystem rawFs = FileSystem.getLocal(getConf()).getRaw();
       long logSize = 0; //TODO MAPREDUCE-1100
       // get the JVM command line.
-      /* 
-      Integer current = freeDevices.poll();
-      if(current == null) {
-          throw new RuntimeException("No available devices found! Did you launch more than 3 mappers, you idiot?");
-      }
-
-      jvmArguments.add(1, "-DhabaneroTaskId="+current.intValue()+"");
-      */
-      /*
-      System.out.print("From Default: ");
-      for(String arg : jvmArguments) {
-          System.out.print(arg+" : ");
-      }
-      System.out.println();
-      */
       cmdLine = 
         TaskLog.buildCommandLine(setup, jvmArguments,
             new File(stdout), new File(stderr), logSize, true);
@@ -142,17 +127,13 @@ public class DefaultTaskController extends TaskController {
           TaskTracker.getPrivateDirTaskScriptLocation(user, jobId, attemptId),
           getConf()), COMMAND_FILE);
 
+      System.out.println("DefaultTaskController running "+cmdLine);
       String commandFile = writeCommand(cmdLine, rawFs, p);
-//      rawFs.setPermission(p, TaskController.TASK_LAUNCH_SCRIPT_PERMISSION);
       shExec = new ShellCommandExecutor(new String[]{
 //          "bash", "-c", commandFile},
           "bash", commandFile},
           currentWorkDirectory);
-      //long execStart = System.currentTimeMillis();
       shExec.execute();
-      //freeDevices.add(current);
-      //long execStop = System.currentTimeMillis();
-      //System.out.println("Default Exec took "+(execStop-execStart));
     } catch (Exception e) {
       if (shExec == null) {
         return -1;

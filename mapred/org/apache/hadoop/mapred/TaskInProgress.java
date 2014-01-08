@@ -88,7 +88,6 @@ class TaskInProgress {
   private volatile boolean skipping = false;
   private boolean jobCleanup = false; 
   private boolean jobSetup = false;
-  private int assignedDevice = -1;
    
   // The 'next' usable taskid of this tip
   int nextTaskId = 0;
@@ -130,15 +129,6 @@ class TaskInProgress {
   private Counters counters = new Counters();
   
   private String user;
-
-  public void setAssignedDevice(int d) {
-      this.assignedDevice = d;
-  }
-
-  public int getAssignedDevice() {
-      return this.assignedDevice;
-  }
-  
 
   /**
    * Constructor for MapTask
