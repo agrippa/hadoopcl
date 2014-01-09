@@ -2335,6 +2335,7 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('\n')
         fp.write('        if (inputBuffer.enableStriding) {\n')
         fp.write('            int index = 0;\n')
+        fp.write('            inputBuffer.individualInputValsCount = 0;\n')
         fp.write('            Iterator<Integer> lengthIter = inputBuffer.sortedVals.descendingKeySet().iterator();\n')
         fp.write('            while (lengthIter.hasNext()) {\n')
         fp.write('                LinkedList<IndValWrapper> pairs = inputBuffer.sortedVals.get(lengthIter.next());\n')

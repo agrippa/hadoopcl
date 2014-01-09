@@ -330,7 +330,10 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
         @Override
         public void writeByte(int v) {
-            throw new UnsupportedOperationException();
+            if (availableInCurrentBuffer() < 1) {
+                addNewBuffer();
+            }
+            currentBuffer.buffer.put((byte)(v & 0xff));
         }
 
         @Override
