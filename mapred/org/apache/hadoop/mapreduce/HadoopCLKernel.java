@@ -323,7 +323,6 @@ public abstract class HadoopCLKernel extends Kernel {
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
             indicesIntoVectors[i] = 0;
-            System.err.println("  len = "+valsIter.getValIndices().length);
             queueOfSparseIndices[i] = valsIter.getValIndices()[0];
             queueOfVectors[i] = i;
             queueOfSparseIndicesLinks[i] = i+1;

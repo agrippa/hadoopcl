@@ -213,7 +213,6 @@ public class BufferRunner implements Runnable {
         boolean completedAll = output.completedAll();
         toWrite.add(new OutputBufferSoFar(output, 0));
 
-        System.err.println("completedAll="+completedAll);
         if (!completedAll) {
             // LOG:DIAGNOSTIC
             // log("      Retrying kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
