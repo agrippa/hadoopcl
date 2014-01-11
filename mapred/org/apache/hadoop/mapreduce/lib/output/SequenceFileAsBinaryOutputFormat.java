@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapreduce.lib.output;
 
+import org.apache.hadoop.io.KVCollection;
 import java.io.IOException;
 import java.io.DataOutputStream;
 
@@ -152,6 +153,11 @@ public class SequenceFileAsBinaryOutputFormat
         wvaluebytes.reset(bvalue);
         out.appendRaw(bkey.getBytes(), 0, bkey.getLength(), wvaluebytes);
         wvaluebytes.reset(null);
+      }
+
+      @Override
+      public int writeCollection(KVCollection coll) {
+          throw new UnsupportedOperationException();
       }
 
       public void writeChunk(byte[] arr, int len) throws IOException {

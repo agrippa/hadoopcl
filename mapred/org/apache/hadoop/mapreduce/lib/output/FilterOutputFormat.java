@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.lib.output;
 
 import java.io.IOException;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -95,6 +96,11 @@ public class FilterOutputFormat <K,V> extends OutputFormat<K, V> {
     @Override
     public void write(K key, V value) throws IOException, InterruptedException {
       getRawWriter().write(key, value);
+    }
+
+    @Override
+    public int writeCollection(KVCollection coll) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

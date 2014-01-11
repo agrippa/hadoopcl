@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.output;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
@@ -35,6 +36,11 @@ public class NullOutputFormat<K, V> extends OutputFormat<K, V> {
     return new RecordWriter<K, V>(){
         public void write(K key, V value) { }
         public void close(TaskAttemptContext context) { }
+
+        @Override
+        public int writeCollection(KVCollection coll) {
+            throw new UnsupportedOperationException();
+        }
         public void writeChunk(byte[] arr, int len) { }
         public void setUsingOpenCL(boolean val) { }
       };

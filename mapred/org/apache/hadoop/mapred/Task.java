@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.OpenCLDriver;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -1504,6 +1505,11 @@ abstract public class Task implements Writable, Configurable {
       public void write(K key, V value
                         ) throws IOException, InterruptedException {
         output.collect(key,value);
+      }
+
+      @Override
+      public int writeCollection(KVCollection coll) {
+          throw new UnsupportedOperationException();
       }
 
       @Override

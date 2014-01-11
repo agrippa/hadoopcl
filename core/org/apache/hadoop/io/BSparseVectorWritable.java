@@ -49,6 +49,16 @@ public class BSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
+    public BSparseVectorWritable(int[] indices, int indicesOffset, double[] vals, int valsOffset, int len) {
+        this.indices = indices;
+        this.vals = vals;
+        this.overrideIndicesOffset = indicesOffset;
+        this.overrideValsOffset = valsOffset;
+        this.overrideLength = len;
+        this.indicesRes = null;
+        this.valsRes = null;
+    }
+
     public BSparseVectorWritable(HadoopCLResizableIntArray indices,
             HadoopCLResizableDoubleArray vals) {
         this.indicesRes = indices;

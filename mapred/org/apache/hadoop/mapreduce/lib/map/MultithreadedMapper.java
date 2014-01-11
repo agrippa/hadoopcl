@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.map;
 
+import org.apache.hadoop.io.KVCollection;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -214,6 +215,11 @@ public class MultithreadedMapper<K1, V1, K2, V2>
         outer.write(key, value);
       }
     }  
+
+    @Override
+    public int writeCollection(KVCollection coll) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public void writeChunk(byte[] arr, int len) throws IOException {

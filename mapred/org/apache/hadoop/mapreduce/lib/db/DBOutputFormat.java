@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.db;
 
+import org.apache.hadoop.io.KVCollection;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -122,6 +123,11 @@ extends OutputFormat<K,V> {
       } catch (SQLException e) {
         e.printStackTrace();
       }
+    }
+
+    @Override
+    public int writeCollection(KVCollection coll) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

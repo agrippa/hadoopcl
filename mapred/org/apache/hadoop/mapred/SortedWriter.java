@@ -82,6 +82,8 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
     public void close() throws IOException {
 
+      if (this.recordMarks.isEmpty()) return;
+
       new QuickSort().sort(this, 0, this.recordMarks.size());
 
       // Do sorted writes

@@ -21,6 +21,7 @@ package org.apache.hadoop.mapreduce;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.io.KVCollection;
 
 /**
  * <code>RecordWriter</code> writes the output &lt;key, value&gt; pairs 
@@ -43,6 +44,9 @@ public abstract class RecordWriter<K, V> {
                              ) throws IOException, InterruptedException;
 
   public abstract void writeChunk(byte[] buffer, int length) 
+    throws IOException, InterruptedException;
+
+  public abstract int writeCollection(KVCollection<K,V> coll)
     throws IOException, InterruptedException;
 
   /** 

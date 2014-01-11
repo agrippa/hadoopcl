@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.output;
 
+import org.apache.hadoop.io.KVCollection;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -100,6 +101,11 @@ public class TextOutputFormat<K, V> extends FileOutputFormat<K, V> {
         writeObject(value);
       }
       out.write(newline);
+    }
+
+    @Override
+    public synchronized int writeCollection(KVCollection coll) {
+        throw new UnsupportedOperationException();
     }
 
     public synchronized void writeChunk(byte[] arr, int len) {

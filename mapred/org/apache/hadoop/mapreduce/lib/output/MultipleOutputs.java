@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapreduce.lib.output;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -304,6 +305,11 @@ public class MultipleOutputs<KEYOUT, VALUEOUT> {
         throws IOException, InterruptedException {
       context.getCounter(COUNTERS_GROUP, counterName).increment(1);
       writer.write(key, value);
+    }
+
+    @Override
+    public int writeCollection(KVCollection coll) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

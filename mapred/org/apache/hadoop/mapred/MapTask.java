@@ -18,9 +18,11 @@
 
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.BufferRunner;
 import org.apache.hadoop.mapreduce.OpenCLDriver;
 
+import org.apache.hadoop.mapreduce.DontBlockOnSpillDoneException;
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_INPUT_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_OUTPUT_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.MAP_INPUT_BYTES;
@@ -686,6 +688,11 @@ public class MapTask extends Task {
     }
 
     @Override
+    public int writeCollection(KVCollection<K,V> coll) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void writeChunk(byte[] arr, int len) {
         throw new java.lang.UnsupportedOperationException("Do not support writeChunk in mapred.MapTask.NewDirectOutputCollector");
     }
@@ -738,6 +745,11 @@ public class MapTask extends Task {
     public void write(K key, V value) throws IOException, InterruptedException {
       collector.collect(key, value,
                         partitioner.getPartition(key, value, partitions));
+    }
+
+    @Override
+    public int writeCollection(KVCollection<K,V> coll) throws IOException, InterruptedException {
+        return collector.collectCollection(coll, partitioner);
     }
 
     @Override
@@ -832,6 +844,9 @@ public class MapTask extends Task {
 
     public void collect(K key, V value, int partition
                         ) throws IOException, InterruptedException;
+    public int collectCollection(KVCollection<K,V> kv,
+        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
+          throws IOException, InterruptedException;
     public void close() throws IOException, InterruptedException;
     
     public void flush() throws IOException, InterruptedException, 
@@ -887,6 +902,12 @@ public class MapTask extends Task {
 
     public void flush() throws IOException, InterruptedException, 
                                ClassNotFoundException {
+    }
+
+    public int collectCollection(KVCollection<K,V> coll,
+        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
+          throws IOException, InterruptedException {
+      throw new UnsupportedOperationException();
     }
 
     public void collect(K key, V value, int partition) throws IOException {
@@ -1066,6 +1087,98 @@ public class MapTask extends Task {
       }
     }
 
+    public synchronized int collectCollection(KVCollection<K,V> coll,
+        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
+          throws IOException, InterruptedException {
+      reporter.progress();
+
+      spillLock.lock();
+      int kvnext = (kvindex + 1) % kvoffsets.length;
+      try {
+        boolean kvfull;
+        do {
+          if (sortSpillException != null) {
+            throw (IOException)new IOException("Spill failed"
+                ).initCause(sortSpillException);
+          }
+          // sufficient acct space
+          kvfull = kvnext == kvstart;
+          final boolean kvsoftlimit = ((kvnext > kvend)
+              ? kvnext - kvend > softRecordLimit
+              : kvend - kvnext <= kvoffsets.length - softRecordLimit);
+          if (kvstart == kvend && kvsoftlimit) {
+            LOG.info("Spilling map output: record full = " + kvsoftlimit);
+            startSpill();
+          }
+          if (kvfull) {
+            if (kvstart != kvend && isOpenCL()) {
+              throw new DontBlockOnSpillDoneException();
+            }
+            try {
+              if (OpenCLDriver.logger != null) {
+                  // LOG:PROFILE
+                  OpenCLDriver.logger.log("Blocking in collect", "mapper");
+              }
+              while (kvstart != kvend) {
+                reporter.progress();
+                spillDone.await();
+              }
+              if (OpenCLDriver.logger != null) {
+                  // LOG:PROFILE
+                  OpenCLDriver.logger.log("Unblocking in collect", "mapper");
+              }
+            } catch (InterruptedException e) {
+              throw (IOException)new IOException(
+                  "Collector interrupted while waiting for the writer"
+                  ).initCause(e);
+            }
+          }
+        } while (kvfull);
+      } finally {
+        spillLock.unlock();
+      }
+
+      for (int index = coll.start(); index < coll.end(); index++) {
+        final int partition = coll.getPartitionFor(index, partitions);
+        if (partition < 0 || partition >= partitions) {
+          throw new IOException("Illegal partition");
+        }
+        try {
+              kvnext = (kvindex + 1) % kvoffsets.length;
+              int keystart = bufindex;
+              coll.serializeKey(index, bb);
+              if (bufindex < keystart) {
+                // wrapped the key; reset required
+                bb.reset();
+                keystart = 0;
+              }
+              final int valstart = bufindex;
+              coll.serializeValue(index, bb);
+              final int valend = bb.markRecord();
+
+              mapOutputRecordCounter.increment(1);
+              mapOutputByteCounter.increment(valend >= keystart
+                  ? valend - keystart
+                  : (bufvoid - keystart) + valend);
+
+              // update accounting info
+              int ind = kvindex * ACCTSIZE;
+              kvoffsets[kvindex] = ind;
+              kvindices[ind + PARTITION] = partition;
+              kvindices[ind + KEYSTART] = keystart;
+              kvindices[ind + VALSTART] = valstart;
+              kvindex = kvnext;
+        } catch (MapBufferTooSmallException e) {
+          LOG.info("Record too large for in-memory buffer: " + e.getMessage());
+          spillSingleRecord(coll.getKeyFor(index), coll.getValueFor(index), partition);
+          mapOutputRecordCounter.increment(1);
+        } catch (DontBlockOnSpillDoneException db) {
+          return index;
+        }
+      }
+      return -1;
+    }
+
     public synchronized void collect(K key, V value, int partition
                                      ) throws IOException {
       reporter.progress();
@@ -1098,10 +1211,21 @@ public class MapTask extends Task {
             startSpill();
           }
           if (kvfull) {
+            if (kvstart != kvend && isOpenCL()) {
+              throw new DontBlockOnSpillDoneException();
+            }
             try {
+              if (OpenCLDriver.logger != null) {
+                  // LOG:PROFILE
+                  OpenCLDriver.logger.log("Blocking in collect", "mapper");
+              }
               while (kvstart != kvend) {
                 reporter.progress();
                 spillDone.await();
+              }
+              if (OpenCLDriver.logger != null) {
+                  // LOG:PROFILE
+                  OpenCLDriver.logger.log("Unblocking in collect", "mapper");
               }
             } catch (InterruptedException e) {
               throw (IOException)new IOException(
@@ -1320,7 +1444,7 @@ public class MapTask extends Task {
               try {
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    // OpenCLDriver.logger.log("Blocking on spillDone", "mapper");
+                    OpenCLDriver.logger.log("Blocking in write", "mapper");
                 }
                 while (kvstart != kvend) {
                   reporter.progress();
@@ -1328,7 +1452,7 @@ public class MapTask extends Task {
                 }
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    // OpenCLDriver.logger.log("Unblocking on spillDone", "mapper");
+                    OpenCLDriver.logger.log("Unblocking in write", "mapper");
                 }
               } catch (InterruptedException e) {
                   throw (IOException)new IOException(
@@ -1358,9 +1482,17 @@ public class MapTask extends Task {
       LOG.info("Starting flush of map output");
       spillLock.lock();
       try {
+        if (OpenCLDriver.logger != null) {
+            // LOG:PROFILE
+            OpenCLDriver.logger.log("Blocking in flush", "mapper");
+        }
         while (kvstart != kvend) {
           reporter.progress();
           spillDone.await();
+        }
+        if (OpenCLDriver.logger != null) {
+            // LOG:PROFILE
+            OpenCLDriver.logger.log("Unblocking in flush", "mapper");
         }
         if (sortSpillException != null) {
           throw (IOException)new IOException("Spill failed"
@@ -1514,7 +1646,7 @@ public class MapTask extends Task {
         int spindex = kvstart;
         IndexRecord rec = new IndexRecord();
         InMemValBytes value = new InMemValBytes();
-        for (int i = 0; i < partitions; ++i) {
+        for (int part = 0; part < partitions; ++part) {
           IFile.Writer<K, V> writer = null;
           try {
             long segmentStart = out.getPos();
@@ -1525,7 +1657,7 @@ public class MapTask extends Task {
               DataInputBuffer key = new DataInputBuffer();
               while (spindex < endPosition &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]
-                            + PARTITION] == i) {
+                            + PARTITION] == part) {
                 final int kvoff = kvoffsets[spindex % kvoffsets.length];
                 getVBytesForOffset(kvoff, value);
                 key.reset(kvbuffer, kvindices[kvoff + KEYSTART],
@@ -1542,7 +1674,7 @@ public class MapTask extends Task {
               int spstart = spindex;
               while (spindex < endPosition &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]
-                            + PARTITION] == i) {
+                            + PARTITION] == part) {
                 ++spindex;
               }
               // Note: we would like to avoid the combiner if we've fewer
@@ -1562,7 +1694,7 @@ public class MapTask extends Task {
             rec.startOffset = segmentStart;
             rec.rawLength = writer.getRawLength();
             rec.partLength = writer.getCompressedLength();
-            spillRec.putIndex(rec, i);
+            spillRec.putIndex(rec, part);
 
             writer = null;
           } catch (Exception ex) {
@@ -1799,6 +1931,7 @@ public class MapTask extends Task {
           for(int i = 0; i < numSpills; i++) {
             IndexRecord indexRecord = indexCacheList.get(i).getIndex(parts);
 
+            System.err.println("Filename = "+filename[i]);
             Segment<K,V> s =
               new Segment<K,V>(job, rfs, filename[i], indexRecord.startOffset,
                                indexRecord.partLength, codec, true);

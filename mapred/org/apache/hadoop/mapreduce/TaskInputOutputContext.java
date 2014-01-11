@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.Progressable;
+import org.apache.hadoop.io.KVCollection;
 
 /**
  * A context object that allows input and output from the task. It is only
@@ -88,6 +89,10 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   public void write(KEYOUT key, VALUEOUT value
                     ) throws IOException, InterruptedException {
     output.write(key, value);
+  }
+
+  public int writeCollection(KVCollection<KEYOUT,VALUEOUT> coll) throws IOException, InterruptedException {
+      return output.writeCollection(coll);
   }
 
   public void writeChunk(byte[] buffer, int length) throws IOException, InterruptedException {

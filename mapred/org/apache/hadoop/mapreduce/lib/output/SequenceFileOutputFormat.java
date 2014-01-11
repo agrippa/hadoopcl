@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.lib.output;
 
 import java.io.IOException;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -73,6 +74,11 @@ public class SequenceFileOutputFormat <K,V> extends FileOutputFormat<K, V> {
           throws IOException {
 
           out.append(key, value);
+        }
+
+        @Override
+        public int writeCollection(KVCollection coll) {
+            throw new UnsupportedOperationException();
         }
 
         public void writeChunk(byte[] buffer, int length) throws IOException {

@@ -3,7 +3,7 @@ package org.apache.hadoop.mapreduce;
 import java.util.List;
 
 public interface HadoopCLProfile {
-  public void addItemProcessed();
+  public void addItemsProcessed(int count);
   public void startRead(HadoopCLBuffer owner);
   public void stopRead(HadoopCLBuffer owner);
   public void startKernel();

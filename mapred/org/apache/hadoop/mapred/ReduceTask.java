@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.io.KVCollection;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.File;
@@ -591,6 +592,11 @@ class ReduceTask extends Task {
       long bytesOutCurr = getOutputBytes(fsStats);
       fileOutputByteCounter.increment(bytesOutCurr - bytesOutPrev);
       outputRecordCounter.increment(1);
+    }
+
+    @Override
+    public int writeCollection(KVCollection coll) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

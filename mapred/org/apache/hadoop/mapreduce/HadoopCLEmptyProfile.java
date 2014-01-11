@@ -8,24 +8,24 @@ public class HadoopCLEmptyProfile implements HadoopCLProfile {
     this.clContext = clContext;
   }
 
-  public void addItemProcessed() { }
+  public void addItemsProcessed(int count) { }
   public void startRead(HadoopCLBuffer owner) {
     // LOG:PROFILE
-    // OpenCLDriver.logger.log("starting read of "+owner.tracker.toString(), this.clContext);
+    OpenCLDriver.logger.log("starting read of "+owner.tracker.toString(), this.clContext);
   }
   public void stopRead(HadoopCLBuffer owner) {
     // LOG:PROFILE
-    // OpenCLDriver.logger.log("finishing read of "+owner.tracker.toString(), this.clContext);
+    OpenCLDriver.logger.log("finishing read of "+owner.tracker.toString(), this.clContext);
   }
   public void startKernel() { }
   public void stopKernel() { }
   public void startWrite(HadoopCLBuffer owner) { 
     // LOG:PROFILE
-    // OpenCLDriver.logger.log("starting write of "+owner.tracker.toString(), this.clContext);
+    OpenCLDriver.logger.log("starting write of "+owner.tracker.toString(), this.clContext);
   }
   public void stopWrite(HadoopCLBuffer owner) {
     // LOG:PROFILE
-    // OpenCLDriver.logger.log("finishing write of "+owner.tracker.toString(), this.clContext);
+    OpenCLDriver.logger.log("finishing write of "+owner.tracker.toString(), this.clContext);
   }
   public long readTime() { return 0L; }
   public long kernelTime() { return 0L; }
