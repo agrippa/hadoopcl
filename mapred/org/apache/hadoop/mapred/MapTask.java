@@ -1138,7 +1138,9 @@ public class MapTask extends Task {
         spillLock.unlock();
       }
 
-      for (int index = coll.start(); index < coll.end(); index++) {
+      int index = coll.start();
+      for ( ; index < coll.end() &&
+              ((kvindex + 1) % kvoffsets.length) != kvstart; index++) {
         final int partition = coll.getPartitionFor(index, partitions);
         if (partition < 0 || partition >= partitions) {
           throw new IOException("Illegal partition");
@@ -1176,7 +1178,8 @@ public class MapTask extends Task {
           return index;
         }
       }
-      return -1;
+      if (index == coll.end()) return -1;
+      else return index;
     }
 
     public synchronized void collect(K key, V value, int partition
