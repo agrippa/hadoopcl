@@ -184,7 +184,7 @@ public class OpenCLDriver {
 
     long startupTime = System.currentTimeMillis() - this.startTime;
     // LOG:PROFILE
-    logger.log("entering run", this.clContext);
+    // logger.log("entering run", this.clContext);
 
     if(this.clContext.getDevice() == null) {
         IHadoopCLAccumulatedProfile javaProfile = javaRun();
@@ -194,7 +194,7 @@ public class OpenCLDriver {
         }
         OpenCLDriver.processingFinish = System.currentTimeMillis();
         // LOG:PROFILE
-        logger.log("exiting run", this.clContext);
+        // logger.log("exiting run", this.clContext);
         return;
     }
 
@@ -297,7 +297,7 @@ public class OpenCLDriver {
 
     long stop = System.currentTimeMillis();
     // LOG:PROFILE
-    logger.log("exiting run", this.clContext);
+    // logger.log("exiting run", this.clContext);
     String profileStr = profilesToString(stop-start, startupTime, runner.profiles(),
           inputManager.timeWaiting(), outputManager.timeWaiting(),
           kernelManager.timeWaiting());

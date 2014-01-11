@@ -1112,12 +1112,13 @@ public class MapTask extends Task {
           }
           if (kvfull) {
             if (kvstart != kvend && isOpenCL()) {
-              throw new DontBlockOnSpillDoneException();
+              return coll.start();
+              // throw new DontBlockOnSpillDoneException();
             }
             try {
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Blocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Blocking in collect", "mapper");
               }
               while (kvstart != kvend) {
                 reporter.progress();
@@ -1125,7 +1126,7 @@ public class MapTask extends Task {
               }
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Unblocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Unblocking in collect", "mapper");
               }
             } catch (InterruptedException e) {
               throw (IOException)new IOException(
@@ -1220,7 +1221,7 @@ public class MapTask extends Task {
             try {
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Blocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Blocking in collect", "mapper");
               }
               while (kvstart != kvend) {
                 reporter.progress();
@@ -1228,7 +1229,7 @@ public class MapTask extends Task {
               }
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Unblocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Unblocking in collect", "mapper");
               }
             } catch (InterruptedException e) {
               throw (IOException)new IOException(
@@ -1447,7 +1448,7 @@ public class MapTask extends Task {
               try {
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    OpenCLDriver.logger.log("Blocking in write", "mapper");
+                    // OpenCLDriver.logger.log("Blocking in write", "mapper");
                 }
                 while (kvstart != kvend) {
                   reporter.progress();
@@ -1455,7 +1456,7 @@ public class MapTask extends Task {
                 }
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    OpenCLDriver.logger.log("Unblocking in write", "mapper");
+                    // OpenCLDriver.logger.log("Unblocking in write", "mapper");
                 }
               } catch (InterruptedException e) {
                   throw (IOException)new IOException(
@@ -1487,7 +1488,7 @@ public class MapTask extends Task {
       try {
         if (OpenCLDriver.logger != null) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("Blocking in flush", "mapper");
+            // OpenCLDriver.logger.log("Blocking in flush", "mapper");
         }
         while (kvstart != kvend) {
           reporter.progress();
@@ -1495,7 +1496,7 @@ public class MapTask extends Task {
         }
         if (OpenCLDriver.logger != null) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("Unblocking in flush", "mapper");
+            // OpenCLDriver.logger.log("Unblocking in flush", "mapper");
         }
         if (sortSpillException != null) {
           throw (IOException)new IOException("Spill failed"
@@ -1934,7 +1935,6 @@ public class MapTask extends Task {
           for(int i = 0; i < numSpills; i++) {
             IndexRecord indexRecord = indexCacheList.get(i).getIndex(parts);
 
-            System.err.println("Filename = "+filename[i]);
             Segment<K,V> s =
               new Segment<K,V>(job, rfs, filename[i], indexRecord.startOffset,
                                indexRecord.partLength, codec, true);
