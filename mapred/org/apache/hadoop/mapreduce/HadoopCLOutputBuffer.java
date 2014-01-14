@@ -6,7 +6,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public int[] memIncr;
-    public int[] memRetry;
     protected int[] outputIterMarkers;
     public HashSet<Integer> itersFinished;
 
@@ -19,6 +18,6 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
 
     @Override
     public long space() {
-        return super.space() + (4 * memIncr.length) + (4 * memRetry.length);
+        return super.space() + (4 * memIncr.length);
     }
 }

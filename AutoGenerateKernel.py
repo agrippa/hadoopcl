@@ -1891,7 +1891,7 @@ def writePostKernelSetupDeclaration(fp, isMapper, nativeOutputKeyType, nativeOut
     elif nativeOutputValueType == 'fsvec':
         fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxFloatIncr')
 
-    fp.write(', int[] setMemIncr, int[] setMemRetry, int[] setNWrites, int setOutputsPerInput, int[] outputIterMarkers) {\n')
+    fp.write(', int[] setMemIncr, int[] setNWrites, int setOutputsPerInput, int[] outputIterMarkers) {\n')
 
 
 def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
@@ -1903,7 +1903,6 @@ def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputVa
 
     fp.write('\n')
     fp.write('        this.memIncr = setMemIncr;\n')
-    fp.write('        this.memRetry = setMemRetry;\n')
     fp.write('        this.nWrites = setNWrites;\n')
     # fp.write('        this.memIncr[0] = 0;\n')
     fp.write('\n')
@@ -1978,7 +1977,6 @@ def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValue
 
     fp.write('\n')
     fp.write('        this.memIncr = null;\n')
-    fp.write('        this.memRetry = null;\n')
     fp.write('        this.outputsPerInput = setOutputsPerInput;\n')
     fp.write('\n')
 
@@ -2020,7 +2018,6 @@ def writeInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nati
     fp.write('\n')
     fp.write('        this.arrayLengths.put("outputIterMarkers", this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput());\n')
     fp.write('        this.arrayLengths.put("memIncr", 1);\n')
-    fp.write('        this.arrayLengths.put("memRetry", 1);\n')
     writeln(visitor(nativeOutputKeyType).getArrayLengthInit('outputKey',
         'this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput()',
             isMapper, True), 2, fp)
@@ -2320,7 +2317,7 @@ def generatePrepareForRead(fp, isMapper, nativeInputKeyType, nativeInputValType,
     elif nativeOutputValType == 'fsvec':
         fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
 
-    fp.write(', outputBuffer.memIncr, outputBuffer.memRetry, outputBuffer.nWrites, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
+    fp.write(', outputBuffer.memIncr, outputBuffer.nWrites, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
     fp.write('    }\n')
     fp.write('\n')
 

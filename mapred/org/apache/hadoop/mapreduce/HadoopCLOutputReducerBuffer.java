@@ -19,7 +19,6 @@ public abstract class HadoopCLOutputReducerBuffer extends HadoopCLOutputBuffer {
         this.clContext = clContext;
         this.isGPU = this.clContext.isGPU();
         this.memIncr = new int[1];
-        this.memRetry = new int[1];
         this.nWrites = new int[this.clContext.getInputBufferSize()];
     }
 

@@ -74,8 +74,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
                     stopOffset = input_keyIndex[iter+1];
                 }
                 callReduce(startOffset, stopOffset);
-                if (outOfMemory()) {
-                    this.memRetry[0] = 1;
+                if (nWrites[iter] < 0) {
                     iter = end;
                 }
             }

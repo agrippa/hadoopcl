@@ -217,13 +217,12 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
 
-        // boolean completedAll = output.memRetry[0] == 0;
         boolean completedAll = output.completedAll();
         toWrite.add(new OutputBufferSoFar(output, 0));
 
         if (!completedAll) {
             // LOG:DIAGNOSTIC
-            // log("      Retrying kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
+            // log("      Retrying kernel "+complete.id+" due to completedAll="+completedAll);
             complete.tracker.incrementAttempt();
             try {
                 if (!complete.relaunchKernel()) {
@@ -243,7 +242,7 @@ public class BufferRunner implements Runnable {
             // running.add(complete);
         } else {
             // LOG:DIAGNOSTIC
-            // log("      Releasing kernel "+complete.id+" due to memRetry="+output.memRetry[0]);
+            // log("      Releasing kernel "+complete.id+" due to completedAll="+completedAll);
             freeKernels.free(complete);
         }
     }
