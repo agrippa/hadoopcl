@@ -148,7 +148,11 @@ public class BufferRunner implements Runnable {
         try {
             // LOG:PROFILE
             // OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(), this.clContext);
+            // LOG:PROFILE
+            // OpenCLDriver.logger.log("starting kernel", this.clContext);
             success = kernel.launchKernel();
+            // LOG:PROFILE
+            // OpenCLDriver.logger.log("returning from kernel start", this.clContext);
         } catch(Exception io) {
             throw new RuntimeException(io);
         }
@@ -200,11 +204,15 @@ public class BufferRunner implements Runnable {
 
     private void handleOpenCLCopy(HadoopCLKernel complete,
             HadoopCLOutputBuffer output) {
+        // LOG:PROFILE
+        // OpenCLDriver.logger.log("started reading from opencl", this.clContext);
         complete.prepareForRead(output);
         complete.waitFor();
 
         output.copyOverFromKernel(complete);
         output.tracker = complete.tracker.clone();
+        // LOG:PROFILE
+        // OpenCLDriver.logger.log("done reading from opencl", this.clContext);
 
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
@@ -398,7 +406,7 @@ public class BufferRunner implements Runnable {
                 // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
                 while (this.somethingHappenedLocal.get() == false /* && getFirstCompleteKernel() == null */ ) {
                     try {
-                        this.somethingHappenedLocal.wait(100);
+                        this.somethingHappenedLocal.wait();
                         // this.somethingHappenedLocal.wait();
                     } catch (InterruptedException ie) {
                         throw new RuntimeException(ie);
@@ -413,7 +421,14 @@ public class BufferRunner implements Runnable {
 
     @Override
     public void run() {
+        // LOG:PROFILE
+        // OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
+        this.freeKernels.preallocateKernels();
+        // LOG:PROFILE
+        // OpenCLDriver.logger.log("Done reallocating kernels", this.clContext);
 
+        // LOG:PROFILE
+        // OpenCLDriver.logger.log("Waiting for first input", this.clContext);
         synchronized (this.somethingHappenedLocal) {
             while (toRun.isEmpty()) {
                 try {
@@ -423,6 +438,8 @@ public class BufferRunner implements Runnable {
                 }
             }
         }
+        // LOG:PROFILE
+        // OpenCLDriver.logger.log("Done waiting for first input", this.clContext);
 
         /*
          * I removed the condition !toWrite.isEmpty() because I'd rather
@@ -436,14 +453,14 @@ public class BufferRunner implements Runnable {
 
             boolean forwardProgress = false;
             /*
-             * Output Buffer Handling
-             */
-            forwardProgress |= doOutputBuffers();
-
-            /*
              * Copy back kernels
              */
             forwardProgress |= doKernelCopyBack();
+
+            /*
+             * Output Buffer Handling
+             */
+            forwardProgress |= doOutputBuffers();
 
             /*
              * Kernel Completion Handling

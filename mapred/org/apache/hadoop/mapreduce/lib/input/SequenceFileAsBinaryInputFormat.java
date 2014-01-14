@@ -150,5 +150,9 @@ public class SequenceFileAsBinaryInputFormat
                                       (double)(end - start)));
       }
     }
+
+    public boolean supportsBulkReads() {
+      return false;
+    }
   }
 }

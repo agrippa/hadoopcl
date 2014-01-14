@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapreduce;
 
 import java.io.IOException;
+import java.io.DataInput;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.Progressable;
@@ -53,6 +54,9 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     this.committer = committer;
     this.ctxType = setType;
   }
+
+  public abstract boolean supportsBulkReads();
+  public abstract HadoopCLDataInput getBulkReader();
 
   /**
    * Advance to the next key, value pair, returning null if at end.
@@ -120,4 +124,6 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   public OutputCommitter getOutputCommitter() {
     return committer;
   }
+
+  public abstract void signalDoneReading();
 }

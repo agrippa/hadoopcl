@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce;
 
+import java.io.DataInput;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -30,6 +31,7 @@ import org.apache.hadoop.io.serializer.Deserializer;
 import org.apache.hadoop.io.serializer.SerializationFactory;
 import org.apache.hadoop.mapred.RawKeyValueIterator;
 import org.apache.hadoop.util.Progressable;
+import org.apache.hadoop.mapred.MapTask.MapOutputBuffer;
 
 /**
  * The context passed to the {@link Reducer}.
@@ -55,6 +57,7 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   private DataInputBuffer buffer = new DataInputBuffer();
   private BytesWritable currentRawKey = new BytesWritable();
   private ValueIterable iterable = new ValueIterable();
+  private final MapOutputBuffer caller;
 
   public ReduceContext(Configuration conf, TaskAttemptID taskid,
                        RawKeyValueIterator input, 
@@ -65,7 +68,8 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                        StatusReporter reporter,
                        RawComparator<KEYIN> comparator,
                        Class<KEYIN> keyClass,
-                       Class<VALUEIN> valueClass, ContextType setType
+                       Class<VALUEIN> valueClass, ContextType setType,
+                       MapOutputBuffer caller
                        ) throws InterruptedException, IOException{
     super(conf, taskid, output, committer, reporter, setType);
     this.input = input;
@@ -77,7 +81,16 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     this.keyDeserializer.open(buffer);
     this.valueDeserializer = serializationFactory.getDeserializer(valueClass);
     this.valueDeserializer.open(buffer);
+    this.caller = caller;
     hasMore = input.next();
+  }
+
+  public boolean supportsBulkReads() {
+      return input.supportsBulkReads();
+  }
+
+  public HadoopCLDataInput getBulkReader() {
+      return input.getBulkReader();
   }
 
   public RawKeyValueIterator getIn() {
@@ -201,5 +214,9 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     return iterable;
   }
 
-
+  public void signalDoneReading() {
+    if (caller != null) {
+        caller.releaseCurrentlySpilling(false);
+    }
+  }
 }

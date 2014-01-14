@@ -23,22 +23,22 @@ public abstract class HadoopCLKernel extends Kernel {
     protected IHadoopCLAccumulatedProfile javaProfile;
     protected HadoopCLProfile openclProfile;
 
-    protected double[] globalsVal;
-    protected float[] globalsFval;
-    protected int[] globalsInd;
-    protected int[] globalIndices;
-    protected int nGlobals;
+    public double[] globalsVal;
+    public float[] globalsFval;
+    public int[] globalsInd;
+    public int[] globalIndices;
+    public int nGlobals;
 
-    protected int[] globalsMapInd;
-    protected double[] globalsMapVal;
-    protected float[] globalsMapFval;
-    protected int[] globalsMap;
-    protected int nGlobalBuckets;
+    public int[] globalsMapInd;
+    public double[] globalsMapVal;
+    public float[] globalsMapFval;
+    public int[] globalsMap;
+    public int nGlobalBuckets;
 
-    protected int[] outputIterMarkers;
-    protected int[] memIncr;
-    protected int[] memRetry;
-    protected int outputsPerInput;
+    public int[] outputIterMarkers;
+    public int[] memIncr;
+    public int[] memRetry;
+    public int outputsPerInput;
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
     private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
     private HadoopCLResizableFloatArray copyFvals = new HadoopCLResizableFloatArray();
@@ -451,6 +451,11 @@ public abstract class HadoopCLKernel extends Kernel {
             throw new RuntimeException("Querying for array length of invalid array "+inArr);
         }
         return this.arrayLengths.get(inArr);
+    }
+
+    @Override
+    public String getKernelFile() {
+        return null;
     }
 
     private int newSize(int currentSize, int targetSize) {

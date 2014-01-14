@@ -17,12 +17,14 @@
  */
 package org.apache.hadoop.mapred;
 
+import java.io.DataInput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -561,5 +563,11 @@ public class Merger {
       return mergeProgress;
     }
 
+    public boolean supportsBulkReads() {
+        return false;
+    }
+    public HadoopCLDataInput getBulkReader() {
+        throw new UnsupportedOperationException();
+    }
   }
 }

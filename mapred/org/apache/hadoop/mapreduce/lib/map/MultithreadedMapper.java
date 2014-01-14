@@ -197,6 +197,10 @@ public class MultithreadedMapper<K1, V1, K2, V2>
     public V1 getCurrentValue() {
       return value;
     }
+
+    public boolean supportsBulkReads() {
+      return false;
+    }
   }
   
   private class SubMapRecordWriter extends RecordWriter<K2,V2> {

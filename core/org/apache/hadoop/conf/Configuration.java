@@ -1618,15 +1618,15 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           FSDataOutputStream output = fs.create(new Path(filename));
 
           int[] metadata = new int[] { countGlobals, totalGlobals };
-          ReadArrayUtils.dumpIntArray(output, metadata, 0, metadata.length);
-          ReadArrayUtils.dumpIntArray(output, globalOffsets, 0, globalOffsets.length);
-          ReadArrayUtils.dumpIntArray(output, globalsInd, 0, globalsInd.length);
-          ReadArrayUtils.dumpDoubleArray(output, globalsVal, 0, globalsVal.length);
-          ReadArrayUtils.dumpFloatArray(output, globalsFval, 0, globalsFval.length);
-          ReadArrayUtils.dumpIntArray(output, globalsMapInd, 0, globalsMapInd.length);
-          ReadArrayUtils.dumpDoubleArray(output, globalsMapVal, 0, globalsMapVal.length);
-          ReadArrayUtils.dumpFloatArray(output, globalsMapFval, 0, globalsMapFval.length);
-          ReadArrayUtils.dumpIntArray(output, globalsMap, 0, globalsMap.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, metadata, 0, metadata.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalOffsets, 0, globalOffsets.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalsInd, 0, globalsInd.length);
+          ReadArrayUtils.dumpDoubleArrayStatic(output, globalsVal, 0, globalsVal.length);
+          ReadArrayUtils.dumpFloatArrayStatic(output, globalsFval, 0, globalsFval.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalsMapInd, 0, globalsMapInd.length);
+          ReadArrayUtils.dumpDoubleArrayStatic(output, globalsMapVal, 0, globalsMapVal.length);
+          ReadArrayUtils.dumpFloatArrayStatic(output, globalsMapFval, 0, globalsMapFval.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalsMap, 0, globalsMap.length);
 
           output.close();
       } catch(IOException io) {

@@ -21,6 +21,8 @@ package org.apache.hadoop.mapred;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.BufferRunner;
 import org.apache.hadoop.mapreduce.OpenCLDriver;
+import org.apache.hadoop.mapreduce.HadoopCLBulkCombinerReader;
+import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 
 import org.apache.hadoop.mapreduce.DontBlockOnSpillDoneException;
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_INPUT_RECORDS;
@@ -34,6 +36,7 @@ import org.apache.hadoop.io.WritableComparable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -598,6 +601,10 @@ public class MapTask extends Task {
     private long getInputBytes(Statistics stats) {
       return stats == null ? 0 : stats.getBytesRead();
     }
+
+    public boolean supportsBulkReads() {
+        return false;
+    }
   }
 
   /**
@@ -924,7 +931,7 @@ public class MapTask extends Task {
     }
   }
 
-  class MapOutputBuffer<K extends Comparable<K> & Writable, V extends Comparable<V> & Writable> 
+  public class MapOutputBuffer<K extends Comparable<K> & Writable, V extends Comparable<V> & Writable> 
       implements MapOutputCollector<K, V>, IndexedSortable {
     private final int partitions;
     private final JobConf job;
@@ -937,6 +944,7 @@ public class MapTask extends Task {
     private final Serializer<V> valSerializer;
     private final CombinerRunner<K,V> combinerRunner;
     private final CombineOutputCollector<K, V> combineCollector;
+    private boolean alreadyReleased = true;
     
     // Compression for map-outputs
     private CompressionCodec codec = null;
@@ -955,24 +963,27 @@ public class MapTask extends Task {
     private int bufmark = 0;           // marks end of record
     private byte[] kvbuffer;           // main output buffer
     private static final int PARTITION = 0; // partition offset in acct
-    private static final int KEYSTART = 1;  // key offset in acct
-    private static final int VALSTART = 2;  // val offset in acct
-    private static final int ACCTSIZE = 3;  // total #fields in acct
-    private static final int RECSIZE =
+    public static final int KEYSTART = 1;  // key offset in acct
+    public static final int VALSTART = 2;  // val offset in acct
+    public static final int ACCTSIZE = 3;  // total #fields in acct
+    public static final int RECSIZE =
                        (ACCTSIZE + 1) * 4;  // acct bytes per record
 
     // spill accounting
     private volatile int numSpills = 0;
+    private final float spillper;
+    private final float initialspillper;
     private volatile Throwable sortSpillException = null;
-    private final int softRecordLimit;
-    private final int softBufferLimit;
-    private final int minSpillsForCombine;
+    private int softRecordLimit;
+    private int softBufferLimit;
+    private int minSpillsForCombine;
     private final IndexedSorter sorter;
     private final ReentrantLock spillLock = new ReentrantLock();
     private final Condition spillDone = spillLock.newCondition();
     private final Condition spillReady = spillLock.newCondition();
     private final BlockingBuffer bb = new BlockingBuffer();
     private volatile boolean spillThreadRunning = false;
+    private volatile boolean noMoreSpilling = false;
     private final SpillThread spillThread = new SpillThread();
 
     private final FileSystem localFs;
@@ -1001,11 +1012,12 @@ public class MapTask extends Task {
       indexCacheList = new ArrayList<SpillRecord>();
       
       //sanity checks
-      final float spillper;
       if (isOpenCL()) {
           spillper = job.getFloat("io.sort.spill.percent.hadoopcl",(float)0.8);
+          initialspillper = job.getFloat("io.sort.spill.percent.hadoopcl.initial", (float)0.4);
       } else {
           spillper = job.getFloat("io.sort.spill.percent",(float)0.8);
+          initialspillper = spillper;
       }
 
       final float recper = job.getFloat("io.sort.record.percent",(float)0.05);
@@ -1031,8 +1043,10 @@ public class MapTask extends Task {
       recordCapacity /= RECSIZE;
       kvoffsets = new int[recordCapacity];
       kvindices = new int[recordCapacity * ACCTSIZE];
-      softBufferLimit = (int)(kvbuffer.length * spillper);
-      softRecordLimit = (int)(kvoffsets.length * spillper);
+      // softBufferLimit = (int)(kvbuffer.length * spillper);
+      // softRecordLimit = (int)(kvoffsets.length * spillper);
+      softBufferLimit = (int)(kvbuffer.length * initialspillper);
+      softRecordLimit = (int)(kvoffsets.length * initialspillper);
       LOG.info("data buffer = " + softBufferLimit + "/" + kvbuffer.length);
       LOG.info("record buffer = " + softRecordLimit + "/" + kvoffsets.length);
       // k/v serialization
@@ -1060,7 +1074,7 @@ public class MapTask extends Task {
       // combiner
       combinerRunner = CombinerRunner.create(job, getTaskID(), 
                                              combineInputCounter,
-                                             reporter, null);
+                                             reporter, null, this);
       if (combinerRunner != null) {
         combineCollector= new CombineOutputCollector<K,V>(combineOutputCounter, reporter, conf);
       } else {
@@ -1502,11 +1516,14 @@ public class MapTask extends Task {
           throw (IOException)new IOException("Spill failed"
               ).initCause(sortSpillException);
         }
+        noMoreSpilling = true;
+
         if (kvend != kvindex) {
           kvend = kvindex;
           bufend = bufmark;
           sortAndSpill();
         }
+        spillReady.signal();
       } catch (InterruptedException e) {
         throw (IOException)new IOException(
             "Buffer interrupted while waiting for the writer"
@@ -1522,7 +1539,7 @@ public class MapTask extends Task {
       // finishes its work might be both a useful way to extend this and also
       // sufficient motivation for the latter approach.
       try {
-        spillThread.interrupt();
+        // spillThread.interrupt();
         spillThread.join();
       } catch (InterruptedException e) {
         throw (IOException)new IOException("Spill failed"
@@ -1537,15 +1554,62 @@ public class MapTask extends Task {
 
     public void close() { }
 
+    private int diffWithWrap(int bottom, int top, int limit) {
+        if (top > bottom) {
+            return top - bottom;
+        } else {
+            return (limit - bottom) + top;
+        }
+    }
+
+    public void releaseCurrentlySpilling(boolean callingFromSpillThread) {
+
+        spillLock.lock();
+
+        if (alreadyReleased) {
+          // Don't unlock, as we are being called from the SpillThread
+          if (!callingFromSpillThread) spillLock.unlock();
+          return;
+        }
+        alreadyReleased = true;
+
+        if (bufend < bufindex && bufindex < bufstart) {
+          bufvoid = kvbuffer.length;
+        }
+        kvstart = kvend;
+        bufstart = bufend;
+
+        int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
+        double newKvRatio = (double)newDiff / (double)kvoffsets.length;
+        double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
+        // System.out.println("Finishing sortAndSpill");
+        // System.out.println("  kvend="+kvend);
+        // System.out.println("  kvindex="+kvindex);
+        // System.out.println("  kvoffsets.length="+kvoffsets.length);
+        // System.out.println("  bufend="+bufend);
+        // System.out.println("  bufindex="+bufindex);
+        // System.out.println("  kvbuffer.length="+kvbuffer.length);
+        // System.out.println("  newDiff="+newDiff);
+        // System.out.println("newWorkRatio = "+newWorkRatio);
+        if (newKvRatio > 0.30) {
+          LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
+          kvend = kvindex;
+          bufend = bufmark;
+          LOG.info("bufstart = " + bufstart + "; bufend = " + bufend +
+              "; bufvoid = " + bufvoid);
+          LOG.info("kvstart = " + kvstart + "; kvend = " + kvend +
+              "; length = " + kvoffsets.length);
+        }
+
+        synchronized(BufferRunner.somethingHappened) {
+            BufferRunner.somethingHappened.set(true);
+            BufferRunner.somethingHappened.notify();
+        }
+        if (!callingFromSpillThread) spillLock.unlock();
+    }
+
     protected class SpillThread extends Thread {
 
-      private int diffWithWrap(int bottom, int top, int limit) {
-          if (top > bottom) {
-              return top - bottom;
-          } else {
-              return (limit - bottom) + top;
-          }
-      }
 
       @Override
       public void run() {
@@ -1553,19 +1617,24 @@ public class MapTask extends Task {
 
         spillThreadRunning = true;
         try {
-          while (true) {
-
-            synchronized(BufferRunner.somethingHappened) {
-                BufferRunner.somethingHappened.set(true);
-                BufferRunner.somethingHappened.notify();
-            }
+          synchronized(BufferRunner.somethingHappened) {
+              BufferRunner.somethingHappened.set(true);
+              BufferRunner.somethingHappened.notify();
+          }
+          while (!noMoreSpilling) {
 
             spillDone.signalAll();
 
-            while (kvstart == kvend) {
+            while (kvstart == kvend && !noMoreSpilling) {
               spillReady.await();
             }
+            if (noMoreSpilling) break;
             try {
+              if (!alreadyReleased) {
+                  throw new RuntimeException(
+                      "Seems like we missed the last release?");
+              }
+              alreadyReleased = false;
               spillLock.unlock();
 
               sortAndSpill();
@@ -1577,34 +1646,7 @@ public class MapTask extends Task {
                               + StringUtils.stringifyException(t);
               reportFatalError(getTaskID(), t, logMsg);
             } finally {
-              spillLock.lock();
-              if (bufend < bufindex && bufindex < bufstart) {
-                bufvoid = kvbuffer.length;
-              }
-              kvstart = kvend;
-              bufstart = bufend;
-
-              int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
-              double newKvRatio = (double)newDiff / (double)kvoffsets.length;
-              double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
-              // System.out.println("Finishing sortAndSpill");
-              // System.out.println("  kvend="+kvend);
-              // System.out.println("  kvindex="+kvindex);
-              // System.out.println("  kvoffsets.length="+kvoffsets.length);
-              // System.out.println("  bufend="+bufend);
-              // System.out.println("  bufindex="+bufindex);
-              // System.out.println("  kvbuffer.length="+kvbuffer.length);
-              // System.out.println("  newDiff="+newDiff);
-              // System.out.println("newWorkRatio = "+newWorkRatio);
-              if (newKvRatio > 0.30) {
-                  LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
-                  kvend = kvindex;
-                  bufend = bufmark;
-                  LOG.info("bufstart = " + bufstart + "; bufend = " + bufend +
-                           "; bufvoid = " + bufvoid);
-                  LOG.info("kvstart = " + kvstart + "; kvend = " + kvend +
-                           "; length = " + kvoffsets.length);
-              }
+                releaseCurrentlySpilling(true);
             }
           }
         } catch (InterruptedException e) {
@@ -1621,6 +1663,8 @@ public class MapTask extends Task {
                "; bufvoid = " + bufvoid);
       LOG.info("kvstart = " + kvstart + "; kvend = " + kvindex +
                "; length = " + kvoffsets.length);
+      softBufferLimit = (int)(kvbuffer.length * spillper);
+      softRecordLimit = (int)(kvoffsets.length * spillper);
       kvend = kvindex;
       bufend = bufmark;
       spillReady.signal();
@@ -1638,8 +1682,9 @@ public class MapTask extends Task {
       try {
         // create spill file
         final SpillRecord spillRec = new SpillRecord(partitions);
+        final int spillNo = numSpills++;
         final Path filename =
-            mapOutputFile.getSpillFileForWrite(numSpills, size);
+            mapOutputFile.getSpillFileForWrite(spillNo, size);
         out = rfs.create(filename);
 
         final int endPosition = (kvend > kvstart)
@@ -1687,6 +1732,7 @@ public class MapTask extends Task {
                 combineCollector.setWriter(writer);
                 RawKeyValueIterator kvIter =
                   new MRResultIterator(spstart, spindex);
+                combinerRunner.setValidToRelease(part == (partitions-1));
                 combinerRunner.combine(kvIter, combineCollector);
               }
             }
@@ -1712,7 +1758,7 @@ public class MapTask extends Task {
         if (totalIndexCacheMemory >= INDEX_CACHE_MEMORY_LIMIT) {
           // create spill index file
           Path indexFilename =
-              mapOutputFile.getSpillIndexFileForWrite(numSpills, partitions
+              mapOutputFile.getSpillIndexFileForWrite(spillNo, partitions
                   * MAP_OUTPUT_INDEX_RECORD_LENGTH);
           spillRec.writeToFile(indexFilename, job);
         } else {
@@ -1720,8 +1766,7 @@ public class MapTask extends Task {
           totalIndexCacheMemory +=
             spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
         }
-        LOG.info("Finished spill " + numSpills);
-        ++numSpills;
+        LOG.info("Finished spill " + spillNo);
       } finally {
         if (out != null) out.close();
       }
@@ -1834,6 +1879,7 @@ public class MapTask extends Task {
     protected class MRResultIterator implements RawKeyValueIterator {
       private final DataInputBuffer keybuf = new DataInputBuffer();
       private final InMemValBytes vbytes = new InMemValBytes();
+      private final int start;
       private final int end;
       private final long size;
       private int current;
@@ -1841,6 +1887,7 @@ public class MapTask extends Task {
         this.end = end;
         current = start - 1;
         this.size = end-start;
+        this.start = start;
       }
       public boolean next() throws IOException {
         return ++current < end;
@@ -1859,6 +1906,14 @@ public class MapTask extends Task {
         return null;
       }
       public void close() { }
+      public boolean supportsBulkReads() {
+          // return true;
+          return false;
+      }
+      public HadoopCLDataInput getBulkReader() {
+          return new HadoopCLBulkCombinerReader(start, end, kvoffsets,
+              kvindices, kvbuffer, bufvoid);
+      }
     }
 
     private void mergeParts() throws IOException, InterruptedException, 

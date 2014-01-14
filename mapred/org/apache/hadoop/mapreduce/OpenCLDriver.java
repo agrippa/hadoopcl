@@ -213,6 +213,9 @@ public class OpenCLDriver {
     KernelManager kernelManager;
     int bufferCounter = 0;
 
+    BufferRunner bufferRunner = null;
+    Thread bufferRunnerThread = null;
+
     try {
         kernel = (HadoopCLKernel)kernelClass.newInstance();
         kernel.init(clContext);
@@ -230,6 +233,11 @@ public class OpenCLDriver {
         kernelManager = new KernelManager("\""+this.clContext.typeName()+"kernels\"", nKernels,
                 kernelClass, this.clContext);
 
+        bufferRunner = new BufferRunner(kernelClass, inputManager, outputManager,
+                kernelManager, clContext);
+        bufferRunnerThread = new Thread(bufferRunner);
+        bufferRunnerThread.start();
+
         BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
         buffer = newBufferContainer.obj();
         buffer.init(kernel.getOutputPairsPerInput(), clContext);
@@ -239,58 +247,88 @@ public class OpenCLDriver {
         throw new RuntimeException(ex);
     }
 
-    BufferRunner runner = new BufferRunner(kernelClass, inputManager, outputManager,
-            kernelManager, clContext);
-    Thread thread = new Thread(runner);
-    thread.start();
     
     buffer.getProfile().startRead(buffer);
 
-    int itemCount = 0;
-    while (this.context.nextKeyValue()) {
-        if (buffer.isFull(this.context)) {
+    if (this.context.supportsBulkReads()) {
+       //  HadoopCLDataInput stream = this.context.getBulkReader();
+       //  while (stream.hasMore()) {
+       //      int nread = buffer.bulkFill(stream);
 
-            System.gc();
-            // if (OpenCLDriver.profileMemory) {
-            //     System.err.println(getDetailedSpaceStats(globalSpace));
-            // }
-            // long spaceEstimate = estimateSpace(inputManager,
-            //     outputManager, th0, runner, buffer);
-            // System.err.println("DIAGNOSTICS: OpenCLDriver estimating space usage of "+spaceEstimate+" bytes");
+       //      buffer.getProfile().addItemsProcessed(nread);
+       //      if (this.clContext.isMapper()) {
+       //          OpenCLDriver.inputsRead+=nread;
+       //      }
 
-            buffer.getProfile().stopRead(buffer);
-            buffer.getProfile().addItemsProcessed(itemCount);
-            runner.addWork(buffer);
-            itemCount = 0;
+       //      if (buffer.isFull(this.context)) {
+       //          buffer.getProfile().stopRead(buffer);
+       //          runner.addWork(buffer);
 
-            BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
-            buffer = newBufferContainer.obj();
-            if (newBufferContainer.isFresh()) {
-                buffer.init(kernel.getOutputPairsPerInput(), clContext);
-            } else {
-                buffer.reset();
+       //          BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+       //          buffer = newBufferContainer.obj();
+       //          if (newBufferContainer.isFresh()) {
+       //              buffer.init(kernel.getOutputPairsPerInput(), clContext);
+       //          } else {
+       //              buffer.reset();
+       //          }
+       //          buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
+       //          buffer.resetProfile();
+       //          buffer.getProfile().startRead(buffer);
+       //      }
+       //  }
+    } else {
+        int itemCount = 0;
+        while (this.context.nextKeyValue()) {
+            if (buffer.isFull(this.context)) {
+
+                System.gc();
+                // if (OpenCLDriver.profileMemory) {
+                //     System.err.println(getDetailedSpaceStats(globalSpace));
+                // }
+                // long spaceEstimate = estimateSpace(inputManager,
+                //     outputManager, th0, runner, buffer);
+                // System.err.println("DIAGNOSTICS: OpenCLDriver estimating space usage of "+spaceEstimate+" bytes");
+
+                buffer.getProfile().stopRead(buffer);
+                buffer.getProfile().addItemsProcessed(itemCount);
+                bufferRunner.addWork(buffer);
+                itemCount = 0;
+
+                // LOG:PROFILE
+                // logger.log("start allocating input", this.clContext);
+                BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
+                // LOG:PROFILE
+                // logger.log("done allocating input", this.clContext);
+                buffer = newBufferContainer.obj();
+                if (newBufferContainer.isFresh()) {
+                    buffer.init(kernel.getOutputPairsPerInput(), clContext);
+                } else {
+                    buffer.reset();
+                }
+                buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
+                buffer.resetProfile();
+                buffer.getProfile().startRead(buffer);
             }
-            buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
-            buffer.resetProfile();
-            buffer.getProfile().startRead(buffer);
-        }
 
-        buffer.addKeyAndValue(this.context);
-        if (this.clContext.isMapper()) {
-            OpenCLDriver.inputsRead++;
+            buffer.addKeyAndValue(this.context);
+            if (this.clContext.isMapper()) {
+                OpenCLDriver.inputsRead++;
+            }
+            itemCount++;
         }
-        itemCount++;
+        buffer.getProfile().stopRead(buffer);
+        buffer.getProfile().addItemsProcessed(itemCount);
     }
-    buffer.getProfile().stopRead(buffer);
-    buffer.getProfile().addItemsProcessed(itemCount);
+
+    this.context.signalDoneReading();
 
     if(buffer.hasWork()) {
-        runner.addWork(buffer);
+        bufferRunner.addWork(buffer);
     }
 
-    runner.addWork(null);
+    bufferRunner.addWork(null);
 
-    thread.join();
+    bufferRunnerThread.join();
     kernelManager.dispose();
 
     OpenCLDriver.processingFinish = System.currentTimeMillis();
@@ -298,7 +336,7 @@ public class OpenCLDriver {
     long stop = System.currentTimeMillis();
     // LOG:PROFILE
     // logger.log("exiting run", this.clContext);
-    String profileStr = profilesToString(stop-start, startupTime, runner.profiles(),
+    String profileStr = profilesToString(stop-start, startupTime, bufferRunner.profiles(),
           inputManager.timeWaiting(), outputManager.timeWaiting(),
           kernelManager.timeWaiting());
     if (profileStr.length() > 0) {

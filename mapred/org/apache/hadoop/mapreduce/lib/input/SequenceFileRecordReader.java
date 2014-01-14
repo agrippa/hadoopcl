@@ -273,5 +273,8 @@ public class SequenceFileRecordReader<K, V> extends RecordReader<K, V> {
         }
       }
   }
+  public boolean supportsBulkReads() {
+      return false;
+  }
 }
 

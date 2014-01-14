@@ -125,4 +125,8 @@ public class KeyValueLineRecordReader extends RecordReader<Text, Text> {
   public synchronized void close() throws IOException { 
     lineRecordReader.close();
   }
+
+  public boolean supportsBulkReads() {
+    return false;
+  }
 }

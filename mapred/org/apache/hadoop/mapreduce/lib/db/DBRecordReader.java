@@ -272,4 +272,7 @@ public class DBRecordReader<T extends DBWritable> extends
   protected void setStatement(PreparedStatement stmt) {
     this.statement = stmt;
   }
+  public boolean supportsBulkReads() {
+    return false;
+  }
 }

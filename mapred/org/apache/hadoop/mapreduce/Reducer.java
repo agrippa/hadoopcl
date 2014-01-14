@@ -23,7 +23,7 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.mapred.RawKeyValueIterator;
-
+import org.apache.hadoop.mapred.MapTask.MapOutputBuffer;
 /** 
  * Reduces a set of intermediate values which share a key to a smaller set of
  * values.  
@@ -128,11 +128,12 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
                    StatusReporter reporter,
                    RawComparator<KEYIN> comparator,
                    Class<KEYIN> keyClass,
-                   Class<VALUEIN> valueClass, ContextType setType
+                   Class<VALUEIN> valueClass, ContextType setType,
+                   MapOutputBuffer caller
                    ) throws IOException, InterruptedException {
       super(conf, taskid, input, inputKeyCounter, inputValueCounter,
             output, committer, reporter, 
-            comparator, keyClass, valueClass, setType);
+            comparator, keyClass, valueClass, setType, caller);
     }
   }
 

@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce;
 
+import java.io.DataInput;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -47,6 +48,14 @@ public class MapContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     super(conf, taskid, writer, committer, reporter, ContextType.Mapper);
     this.reader = reader;
     this.split = split;
+  }
+
+  public boolean supportsBulkReads() {
+      return reader.supportsBulkReads();
+  }
+
+  public HadoopCLDataInput getBulkReader() {
+      throw new UnsupportedOperationException();
   }
 
   /**
@@ -118,4 +127,5 @@ public class MapContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
       }
   }
 
+  public void signalDoneReading() { }
 }

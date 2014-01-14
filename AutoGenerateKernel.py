@@ -2469,7 +2469,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     input_fp.write('    protected int outputsPerInput;\n')
     output_fp.write('    protected int outputsPerInput;\n')
-    kernelfp.write('    protected int outputLength;\n')
+    kernelfp.write('    public int outputLength;\n')
 
     if not isMapper:
         writeln(visitor(nativeInputValueType).getBufferedDecl(), 1, kernelfp)
@@ -2477,38 +2477,38 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     kernelfp.write('\n')
     if nativeInputValueType == 'svec' or nativeInputValueType == 'fsvec' or nativeInputValueType == 'bsvec':
-        input_fp.write('    protected int individualInputValsCount;\n')
-        kernelfp.write('    protected int individualInputValsCount;\n')
+        input_fp.write('    public int individualInputValsCount;\n')
+        kernelfp.write('    public int individualInputValsCount;\n')
         if isMapper:
-            kernelfp.write('    protected int currentInputVectorLength = -1;\n')
+            kernelfp.write('    public int currentInputVectorLength = -1;\n')
             input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
         input_fp.write('    public int nVectorsToBuffer;\n')
     elif nativeInputValueType == 'ivec':
-        input_fp.write('    protected int individualInputValsCount;\n')
-        kernelfp.write('    protected int individualInputValsCount;\n')
+        input_fp.write('    public int individualInputValsCount;\n')
+        kernelfp.write('    public int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
             input_fp.write('    public TreeMap<Integer, LinkedList<IndValWrapper>> sortedVals = new TreeMap<Integer, LinkedList<IndValWrapper>>();\n')
         input_fp.write('    public int nVectorsToBuffer;\n')
 
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
-        output_fp.write('    protected int[] memAuxIntIncr;\n')
-        output_fp.write('    protected int[] memAuxDoubleIncr;\n')
-        kernelfp.write('    protected int[] memAuxIntIncr;\n')
-        kernelfp.write('    protected int[] memAuxDoubleIncr;\n')
-        kernelfp.write('    protected int outputAuxIntLength;\n')
-        kernelfp.write('    protected int outputAuxDoubleLength;\n')
+        output_fp.write('    public int[] memAuxIntIncr;\n')
+        output_fp.write('    public int[] memAuxDoubleIncr;\n')
+        kernelfp.write('    public int[] memAuxIntIncr;\n')
+        kernelfp.write('    public int[] memAuxDoubleIncr;\n')
+        kernelfp.write('    public int outputAuxIntLength;\n')
+        kernelfp.write('    public int outputAuxDoubleLength;\n')
     elif nativeOutputValueType == 'ivec':
-        output_fp.write('    protected int[] memAuxIncr;\n')
-        kernelfp.write('    protected int[] memAuxIncr;\n')
-        kernelfp.write('    protected int outputAuxIntLength;\n')
+        output_fp.write('    public int[] memAuxIncr;\n')
+        kernelfp.write('    public int[] memAuxIncr;\n')
+        kernelfp.write('    public int outputAuxIntLength;\n')
     elif nativeOutputValueType == 'fsvec':
-        output_fp.write('    protected int[] memAuxIntIncr;\n')
-        output_fp.write('    protected int[] memAuxFloatIncr;\n')
-        kernelfp.write('    protected int[] memAuxIntIncr;\n')
-        kernelfp.write('    protected int[] memAuxFloatIncr;\n')
-        kernelfp.write('    protected int outputAuxIntLength;\n')
-        kernelfp.write('    protected int outputAuxFloatLength;\n')
+        output_fp.write('    public int[] memAuxIntIncr;\n')
+        output_fp.write('    public int[] memAuxFloatIncr;\n')
+        kernelfp.write('    public int[] memAuxIntIncr;\n')
+        kernelfp.write('    public int[] memAuxFloatIncr;\n')
+        kernelfp.write('    public int outputAuxIntLength;\n')
+        kernelfp.write('    public int outputAuxFloatLength;\n')
 
     kernelfp.write('\n')
     input_fp.write('\n')

@@ -1334,7 +1334,7 @@ abstract public class Task implements Writable, Configurable {
             org.apache.hadoop.mapreduce.StatusReporter.class,
             RawComparator.class,
             Class.class,
-            Class.class, ContextType.class });
+            Class.class, ContextType.class, MapTask.MapOutputBuffer.class });
     } catch (NoSuchMethodException nme) {
       throw new IllegalArgumentException("Can't find constructor");
     }
@@ -1354,7 +1354,8 @@ abstract public class Task implements Writable, Configurable {
                       org.apache.hadoop.mapreduce.OutputCommitter committer,
                       org.apache.hadoop.mapreduce.StatusReporter reporter,
                       RawComparator<INKEY> comparator,
-                      Class<INKEY> keyClass, Class<INVALUE> valueClass, ContextType setType
+                      Class<INKEY> keyClass, Class<INVALUE> valueClass,
+                      ContextType setType, MapTask.MapOutputBuffer caller
   ) throws IOException, ClassNotFoundException {
     try {
 
@@ -1362,7 +1363,8 @@ abstract public class Task implements Writable, Configurable {
                                             rIter, inputKeyCounter, 
                                             inputValueCounter, output, 
                                             committer, reporter, comparator, 
-                                            keyClass, valueClass, setType);
+                                            keyClass, valueClass, setType,
+                                            caller);
     } catch (InstantiationException e) {
       throw new IOException("Can't create Context", e);
     } catch (InvocationTargetException e) {
@@ -1376,6 +1378,11 @@ abstract public class Task implements Writable, Configurable {
     protected final Counters.Counter inputCounter;
     protected final JobConf job;
     protected final TaskReporter reporter;
+    protected boolean canRelease;
+
+    public void setValidToRelease(boolean v) {
+        this.canRelease = v;
+    }
 
     CombinerRunner(Counters.Counter inputCounter,
                    JobConf job,
@@ -1401,7 +1408,8 @@ abstract public class Task implements Writable, Configurable {
                                TaskAttemptID taskId,
                                Counters.Counter inputCounter,
                                TaskReporter reporter,
-                               org.apache.hadoop.mapreduce.OutputCommitter committer
+                               org.apache.hadoop.mapreduce.OutputCommitter committer,
+                               MapTask.MapOutputBuffer caller
                               ) throws ClassNotFoundException {
       Class<? extends Reducer<K,V,K,V>> cls = 
         (Class<? extends Reducer<K,V,K,V>>) job.getCombinerClass();
@@ -1417,7 +1425,7 @@ abstract public class Task implements Writable, Configurable {
            taskContext.getCombinerClass();
       if (newcls != null) {
         return new NewCombinerRunner<K,V>(newcls, job, taskId, taskContext, 
-                                          inputCounter, reporter, committer);
+                                          inputCounter, reporter, committer, caller);
       }
       
       return null;
@@ -1472,6 +1480,7 @@ abstract public class Task implements Writable, Configurable {
     private final Class<K> keyClass;
     private final Class<V> valueClass;
     private final org.apache.hadoop.mapreduce.OutputCommitter committer;
+    private final MapTask.MapOutputBuffer caller;
 
     @SuppressWarnings("unchecked")
     NewCombinerRunner(Class reducerClass,
@@ -1480,8 +1489,10 @@ abstract public class Task implements Writable, Configurable {
                       org.apache.hadoop.mapreduce.TaskAttemptContext context,
                       Counters.Counter inputCounter,
                       TaskReporter reporter,
-                      org.apache.hadoop.mapreduce.OutputCommitter committer) {
+                      org.apache.hadoop.mapreduce.OutputCommitter committer,
+                      MapTask.MapOutputBuffer caller) {
       super(inputCounter, job, reporter);
+      this.caller = caller;
       this.reducerClass = reducerClass;
       this.taskId = taskId;
       keyClass = (Class<K>) context.getMapOutputKeyClass();
@@ -1534,7 +1545,8 @@ abstract public class Task implements Writable, Configurable {
                                                 new OutputConverter(collector),
                                                 committer,
                                                 reporter, comparator, keyClass,
-                                                valueClass, ContextType.Combiner);
+                                                valueClass, ContextType.Combiner,
+                                                canRelease ? caller : null);
       reducer.run(reducerContext);
     } 
   }

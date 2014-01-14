@@ -144,4 +144,8 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
       in.close(); 
     }
   }
+
+  public boolean supportsBulkReads() {
+    return false;
+  }
 }

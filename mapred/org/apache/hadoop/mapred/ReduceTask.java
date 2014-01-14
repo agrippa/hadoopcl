@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 import org.apache.hadoop.io.KVCollection;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -641,6 +642,12 @@ class ReduceTask extends Task {
         reporter.progress();
         return ret;
       }
+      public boolean supportsBulkReads() {
+        return false;
+      }
+      public HadoopCLDataInput getBulkReader() {
+        throw new UnsupportedOperationException();
+      }
     };
     // make a task context so we can get the classes
     org.apache.hadoop.mapreduce.TaskAttemptContext taskContext =
@@ -659,7 +666,8 @@ class ReduceTask extends Task {
                                                reduceInputValueCounter, 
                                                trackedRW, committer,
                                                reporter, comparator, keyClass,
-                                               valueClass, ContextType.Reducer);
+                                               valueClass, ContextType.Reducer,
+                                               null);
     reducer.run(reducerContext);
     trackedRW.close(reducerContext);
   }
@@ -1939,7 +1947,7 @@ class ReduceTask extends Task {
         reporter.getCounter(Task.Counter.COMBINE_INPUT_RECORDS);
       this.combinerRunner = CombinerRunner.create(conf, getTaskID(),
                                                   combineInputCounter,
-                                                  reporter, null);
+                                                  reporter, null, null);
       if (combinerRunner != null) {
         combineCollector = 
           new CombineOutputCollector(reduceCombineOutputCounter, reporter, conf);

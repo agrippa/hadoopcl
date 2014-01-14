@@ -18,9 +18,11 @@
 package org.apache.hadoop.mapred;
 
 import java.io.IOException;
+import java.io.DataInput;
 
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.util.Progress;
+import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 
 /**
  * <code>RawKeyValueIterator</code> is an iterator used to iterate over
@@ -63,4 +65,7 @@ public interface RawKeyValueIterator {
    * indicating the bytes processed by the iterator so far
    */
   Progress getProgress();
+
+  public boolean supportsBulkReads();
+  public HadoopCLDataInput getBulkReader();
 }

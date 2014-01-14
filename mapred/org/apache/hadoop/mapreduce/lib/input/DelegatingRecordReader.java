@@ -88,5 +88,8 @@ public class DelegatingRecordReader<K, V> extends RecordReader<K, V> {
   public boolean nextKeyValue() throws IOException, InterruptedException {
     return originalRR.nextKeyValue();
   }
+  public boolean supportsBulkReads() {
+    return originalRR.supportsBulkReads();
+  }
 
 }

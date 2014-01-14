@@ -22,6 +22,7 @@ public abstract class HadoopCLBuffer {
     public int id = -1;
 
     public abstract boolean completedAll();
+    // public abstract void bulkFill(HadoopCLDataInput stream);
 
     public long space() {
         return 4 * nWrites.length;

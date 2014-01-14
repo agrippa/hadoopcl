@@ -166,4 +166,7 @@ public class CombineFileRecordReader<K, V> extends RecordReader<K, V> {
     idx++;
     return true;
   }
+  public boolean supportsBulkReads() {
+    return false;
+  }
 }

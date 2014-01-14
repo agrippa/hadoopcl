@@ -153,8 +153,8 @@ public class BSparseVectorWritable implements WritableComparable {
 
     public void write(DataOutput out) throws IOException {
         out.writeInt(this.size());
-        ReadArrayUtils.dumpIntArray(out, this.indices(), this.indicesOffset(), this.size());
-        ReadArrayUtils.dumpDoubleArray(out, this.vals(), this.valsOffset(), this.size());
+        ReadArrayUtils.dumpIntArrayStatic(out, this.indices(), this.indicesOffset(), this.size());
+        ReadArrayUtils.dumpDoubleArrayStatic(out, this.vals(), this.valsOffset(), this.size());
     }
 
     private boolean elementEqual(BSparseVectorWritable other, int index) {

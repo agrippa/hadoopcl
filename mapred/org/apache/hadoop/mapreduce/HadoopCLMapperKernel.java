@@ -12,9 +12,9 @@ import com.amd.aparapi.Range;
 public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
 
     protected int deviceID;
-    protected int isGPU;
-    protected int[] nWrites;
-    protected int nPairs;
+    public int isGPU;
+    public int[] nWrites;
+    public int nPairs;
 
     public void baseInit(HadoopOpenCLContext clContext) {
         this.clContext = clContext;

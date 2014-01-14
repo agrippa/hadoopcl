@@ -79,4 +79,6 @@ public abstract class RecordReader<KEYIN, VALUEIN> implements Closeable {
    * Close the record reader.
    */
   public abstract void close() throws IOException;
+
+  public abstract boolean supportsBulkReads();
 }
