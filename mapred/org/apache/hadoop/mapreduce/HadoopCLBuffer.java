@@ -14,7 +14,6 @@ public abstract class HadoopCLBuffer {
     protected HadoopCLProfile prof;
     protected int isGPU;
     public int[] nWrites;
-    private boolean inUse;
     protected boolean initialized = false;
     public HadoopCLGlobalId tracker;
 
@@ -49,14 +48,6 @@ public abstract class HadoopCLBuffer {
         return this.prof;
     }
 
-    public void setInUse(boolean inUse) {
-        if (this.inUse == inUse) {
-            throw new RuntimeException("Setting buffer in use to "+inUse+" but already set to that");
-        }
-        this.inUse = inUse;
-    }
-
-    public boolean inUse() { return this.inUse; }
     public boolean initialized() { return this.initialized; }
 
     protected int requiredCapacity(int[] lookAside, int numAccumValues,

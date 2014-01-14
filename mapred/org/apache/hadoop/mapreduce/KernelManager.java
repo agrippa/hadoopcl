@@ -8,7 +8,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
     public KernelManager(String name, int setMax,
             Class<? extends HadoopCLKernel> toInstantiate,
             HadoopOpenCLContext clContext) {
-        super(name, setMax, toInstantiate, true, clContext);
+        super(name, setMax, toInstantiate, clContext);
     }
 
     public void preallocateKernels() {
@@ -21,7 +21,7 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
             } catch (IllegalAccessException iae) {
                 throw new RuntimeException(iae);
             }
-            newKernel.id = idIncr.getAndIncrement();
+            newKernel.id = idIncr++;
             newKernel.init(this.clContext);
             newKernel.setGlobals(this.clContext.getGlobalsInd(),
                 this.clContext.getGlobalsVal(),
@@ -35,36 +35,11 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
         }
     }
 
-    public TypeAlloc<HadoopCLKernel> nonBlockingAlloc() {
-        TypeAlloc<HadoopCLKernel> result = this.nonBlockingAllocHelper();
+    public TypeAlloc<HadoopCLKernel> alloc() {
+        TypeAlloc<HadoopCLKernel> result = this.allocHelper();
         if (result != null && result.isFresh()) {
             throw new RuntimeException(
                 "Should be no fresh kernels with new entrypoint initialization");
-            // result.obj().id = idIncr.getAndIncrement();
-            // result.obj().init(this.clContext);
-            // result.obj().setGlobals(this.clContext.getGlobalsInd(),
-            //     this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
-            //     this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
-            //     this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
-            //     this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
-            //     this.clContext.nGlobalBuckets());
-        }
-        return result;
-    }
-
-    public TypeAlloc<HadoopCLKernel> alloc() {
-        TypeAlloc<HadoopCLKernel> result = this.allocHelper();
-        if (result.isFresh()) {
-            throw new RuntimeException(
-                "Should be no fresh kernels with new entrypoint initialization");
-            // result.obj().id = idIncr.getAndIncrement();
-            // result.obj().init(this.clContext);
-            // result.obj().setGlobals(this.clContext.getGlobalsInd(),
-            //     this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
-            //     this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
-            //     this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
-            //     this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
-            //     this.clContext.nGlobalBuckets());
         }
         return result;
     }

@@ -12,10 +12,7 @@ public abstract class AllocManager<Type> {
     protected final LinkedList<Type> free;
     protected final Class<? extends Type> toInstantiate;
     protected final String name;
-    private long timeWaiting = 0;
-    protected final AtomicInteger idIncr = new AtomicInteger(0);
-    protected final ReentrantLock lock;
-    protected final Condition cond;
+    protected int idIncr = 0;
     protected final HadoopOpenCLContext clContext;
     private final boolean enableLogs;
 
@@ -25,57 +22,17 @@ public abstract class AllocManager<Type> {
         }
     }
 
-    public long timeWaiting() {
-        return this.timeWaiting;
-    }
-
     public AllocManager(String name, int setMax,
-            Class<? extends Type> toInstantiate, boolean exclusive, HadoopOpenCLContext clContext) {
+            Class<? extends Type> toInstantiate, HadoopOpenCLContext clContext) {
         this.nAllocated = 0;
         this.maxAllocated = setMax;
         this.free = new LinkedList<Type>();
         this.toInstantiate = toInstantiate;
         this.name = name;
-        if (exclusive) {
-            this.lock = null;
-            this.cond = null;
-        } else {
-            this.lock = new ReentrantLock();
-            this.cond = this.lock.newCondition();
-        }
         this.enableLogs = clContext.enableBufferRunnerDiagnostics();
         this.clContext = clContext;
     }
 
-    private void doLock() {
-      if (this.lock != null) {
-        lock.lock();
-      }
-    }
-
-    private void doUnlock() {
-      if (this.lock != null) {
-        lock.unlock();
-      }
-    }
-
-    private void doSignal() {
-      if (this.cond != null) {
-        cond.signalAll();
-      }
-    }
-
-    private void doAwait() {
-      if (this.cond != null) {
-        try {
-          cond.await();
-        } catch(InterruptedException ie) {
-          throw new RuntimeException(ie);
-        }
-      }
-    }
-
-    public abstract TypeAlloc<Type> nonBlockingAlloc();
     public abstract TypeAlloc<Type> alloc();
     public abstract void free(Type b);
 
@@ -84,83 +41,31 @@ public abstract class AllocManager<Type> {
      * respond to.
      */
     public int nAvailable() {
-      int result;
-      doLock();
-      result = free.size() + (this.maxAllocated - this.nAllocated);
-      doUnlock();
-      return result;
+      return free.size() + (this.maxAllocated - this.nAllocated);
     }
 
-    protected TypeAlloc<Type> nonBlockingAllocHelper() {
+    protected TypeAlloc<Type> allocHelper() {
       TypeAlloc<Type> result = null;
-      boolean allocateNew = false;
 
-      doLock();
       if (!free.isEmpty()) {
         Type nb = free.poll();
         result = new TypeAlloc<Type>(nb, false);
       } else if (this.nAllocated < this.maxAllocated) {
-        allocateNew = true;
-        this.nAllocated++;
-      }
-      doUnlock();
-
-      if (allocateNew) {
         Type nb;
         try {
             nb = toInstantiate.newInstance();
-        } catch(InstantiationException ie) {
-            throw new RuntimeException(ie);
-        } catch(IllegalAccessException iae) {
-            throw new RuntimeException(iae);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         result = new TypeAlloc<Type>(nb, true);
+        this.nAllocated++;
       }
 
       return result;
     }
 
-    protected TypeAlloc<Type> allocHelper() {
-        TypeAlloc<Type> result = null;
-        boolean allocateNew = false;
-
-        doLock();
-        // First, we always try to re-use an old buffer
-        if (!free.isEmpty()) {
-            Type nb = free.poll();
-            result = new TypeAlloc<Type>(nb, false);
-        } else if (this.nAllocated < this.maxAllocated) {
-          allocateNew = true;
-          this.nAllocated++;
-        } else {
-          long start = System.currentTimeMillis();
-          while (free.isEmpty()) {
-              doAwait();
-          }
-          result = new TypeAlloc<Type>(free.poll(), false);
-          long stop = System.currentTimeMillis();
-          timeWaiting += (stop-start);
-        }
-        doUnlock();
-
-        if (allocateNew) {
-          try {
-              result = new TypeAlloc<Type>(toInstantiate.newInstance(), true);
-          } catch(InstantiationException ie) {
-              throw new RuntimeException(ie);
-          } catch(IllegalAccessException iae) {
-              throw new RuntimeException(iae);
-          }
-        }
-
-        return result;
-    }
-
     protected void freeHelper(Type b) {
-        doLock();
         free.add(b);
-        doSignal();
-        doUnlock();
     }
 
     public static class TypeAlloc<InnerBufferType> {

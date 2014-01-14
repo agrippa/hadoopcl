@@ -8,36 +8,15 @@ public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManag
 
     public BufferManager(String name, int setMax,
             Class<? extends BufferType> toInstantiate,
-            List<HadoopCLBuffer> globalSpace, boolean exclusive, HadoopOpenCLContext clContext) {
-        super(name, setMax, toInstantiate, exclusive, clContext);
+            List<HadoopCLBuffer> globalSpace, HadoopOpenCLContext clContext) {
+        super(name, setMax, toInstantiate, clContext);
         this.globalSpace = globalSpace;
-    }
-
-    public TypeAlloc<BufferType> nonBlockingAlloc() {
-        TypeAlloc<BufferType> result = this.nonBlockingAllocHelper();
-        if (result != null) {
-            if (result.obj() != null) {
-                result.obj().setInUse(true);
-            }
-            if (result.isFresh()) {
-                result.obj().id = idIncr.getAndIncrement();
-                // LOG:DIAGNOSTIC
-                // log("Allocating "+this.name+" buffer "+result.obj().id);
-                if (OpenCLDriver.profileMemory) {
-                    synchronized(globalSpace) {
-                        this.globalSpace.add(result.obj());
-                    }
-                }
-            }
-        }
-        return result;
     }
 
     public TypeAlloc<BufferType> alloc() {
         TypeAlloc<BufferType> result = this.allocHelper();
-        result.obj().setInUse(true);
-        if (result.isFresh()) {
-            result.obj().id = idIncr.getAndIncrement();
+        if (result != null && result.isFresh()) {
+            result.obj().id = idIncr++;
             // LOG:DIAGNOSTIC
             // log("Allocating "+this.name+" buffer "+result.obj().id);
             if (OpenCLDriver.profileMemory) {
@@ -50,7 +29,6 @@ public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManag
     }
 
     public void free(BufferType b) {
-        b.setInUse(false);
         this.freeHelper(b);
     }
 

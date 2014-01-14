@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class BufferRunner implements Runnable {
     private final boolean enableLogs;
     private final List<HadoopCLProfile> profiles;
-    private final BufferManager<HadoopCLInputBuffer> freeInputBuffers;
+    private final ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
     private final KernelManager freeKernels; // exclusive
 
@@ -37,7 +37,7 @@ public class BufferRunner implements Runnable {
     private final HadoopOpenCLContext clContext;
 
     public BufferRunner(Class kernelClass,
-            BufferManager<HadoopCLInputBuffer> freeInputBuffers,
+            ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
             KernelManager freeKernels,
             HadoopOpenCLContext clContext) {
@@ -97,7 +97,7 @@ public class BufferRunner implements Runnable {
     }
 
     private HadoopCLKernel newKernelInstance() {
-        AllocManager.TypeAlloc<HadoopCLKernel> result = freeKernels.nonBlockingAlloc();
+        AllocManager.TypeAlloc<HadoopCLKernel> result = freeKernels.alloc();
         return (result == null ? null : result.obj());
     }
 
@@ -195,7 +195,7 @@ public class BufferRunner implements Runnable {
     private HadoopCLOutputBuffer allocOutputBufferWithInit(int outputPairsPerInput) {
         HadoopCLOutputBuffer result = null;
         BufferManager.TypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
-            freeOutputBuffers.nonBlockingAlloc();
+            freeOutputBuffers.alloc();
         if (outputBufferContainer != null) {
           result = outputBufferContainer.obj();
           if (outputBufferContainer.isFresh()) {
@@ -342,6 +342,7 @@ public class BufferRunner implements Runnable {
                 // LOG:DIAGNOSTIC
                 // log("   Got DONE signal from main");
                 this.mainDone = true;
+                inputBuffer = null;
             } else {
                 // LOG:DIAGNOSTIC
                 // log("  Got input buffer "+inputBuffer.id+" from main");
@@ -392,7 +393,11 @@ public class BufferRunner implements Runnable {
                 } else {
                     forwardProgress = true;
                     profiles.add(inputBuffer.getProfile());
-                    freeInputBuffers.free(inputBuffer);
+                    freeInputBuffers.add(inputBuffer);
+                    synchronized(freeInputBuffers) {
+                        freeInputBuffers.notify();
+                    }
+                    // freeInputBuffers.free(inputBuffer);
                     // LOG:DIAGNOSTIC
                     // log("    Successfully started kernel "+k.id+" on "+inputBuffer.id);
                 }
