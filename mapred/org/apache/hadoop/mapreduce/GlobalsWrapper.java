@@ -32,13 +32,11 @@ import java.nio.ByteBuffer;
 public class GlobalsWrapper {
     public int[] globalsInd;
     public double[] globalsVal;
-    public float[] globalsFval;
     public int[] globalIndices;
     public int nGlobals;
 
     public int[] globalsMapInd;
     public double[] globalsMapVal;
-    public float[] globalsMapFval;
     public int[] globalsMap;
 
     public int nGlobalBuckets;
@@ -67,13 +65,9 @@ public class GlobalsWrapper {
             this.globalsInd = ReadArrayUtils.readIntArray(input, totalGlobals);
             this.globalsVal = ReadArrayUtils.readDoubleArray(input,
                     totalGlobals);
-            this.globalsFval = ReadArrayUtils.readFloatArray(input,
-                    totalGlobals);
             this.globalsMapInd = ReadArrayUtils.readIntArray(input,
                     totalGlobals);
             this.globalsMapVal = ReadArrayUtils.readDoubleArray(input,
-                    totalGlobals);
-            this.globalsMapFval = ReadArrayUtils.readFloatArray(input,
                     totalGlobals);
             this.globalsMap = ReadArrayUtils.readIntArray(input,
                     this.nGlobalBuckets * countGlobals);

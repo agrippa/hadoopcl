@@ -24,10 +24,10 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
             newKernel.id = idIncr.getAndIncrement();
             newKernel.init(this.clContext);
             newKernel.setGlobals(this.clContext.getGlobalsInd(),
-                this.clContext.getGlobalsVal(), this.clContext.getGlobalsFval(),
+                this.clContext.getGlobalsVal(),
                 this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
                 this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
-                this.clContext.getGlobalsMapFval(), this.clContext.getGlobalsMap(),
+                this.clContext.getGlobalsMap(),
                 this.clContext.nGlobalBuckets());
             newKernel.doEntrypointInit(this.clContext.getDevice());
             this.free.add(newKernel);

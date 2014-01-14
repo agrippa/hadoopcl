@@ -183,29 +183,28 @@ public class HadoopOpenCLContext {
             this.mapperKernel = (HadoopCLMapperKernel)mapperClass.newInstance();
             this.mapperKernel.init(this);
             this.mapperKernel.setGlobals(this.getGlobalsInd(),
-                this.getGlobalsVal(), this.getGlobalsFval(),
+                this.getGlobalsVal(),
                 this.getGlobalIndices(), this.getNGlobals(),
                 this.getGlobalsMapInd(), this.getGlobalsMapVal(),
-                this.getGlobalsMapFval(), this.getGlobalsMap(),
+                this.getGlobalsMap(),
                 this.globals.nGlobalBuckets);
 
             this.reducerKernel = (HadoopCLReducerKernel)reducerClass.newInstance();
             this.reducerKernel.init(this);
             this.reducerKernel.setGlobals(this.getGlobalsInd(),
-                this.getGlobalsVal(), this.getGlobalsFval(),
-                this.getGlobalIndices(), this.getNGlobals(),
+                this.getGlobalsVal(),                this.getGlobalIndices(), this.getNGlobals(),
                 this.getGlobalsMapInd(), this.getGlobalsMapVal(),
-                this.getGlobalsMapFval(), this.getGlobalsMap(),
+                this.getGlobalsMap(),
                 this.globals.nGlobalBuckets);
 
             if(combinerClass != null) {
                 this.combinerKernel = (HadoopCLReducerKernel)combinerClass.newInstance();
                 this.combinerKernel.init(this);
                 this.combinerKernel.setGlobals(this.getGlobalsInd(),
-                    this.getGlobalsVal(), this.getGlobalsFval(),
+                    this.getGlobalsVal(),
                     this.getGlobalIndices(), this.getNGlobals(),
                     this.getGlobalsMapInd(), this.getGlobalsMapVal(),
-                    this.getGlobalsMapFval(), this.getGlobalsMap(),
+                    this.getGlobalsMap(),
                     this.globals.nGlobalBuckets);
             }
         } catch(Exception ex) {
@@ -247,10 +246,8 @@ public class HadoopOpenCLContext {
 
     public int[] getGlobalIndices() { return this.globals.globalIndices; }
     public double[] getGlobalsVal() { return this.globals.globalsVal; }
-    public float[] getGlobalsFval() { return this.globals.globalsFval; }
     public int[] getGlobalsInd() { return this.globals.globalsInd; }
     public double[] getGlobalsMapVal() { return this.globals.globalsMapVal; }
-    public float[] getGlobalsMapFval() { return this.globals.globalsMapFval; }
     public int[] getGlobalsMapInd() { return this.globals.globalsMapInd; }
     public int[] getGlobalsMap() { return this.globals.globalsMap; }
     public int nGlobalBuckets() { return this.globals.nGlobalBuckets; }

@@ -1573,11 +1573,11 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           int[] globalOffsets = new int[countGlobals];
           int[] globalsInd = new int[totalGlobals];
           double[] globalsVal = new double[totalGlobals];
-          float[] globalsFval = new float[totalGlobals];
+          // float[] globalsFval = new float[totalGlobals];
 
           int[] globalsMapInd = new int[totalGlobals];
           double[] globalsMapVal = new double[totalGlobals];
-          float[] globalsMapFval = new float[totalGlobals];
+          // float[] globalsMapFval = new float[totalGlobals];
           int[] globalsMap = new int[nGlobalBuckets * countGlobals];
 
           final HashMap<Integer, List<IntDoublePair>> buckets =
@@ -1596,7 +1596,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                           new IntDoublePair(currentIndices[i], currentVals[i]));
                   globalsInd[globalIndex] = currentIndices[i];
                   globalsVal[globalIndex] = currentVals[i];
-                  globalsFval[globalIndex] = (float)currentVals[i];
+                  // globalsFval[globalIndex] = (float)currentVals[i];
                   globalIndex++;
               }
 
@@ -1607,7 +1607,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                   for (IntDoublePair element : buckets.get(bucket)) {
                       globalsMapInd[tmpGlobalIndex] = element.i;
                       globalsMapVal[tmpGlobalIndex] = element.d;
-                      globalsMapFval[tmpGlobalIndex] = (float)element.d;
+                      // globalsMapFval[tmpGlobalIndex] = (float)element.d;
                       tmpGlobalIndex++;
                   }
               }
@@ -1622,10 +1622,10 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           ReadArrayUtils.dumpIntArrayStatic(output, globalOffsets, 0, globalOffsets.length);
           ReadArrayUtils.dumpIntArrayStatic(output, globalsInd, 0, globalsInd.length);
           ReadArrayUtils.dumpDoubleArrayStatic(output, globalsVal, 0, globalsVal.length);
-          ReadArrayUtils.dumpFloatArrayStatic(output, globalsFval, 0, globalsFval.length);
+          // ReadArrayUtils.dumpFloatArrayStatic(output, globalsFval, 0, globalsFval.length);
           ReadArrayUtils.dumpIntArrayStatic(output, globalsMapInd, 0, globalsMapInd.length);
           ReadArrayUtils.dumpDoubleArrayStatic(output, globalsMapVal, 0, globalsMapVal.length);
-          ReadArrayUtils.dumpFloatArrayStatic(output, globalsMapFval, 0, globalsMapFval.length);
+          // ReadArrayUtils.dumpFloatArrayStatic(output, globalsMapFval, 0, globalsMapFval.length);
           ReadArrayUtils.dumpIntArrayStatic(output, globalsMap, 0, globalsMap.length);
 
           output.close();

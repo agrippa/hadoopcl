@@ -24,14 +24,14 @@ public abstract class HadoopCLKernel extends Kernel {
     protected HadoopCLProfile openclProfile;
 
     public double[] globalsVal;
-    public float[] globalsFval;
+    // public float[] globalsFval;
     public int[] globalsInd;
     public int[] globalIndices;
     public int nGlobals;
 
     public int[] globalsMapInd;
     public double[] globalsMapVal;
-    public float[] globalsMapFval;
+    // public float[] globalsMapFval;
     public int[] globalsMap;
     public int nGlobalBuckets;
 
@@ -41,7 +41,7 @@ public abstract class HadoopCLKernel extends Kernel {
     public int outputsPerInput;
     private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
     private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
-    private HadoopCLResizableFloatArray copyFvals = new HadoopCLResizableFloatArray();
+    // private HadoopCLResizableFloatArray copyFvals = new HadoopCLResizableFloatArray();
     protected final HashMap<String, Integer> arrayLengths = new HashMap<String, Integer>();
 
     // public abstract Class getBufferClass();
@@ -64,8 +64,8 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     public void setGlobals(int[] globalsInd, double[] globalsVal,
-            float[] globalsFval, int[] globalIndices, int nGlobals,
-            int[] globalsMapInd, double[] globalsMapVal, float[] globalsMapFval,
+            int[] globalIndices, int nGlobals,
+            int[] globalsMapInd, double[] globalsMapVal,
             int[] globalsMap, int nBuckets) {
         this.globalIndices = globalIndices;
         this.nGlobals = nGlobals;
@@ -73,11 +73,9 @@ public abstract class HadoopCLKernel extends Kernel {
 
         this.globalsInd = globalsInd;
         this.globalsVal = globalsVal;
-        this.globalsFval = globalsFval;
 
         this.globalsMapInd = globalsMapInd;
         this.globalsMapVal = globalsMapVal;
-        this.globalsMapFval = globalsMapFval;
         this.globalsMap = globalsMap;
     }
 
@@ -95,12 +93,12 @@ public abstract class HadoopCLKernel extends Kernel {
         return (double[])copyVals.getArray();
     }
 
-    protected float[] getGlobalFVals(int gid) {
-        int len = globalsLength(gid);
-        copyFvals.ensureCapacity(len);
-        System.arraycopy(this.globalsFval, this.globalIndices[gid], copyFvals.getArray(), 0, len);
-        return (float[])copyFvals.getArray();
-    }
+    // protected float[] getGlobalFVals(int gid) {
+    //     int len = globalsLength(gid);
+    //     copyFvals.ensureCapacity(len);
+    //     System.arraycopy(this.globalsFval, this.globalIndices[gid], copyFvals.getArray(), 0, len);
+    //     return (float[])copyFvals.getArray();
+    // }
 
     private int findSparseIndexInGlobals(int gid, int sparseIndex) {
       int globalBucketId = gid * this.nGlobalBuckets + (sparseIndex % this.nGlobalBuckets);
@@ -119,10 +117,10 @@ public abstract class HadoopCLKernel extends Kernel {
       return globalIndex == -1 ? 0.0 : this.globalsMapVal[globalIndex];
     }
 
-    protected float referenceGlobalFval(int gid, int sparseIndex) {
-      int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
-      return globalIndex == -1 ? 0.0f : this.globalsMapFval[globalIndex];
-    }
+    // protected float referenceGlobalFval(int gid, int sparseIndex) {
+    //   int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
+    //   return globalIndex == -1 ? 0.0f : this.globalsMapFval[globalIndex];
+    // }
 
     protected int nGlobals() {
         return this.nGlobals;
