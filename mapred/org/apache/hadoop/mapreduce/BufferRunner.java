@@ -16,7 +16,8 @@ public class BufferRunner implements Runnable {
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
     private final KernelManager freeKernels; // exclusive
 
-    private final HadoopCLLimitedQueue<HadoopCLInputBuffer> toRun;
+    private final ConcurrentLinkedQueue<HadoopCLInputBuffer> toRun;
+    // private final HadoopCLLimitedQueue<HadoopCLInputBuffer> toRun;
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
     private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
     // private final LinkedList<HadoopCLKernel> toCopyFromOpenCL; // exclusive
@@ -45,7 +46,8 @@ public class BufferRunner implements Runnable {
         this.freeOutputBuffers = freeOutputBuffers;
         this.freeKernels = freeKernels;
 
-        this.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
+        this.toRun = new ConcurrentLinkedQueue<HadoopCLInputBuffer>();
+        // this.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
         this.toRunPrivate = new LinkedList<HadoopCLInputBuffer>();
         this.toWrite = new LinkedList<OutputBufferSoFar>();
         // this.toCopyFromOpenCL = new LinkedList<HadoopCLKernel>();
@@ -80,14 +82,15 @@ public class BufferRunner implements Runnable {
 
     public void addWork(HadoopCLInputBuffer input) {
         // possible if getting DONE signal from main
-        if (input != null) {
+        if (input != MainDoneMarker.SINGLETON) {
             input.clearNWrites();
         }
         // LOG:DIAGNOSTIC
         // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
 
+        this.toRun.add(input);
         synchronized (this.somethingHappenedLocal) {
-            this.toRun.add(input);
+            // this.toRun.add(input);
             this.somethingHappenedLocal.set(true);
             this.somethingHappenedLocal.notify();
         }
@@ -330,21 +333,31 @@ public class BufferRunner implements Runnable {
 
     private HadoopCLInputBuffer getInputBuffer() {
 
-        HadoopCLInputBuffer inputBuffer = null;
-        BufferTypeContainer<HadoopCLInputBuffer> inputBufferContainer = 
-            toRun.nonBlockingGet();
+        HadoopCLInputBuffer inputBuffer = toRun.poll();
+        // BufferTypeContainer<HadoopCLInputBuffer> inputBufferContainer = 
+        //     toRun.nonBlockingGet();
 
-        if (inputBufferContainer != null) {
-            if (inputBufferContainer.get() == null) {
+        if (inputBuffer != null) {
+            if (inputBuffer == MainDoneMarker.SINGLETON) {
                 // LOG:DIAGNOSTIC
                 // log("   Got DONE signal from main");
                 this.mainDone = true;
             } else {
-                inputBuffer = inputBufferContainer.get();
                 // LOG:DIAGNOSTIC
                 // log("  Got input buffer "+inputBuffer.id+" from main");
             }
         }
+        // if (inputBufferContainer != null) {
+        //     if (inputBufferContainer.get() == MainDoneMarker.SINGLETON) {
+        //         // LOG:DIAGNOSTIC
+        //         // log("   Got DONE signal from main");
+        //         this.mainDone = true;
+        //     } else {
+        //         inputBuffer = inputBufferContainer.get();
+        //         // LOG:DIAGNOSTIC
+        //         // log("  Got input buffer "+inputBuffer.id+" from main");
+        //     }
+        // }
 
         if (inputBuffer == null) {
             // try again for any retry input buffers

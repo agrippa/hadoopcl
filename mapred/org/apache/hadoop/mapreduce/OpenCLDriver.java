@@ -208,9 +208,10 @@ public class OpenCLDriver {
     } else {
         globalSpace = null;
     }
-    BufferManager<HadoopCLInputBuffer> inputManager;
-    BufferManager<HadoopCLOutputBuffer> outputManager;
-    KernelManager kernelManager;
+
+    final BufferManager<HadoopCLInputBuffer> inputManager;
+    final BufferManager<HadoopCLOutputBuffer> outputManager;
+    final KernelManager kernelManager;
     int bufferCounter = 0;
 
     BufferRunner bufferRunner = null;
@@ -326,7 +327,7 @@ public class OpenCLDriver {
         bufferRunner.addWork(buffer);
     }
 
-    bufferRunner.addWork(null);
+    bufferRunner.addWork(MainDoneMarker.SINGLETON);
 
     bufferRunnerThread.join();
     kernelManager.dispose();
