@@ -137,7 +137,9 @@ public class OpenCLDriver {
       sb.append(" ms, startupTime=");
       sb.append(startupTime);
       sb.append(" ms");
-      sb.append(profiles.get(0).listToString(profiles));
+      if (!profiles.isEmpty()) {
+          sb.append(profiles.get(0).listToString(profiles));
+      }
       return sb.toString();
   }
 
@@ -287,6 +289,7 @@ public class OpenCLDriver {
        //      }
        //  }
     } else {
+        final boolean isMapper = this.clContext.isMapper();
         int itemCount = 0;
         while (this.context.nextKeyValue()) {
             if (buffer.isFull(this.context)) {
@@ -321,23 +324,16 @@ public class OpenCLDriver {
                     }
                     buffer.reset();
                 }
-
-                // BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
                 // LOG:PROFILE
                 // logger.log("done allocating input", this.clContext);
-                // buffer = newBufferContainer.obj();
-                // if (newBufferContainer.isFresh()) {
-                //     buffer.init(kernel.getOutputPairsPerInput(), clContext);
-                // } else {
-                //     buffer.reset();
-                // }
+
                 buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
                 buffer.resetProfile();
                 buffer.getProfile().startRead(buffer);
             }
 
             buffer.addKeyAndValue(this.context);
-            if (this.clContext.isMapper()) {
+            if (isMapper) {
                 OpenCLDriver.inputsRead++;
             }
             itemCount++;

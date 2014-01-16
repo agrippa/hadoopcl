@@ -14,11 +14,11 @@ import java.util.ArrayList;
 public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
 
     protected int deviceID;
-    protected int isGPU;
-    protected int[] input_keyIndex;
-    protected int[] nWrites;
-    protected int nKeys;
-    protected int nVals;
+    public int isGPU;
+    public int[] input_keyIndex;
+    public int[] nWrites;
+    public int nKeys;
+    public int nVals;
 
     public void baseInit(HadoopOpenCLContext clContext) {
         this.clContext = clContext;

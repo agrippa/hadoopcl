@@ -17,10 +17,8 @@ public class BufferRunner implements Runnable {
     private final KernelManager freeKernels; // exclusive
 
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> toRun;
-    // private final HadoopCLLimitedQueue<HadoopCLInputBuffer> toRun;
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
     private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
-    // private final LinkedList<HadoopCLKernel> toCopyFromOpenCL; // exclusive
     private final ConcurrentLinkedQueue<HadoopCLKernel> toCopyFromOpenCL;
 
     public static final AtomicBoolean somethingHappened = new AtomicBoolean(false);
@@ -47,14 +45,10 @@ public class BufferRunner implements Runnable {
         this.freeKernels = freeKernels;
 
         this.toRun = new ConcurrentLinkedQueue<HadoopCLInputBuffer>();
-        // this.toRun = new HadoopCLLimitedQueue<HadoopCLInputBuffer>();
         this.toRunPrivate = new LinkedList<HadoopCLInputBuffer>();
         this.toWrite = new LinkedList<OutputBufferSoFar>();
-        // this.toCopyFromOpenCL = new LinkedList<HadoopCLKernel>();
         this.toCopyFromOpenCL = new ConcurrentLinkedQueue<HadoopCLKernel>();
 
-        // this.running = new HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair>();
-        // this.running = new LinkedList<HadoopCLKernel>();
         kernelsActive = new AtomicInteger();
 
         this.clContext = clContext;
@@ -121,19 +115,24 @@ public class BufferRunner implements Runnable {
     //     return null;
     // }
 
-    private void spawnKernelTrackingThread(final HadoopCLKernel kernel) {
+    private void spawnKernelTrackingThread(final HadoopCLKernel kernel, final boolean relaunch) {
         new Thread(new Runnable() {
             @Override
             public void run() {
                 kernel.waitForCompletion();
                 // LOG:DIAGNOSTIC
                 // log("  Detected completed kernel "+kernel.id);
-                // LOG:PROFILE
-                // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
+                if (relaunch) {
+                    // LOG:PROFILE
+                    // OpenCLDriver.logger.log("recovering relaunched kernel "+kernel.tracker.toString(), clContext);
+                } else {
+                    // LOG:PROFILE
+                    // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
+                }
                 toCopyFromOpenCL.add(kernel);
                 kernelsActive.getAndDecrement();
+                kernel.openclProfile.stopKernel();
                 synchronized (somethingHappenedLocal) {
-                    kernel.openclProfile.stopKernel();
                     somethingHappenedLocal.set(true);
                     somethingHappenedLocal.notify();
                 }
@@ -163,7 +162,7 @@ public class BufferRunner implements Runnable {
             kernelsActive.getAndIncrement();
             kernel.openclProfile = inputBuffer.getProfile();
             kernel.openclProfile.startKernel();
-            spawnKernelTrackingThread(kernel);
+            spawnKernelTrackingThread(kernel, false);
             // running.put(kernel, new HadoopCLInputOutputBufferPair(kernel));
             // running.add(kernel);
         }
@@ -227,6 +226,8 @@ public class BufferRunner implements Runnable {
             // LOG:DIAGNOSTIC
             // log("      Retrying kernel "+complete.id+" due to completedAll="+completedAll);
             complete.tracker.incrementAttempt();
+            // LOG:PROFILE
+            // OpenCLDriver.logger.log("relaunching kernel "+complete.tracker.toString(), this.clContext);
             try {
                 if (!complete.relaunchKernel()) {
                     throw new RuntimeException("Failure to re-launch kernel");
@@ -236,11 +237,9 @@ public class BufferRunner implements Runnable {
             } catch (InterruptedException ie) {
                 throw new RuntimeException(ie);
             }
-            // LOG:PROFILE
-            // OpenCLDriver.logger.log("launching kernel "+complete.tracker.toString(), this.clContext);
             complete.openclProfile.startKernel();
             kernelsActive.getAndIncrement();
-            spawnKernelTrackingThread(complete);
+            spawnKernelTrackingThread(complete, true);
             // running.put(complete, new HadoopCLInputOutputBufferPair(complete));
             // running.add(complete);
         } else {
@@ -464,9 +463,8 @@ public class BufferRunner implements Runnable {
          * usingOpencl to false (this should be more efficient so we're
          * not just constantly throwing exceptions
          */
-        while (!mainDone || /* !running.isEmpty() || */
-                !toRunPrivate.isEmpty() || !toCopyFromOpenCL.isEmpty() || 
-                kernelsActive.get() > 0 ) {
+        while (!mainDone || !toRunPrivate.isEmpty() ||
+                !toCopyFromOpenCL.isEmpty() || kernelsActive.get() > 0 ) {
 
             boolean forwardProgress = false;
             /*

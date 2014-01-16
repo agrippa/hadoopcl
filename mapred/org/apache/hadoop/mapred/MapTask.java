@@ -1156,6 +1156,7 @@ public class MapTask extends Task {
       int index = coll.start();
       for ( ; index < coll.end() &&
               ((kvindex + 1) % kvoffsets.length) != kvstart; index++) {
+        if (!coll.isValid(index)) continue;
         final int partition = coll.getPartitionFor(index, partitions);
         if (partition < 0 || partition >= partitions) {
           throw new IOException("Illegal partition");
@@ -1582,15 +1583,6 @@ public class MapTask extends Task {
         int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
         double newKvRatio = (double)newDiff / (double)kvoffsets.length;
         double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
-        // System.out.println("Finishing sortAndSpill");
-        // System.out.println("  kvend="+kvend);
-        // System.out.println("  kvindex="+kvindex);
-        // System.out.println("  kvoffsets.length="+kvoffsets.length);
-        // System.out.println("  bufend="+bufend);
-        // System.out.println("  bufindex="+bufindex);
-        // System.out.println("  kvbuffer.length="+kvbuffer.length);
-        // System.out.println("  newDiff="+newDiff);
-        // System.out.println("newWorkRatio = "+newWorkRatio);
         if (newKvRatio > 0.30) {
           LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
           kvend = kvindex;
