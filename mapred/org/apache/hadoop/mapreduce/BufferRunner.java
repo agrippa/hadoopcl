@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.Deque;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -18,7 +19,8 @@ public class BufferRunner implements Runnable {
 
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> toRun;
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
-    private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
+    private final Deque<OutputBufferSoFar> toWrite;
+    // private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
     private final ConcurrentLinkedQueue<HadoopCLKernel> toCopyFromOpenCL;
 
     public static final AtomicBoolean somethingHappened = new AtomicBoolean(false);
@@ -220,7 +222,7 @@ public class BufferRunner implements Runnable {
         // log("    Adding "+output.id+" to output buffers to write");
 
         boolean completedAll = output.completedAll();
-        toWrite.add(new OutputBufferSoFar(output, 0));
+        toWrite.addFirst(new OutputBufferSoFar(output, 0));
 
         if (!completedAll) {
             // LOG:DIAGNOSTIC
@@ -249,25 +251,35 @@ public class BufferRunner implements Runnable {
         }
     }
 
+    private boolean doSingleOutputBuffer(OutputBufferSoFar soFar) {
+        boolean forwardProgress = false;
+        // LOG:DIAGNOSTIC
+        // log("    Got output buffer "+soFar.buffer().id+" to write");
+
+        int previously = soFar.soFar();
+        OutputBufferSoFar cont = handleOutputBuffer(soFar);
+        if (cont != null) {
+            if (cont.soFar() > previously) {
+                forwardProgress = true;
+            }
+            this.toWrite.addFirst(cont);
+        } else {
+            forwardProgress = true;
+        }
+
+        return forwardProgress;
+    }
+
     private boolean doOutputBuffers() {
         boolean forwardProgress = false;
 
-        OutputBufferSoFar soFar = null;
-        while ((soFar = toWrite.poll()) != null) {
+        while (!toWrite.isEmpty()) {
+            int sizeBefore = this.toWrite.size();
+            final OutputBufferSoFar soFar = toWrite.removeFirst();
             // LOG:DIAGNOSTIC
             // log("    Got output buffer "+soFar.buffer().id+" to write");
-
-            int previously = soFar.soFar();
-            OutputBufferSoFar cont = handleOutputBuffer(soFar);
-            if (cont != null) {
-                if (cont.soFar() > previously) {
-                    forwardProgress = true;
-                }
-                this.toWrite.add(cont);
-                break;
-            } else {
-                forwardProgress = true;
-            }
+            forwardProgress |= doSingleOutputBuffer(soFar);
+            if (sizeBefore == this.toWrite.size()) break;
         }
 
         return forwardProgress;
@@ -492,13 +504,32 @@ public class BufferRunner implements Runnable {
             }
         }
 
-        // LOG:DIAGNOSTIC
-        // log("    At end, "+toWrite.size()+" output buffers remaining to write");
-        while (!toWrite.isEmpty()) {
-            boolean forwardProgress = doOutputBuffers();
-            if (!forwardProgress) {
-                waitForMoreWork();
+        if (!toWrite.isEmpty()) {
+            // final int partitions = this.clContext.getContext().getNumReduceTasks();
+            // final int mySpillNo = MapTask.numSpills.getAndIncrement();
+            // FSDataOutputStream out = null;
+            // final LocalDirAllocator lDirAlloc = 
+            //     new LocalDirAllocator("mapred.local.dir");
+            // final SpillRecord spillRec = new SpillRecord(partitions);
+            // final Path filename = lDirAlloc.getLocalPathForWrite(
+            //     TaskTracker.OUTPUT + "/spill"+mySpillNo+".out", size,
+            //     this.clContext.getContext());
+
+            // LOG:DIAGNOSTIC
+            // log("    At end, "+toWrite.size()+" output buffers remaining to write");
+            while (!toWrite.isEmpty()) {
+                boolean forwardProgress =
+                    doSingleOutputBuffer(toWrite.removeFirst());
+                if (!forwardProgress) {
+                    waitForMoreWork();
+                }
             }
+            // while (!toWrite.isEmpty()) {
+            //     boolean forwardProgress = doOutputBuffers();
+            //     if (!forwardProgress) {
+            //         waitForMoreWork();
+            //     }
+            // }
         }
     }
 
@@ -521,12 +552,12 @@ public class BufferRunner implements Runnable {
             sb.append(" ");
         }
         sb.append("]\n");
-        sb.append("  toWrite: [ ");
-        for (OutputBufferSoFar b : this.toWrite) {
-            sb.append(b.buffer().id);
-            sb.append(" ");
-        }
-        sb.append("]\n");
+        // sb.append("  toWrite: [ ");
+        // for (OutputBufferSoFar b : this.toWrite) {
+        //     sb.append(b.buffer().id);
+        //     sb.append(" ");
+        // }
+        // sb.append("]\n");
         sb.append("  freeKernels: ");
         sb.append(this.freeKernels.toString());
         // sb.append("\n");

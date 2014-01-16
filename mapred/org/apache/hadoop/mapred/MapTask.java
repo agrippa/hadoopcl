@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.BufferRunner;
 import org.apache.hadoop.mapreduce.OpenCLDriver;
@@ -96,6 +97,7 @@ public class MapTask extends Task {
   /**
    * The size of each record in the index file for the map-outputs.
    */
+  public static final AtomicInteger numSpills = new AtomicInteger(0);
   public static final int MAP_OUTPUT_INDEX_RECORD_LENGTH = 24;
   private Boolean isOpenCL = null;
 
@@ -970,7 +972,7 @@ public class MapTask extends Task {
                        (ACCTSIZE + 1) * 4;  // acct bytes per record
 
     // spill accounting
-    private volatile int numSpills = 0;
+    // private volatile int numSpills = 0;
     private final float spillper;
     private final float initialspillper;
     private volatile Throwable sortSpillException = null;
@@ -1674,7 +1676,8 @@ public class MapTask extends Task {
       try {
         // create spill file
         final SpillRecord spillRec = new SpillRecord(partitions);
-        final int spillNo = numSpills++;
+        final int spillNo = numSpills.getAndIncrement();
+        // final int spillNo = numSpills++;
         final Path filename =
             mapOutputFile.getSpillFileForWrite(spillNo, size);
         out = rfs.create(filename);
@@ -1776,8 +1779,9 @@ public class MapTask extends Task {
       try {
         // create spill file
         final SpillRecord spillRec = new SpillRecord(partitions);
+        int spillNo = numSpills.getAndIncrement();
         final Path filename =
-            mapOutputFile.getSpillFileForWrite(numSpills, size);
+            mapOutputFile.getSpillFileForWrite(spillNo, size);
         out = rfs.create(filename);
         
         // we don't run the combiner for a single record
@@ -1814,7 +1818,7 @@ public class MapTask extends Task {
         if (totalIndexCacheMemory >= INDEX_CACHE_MEMORY_LIMIT) {
           // create spill index file
           Path indexFilename =
-              mapOutputFile.getSpillIndexFileForWrite(numSpills, partitions
+              mapOutputFile.getSpillIndexFileForWrite(spillNo, partitions
                   * MAP_OUTPUT_INDEX_RECORD_LENGTH);
           spillRec.writeToFile(indexFilename, job);
         } else {
@@ -1822,7 +1826,7 @@ public class MapTask extends Task {
           totalIndexCacheMemory +=
             spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
         }
-        ++numSpills;
+        // ++numSpills;
       } finally {
         if (out != null) out.close();
       }
@@ -1913,14 +1917,15 @@ public class MapTask extends Task {
       // get the approximate size of the final output/index files
       long finalOutFileSize = 0;
       long finalIndexFileSize = 0;
-      final Path[] filename = new Path[numSpills];
+      final int totalSpills = numSpills.get();
+      final Path[] filename = new Path[totalSpills];
       final TaskAttemptID mapId = getTaskID();
 
-      for(int i = 0; i < numSpills; i++) {
+      for(int i = 0; i < totalSpills; i++) {
         filename[i] = mapOutputFile.getSpillFile(i);
         finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
       }
-      if (numSpills == 1) { //the spill is the final output
+      if (totalSpills == 1) { //the spill is the final output
         rfs.rename(filename[0],
             new Path(filename[0].getParent(), "file.out"));
         if (indexCacheList.size() == 0) {
@@ -1934,7 +1939,7 @@ public class MapTask extends Task {
       }
 
       // read in paged indices
-      for (int i = indexCacheList.size(); i < numSpills; ++i) {
+      for (int i = indexCacheList.size(); i < totalSpills; ++i) {
         Path indexFileName = mapOutputFile.getSpillIndexFile(i);
         indexCacheList.add(new SpillRecord(indexFileName, job, null));
       }
@@ -1951,7 +1956,7 @@ public class MapTask extends Task {
       //The output stream for the final single output file
       FSDataOutputStream finalOut = rfs.create(finalOutputFile, true, 4096);
 
-      if (numSpills == 0) {
+      if (totalSpills == 0) {
         //create dummy files
         IndexRecord rec = new IndexRecord();
         SpillRecord sr = new SpillRecord(partitions);
@@ -1978,8 +1983,8 @@ public class MapTask extends Task {
         for (int parts = 0; parts < partitions; parts++) {
           //create the segments to be merged
           List<Segment<K,V>> segmentList =
-            new ArrayList<Segment<K, V>>(numSpills);
-          for(int i = 0; i < numSpills; i++) {
+            new ArrayList<Segment<K, V>>(totalSpills);
+          for(int i = 0; i < totalSpills; i++) {
             IndexRecord indexRecord = indexCacheList.get(i).getIndex(parts);
 
             Segment<K,V> s =
@@ -2008,7 +2013,7 @@ public class MapTask extends Task {
           Writer<K, V> writer =
               new Writer<K, V>(job, finalOut, keyClass, valClass, codec,
                                spilledRecordsCounter);
-          if (combinerRunner == null || numSpills < minSpillsForCombine) {
+          if (combinerRunner == null || totalSpills < minSpillsForCombine) {
             Merger.writeFile(kvIter, writer, reporter, job);
           } else {
             combineCollector.setWriter(writer);
@@ -2026,7 +2031,7 @@ public class MapTask extends Task {
         }
         spillRec.writeToFile(finalIndexFile, job);
         finalOut.close();
-        for(int i = 0; i < numSpills; i++) {
+        for(int i = 0; i < totalSpills; i++) {
           rfs.delete(filename[i],true);
         }
       }
