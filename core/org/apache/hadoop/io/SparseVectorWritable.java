@@ -41,6 +41,10 @@ public class SparseVectorWritable implements WritableComparable<SparseVectorWrit
         this.overrideValsOffset = -1;
     }
 
+    public SparseVectorWritable(int[] indices, int indicesOffset, double[] vals, int valsOffset, int length) {
+        set(indices, indicesOffset, vals, valsOffset, length);
+    }
+
     public void set(int[] indices, double[] vals) {
         this.indices = indices;
         this.vals = vals;

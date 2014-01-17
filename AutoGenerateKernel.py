@@ -308,23 +308,23 @@ class PrimitiveVisitor(NativeTypeVisitor):
         return [ 'return new '+self.typ.capitalize()+'Writable(this.outputVals[index]);' ]
     def getSerializeKey(self):
         if self.typ == 'int':
-            return [ 'out.writeInt(this.outputKeys[index];' ]
+            return [ 'out.writeInt(this.outputKeys[index]);' ]
         elif self.typ == 'float':
-            return [ 'out.writeFloat(this.outputKeys[index];' ]
+            return [ 'out.writeFloat(this.outputKeys[index]);' ]
         elif self.typ == 'double':
-            return [ 'out.writeDouble(this.outputKeys[index];' ]
+            return [ 'out.writeDouble(this.outputKeys[index]);' ]
         elif self.typ == 'long':
-            return [ 'out.writeLong(this.outputKeys[index];' ]
+            return [ 'out.writeLong(this.outputKeys[index]);' ]
         return [ ]
     def getSerializeValue(self):
         if self.typ == 'int':
-            return [ 'out.writeInt(this.outputVals[index];' ]
+            return [ 'out.writeInt(this.outputVals[index]);' ]
         elif self.typ == 'float':
-            return [ 'out.writeFloat(this.outputVals[index];' ]
+            return [ 'out.writeFloat(this.outputVals[index]);' ]
         elif self.typ == 'double':
-            return [ 'out.writeDouble(this.outputVals[index];' ]
+            return [ 'out.writeDouble(this.outputVals[index]);' ]
         elif self.typ == 'long':
-            return [ 'out.writeLong(this.outputVals[index];' ]
+            return [ 'out.writeLong(this.outputVals[index]);' ]
         return [ ]
 
 #################################################################################
@@ -982,7 +982,7 @@ class SvecVisitor(NativeTypeVisitor):
     def getSerializeKey(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
-        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+        return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
                  'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
                  'ReadArrayUtils.dumpDoubleArrayStatic(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
@@ -1224,7 +1224,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getSerializeKey(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
-        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+        return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
                  'ReadArrayUtils.dumpIntArrayStatic(out, this.outputVals, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
 #################################################################################
@@ -1539,9 +1539,9 @@ class FsvecVisitor(NativeTypeVisitor):
     def getSerializeKey(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
-        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+        return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
                  'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpFLoatArrayStatic(out, this.outputValVals, this.outputValFloatLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+                 'ReadArrayUtils.dumpFloatArrayStatic(out, this.outputValVals, this.outputValFloatLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
 #################################################################################
 ########################## Visitor for Bsvec type ###############################
@@ -1853,7 +1853,7 @@ class BsvecVisitor(NativeTypeVisitor):
     def getSerializeKey(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
-        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+        return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
                  'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
                  'ReadArrayUtils.dumpDoubleArrayStatic(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
@@ -2059,6 +2059,7 @@ def writeHeader(fp, isMapper):
     fp.write('import java.nio.ByteBuffer;\n')
     fp.write('import org.apache.hadoop.util.Progress;\n')
     fp.write('import java.util.Comparator;\n')
+    fp.write('import java.io.DataOutputStream;\n')
     if isMapper:
         fp.write('import org.apache.hadoop.mapreduce.Mapper.Context;\n')
     else:

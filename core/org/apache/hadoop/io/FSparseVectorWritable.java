@@ -41,6 +41,16 @@ public class FSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
+    public FSparseVectorWritable(int[] indices, int offsetIndices, float[] vals, int offsetVals, int length) {
+        this.indicesRes = null;
+        this.valsRes = null;
+        this.indices = indices;
+        this.vals = vals;
+        this.overrideLength = length;
+        this.overrideIndicesOffset = offsetIndices;
+        this.overrideValsOffset = offsetVals;
+    }
+
     public void set(int[] indices, float[] vals) {
         this.indices = indices;
         this.vals = vals;
