@@ -2405,11 +2405,8 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     fp.write('    }\n')
     fp.write('\n')
 
-# def writeResetForAnotherAttempt(fp, isMapper, nativeInputKeyType, nativeInputValueType):
-#     fp.write('    @Override\n')
-#     fp.write('    public void resetForAnotherAttempt() {\n')
-#     fp.write('        // NO-OP at the moment, but might be necessary later\n')
-#     fp.write('    }\n\n')
+def writeKeyValueIteratorDefs(output_fp, nativeOutputKeyType, nativeOutputValueType)
+
 
 def writeSpace(fp, isMapper, keyType, valType, isInput):
     fp.write('    @Override\n')
@@ -2654,6 +2651,9 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     kernelfp.write('        this.javaProfile.stopOverall();\n')
     kernelfp.write('        return this.javaProfile;\n')
     kernelfp.write('    }\n')
+
+    output_fp.write('\n')
+    writeKeyValueIteratorDefs(output_fp, nativeOutputKeyType, nativeOutputValueType)
 
     input_fp.write('}\n\n')
     output_fp.write('}\n\n')
