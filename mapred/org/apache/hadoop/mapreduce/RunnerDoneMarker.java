@@ -24,4 +24,12 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
     public Class<?> getOutputKeyClass() { return null; }
     @Override
     public Class<?> getOutputValClass() { return null; }
+    @Override
+    public int getPartitionFor(int index, int numReduceTasks) {
+        throw new UnsupportedOperationException();
+    }
+    @Override
+    public HadoopCLKeyValueIterator getKeyValueIterator(int soFar, int numReduceTasks) {
+        throw new UnsupportedOperationException();
+    }
 }

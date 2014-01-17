@@ -133,6 +133,8 @@ class NativeTypeVisitor:
         raise NotImplementedError()
     def getValueFillForIterator(self):
         raise NotImplementedError()
+    def getPartitioner(self):
+        raise NotImplementedError()
 
 #################################################################################
 ########################## Visitor for Primitive type ###########################
@@ -237,7 +239,7 @@ class PrimitiveVisitor(NativeTypeVisitor):
             else:
                 return [ 'this.nVals+"/"+this.input'+core+'s.length+" '+core.lower()+'s"' ]
     def getIteratorComparison(self):
-        return [ 'buf.outputKeys[a] - buf.outputKeys[b];' ]
+        return [ 'return (buf.outputKeys[a] == buf.outputKeys[b] ? 0 : (buf.outputKeys[a] > buf.outputKeys[b] ? 1 : -1 ));' ]
     def getKeyFillForIterator(self):
         if self.typ == 'int':
             return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 4);',
@@ -281,6 +283,16 @@ class PrimitiveVisitor(NativeTypeVisitor):
                      'this.valueBytes.position(0);',
                      'this.valueBytes.putLong(buf.outputVals[current]);',
                      'this.value.reset(valueBytes.array(), 0, 8);' ]
+        return [ ]
+    def getPartitioner(self):
+        if self.typ == 'int':
+            return [ 'return (this.outputKeys[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
+        elif self.typ == 'float':
+            return [ 'return (Float.floatToIntBits(this.outputKeys[index]) & Integer.MAX_VALUE) % numReduceTasks;' ]
+        elif self.typ == 'double':
+            return [ 'return (((int)Double.doubleToLongBits(this.outputKeys[index])) & Integer.MAX_VALUE) % numReduceTasks;' ]
+        elif self.typ == 'long':
+            return [ 'return (((int)this.outputKeys[index]) & Integer.MAX_VALUE) % numReduceTasks;' ]
         return [ ]
 
 #################################################################################
@@ -433,6 +445,8 @@ class PairVisitor(NativeTypeVisitor):
                  'this.valueBytes.putDouble(buf.outputVals1[current]);',
                  'this.valueBytes.putDouble(buf.outputVals2[current]);',
                  'this.value.reset(valueBytes.array(), 0, 16);' ]
+    def getPartitioner(self):
+        return [ 'return (((int)this.outputKeys1[index] + (int)this.outputKeys2[index]) & Integer.MAX_VALUE) % numReduceTasks;' ]
 
 #################################################################################
 ########################## Visitor for Ipair type ###############################
@@ -618,6 +632,8 @@ class IpairVisitor(NativeTypeVisitor):
                  'this.valueBytes.putDouble(buf.outputVals1[current]);',
                  'this.valueBytes.putDouble(buf.outputVals2[current]);',
                  'this.value.reset(valueBytes.array(), 0, 20);' ]
+    def getPartitioner(self):
+        return [ 'return (this.outputValIds[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
 
 #################################################################################
 ########################## Visitor for Svec type ################################
@@ -909,6 +925,8 @@ class SvecVisitor(NativeTypeVisitor):
                  'this.valueBytes.position(4 + (4 * length));',
                  'this.valueBytes.asDoubleBuffer().put(buf.outputValVals, buf.outputValDoubleLookAsideBuffer[current], length);',
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (8 * length));' ]
+    def getPartitioner(self):
+        return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
 
 #################################################################################
 ########################## Visitor for Ivec type ################################
@@ -1139,6 +1157,8 @@ class IvecVisitor(NativeTypeVisitor):
                  'this.valueBytes.putInt(length);',
                  'this.valueBytes.asIntBuffer().put(buf.outputVals, buf.outputValIntLookAsideBuffer[current], length);',
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length));' ]
+    def getPartitioner(self):
+        return [ 'return (this.outputValLengthBuffer[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
 
 #################################################################################
 ########################## Visitor for Fsvec type ###############################
@@ -1441,8 +1461,10 @@ class FsvecVisitor(NativeTypeVisitor):
                  'this.valueBytes.putInt(length);',
                  'this.valueBytes.asIntBuffer().put(buf.outputValIndices, buf.outputValIntLookAsideBuffer[current], length);',
                  'this.valueBytes.position(4 + (4 * length));',
-                 'this.valueBytes.asDoubleBuffer().put(buf.outputValVals, buf.outputValFloatLookAsideBuffer[current], length);',
+                 'this.valueBytes.asFloatBuffer().put(buf.outputValVals, buf.outputValFloatLookAsideBuffer[current], length);',
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (4 * length));' ]
+    def getPartitioner(self):
+        return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
 
 #################################################################################
 ########################## Visitor for Bsvec type ###############################
@@ -1745,6 +1767,8 @@ class BsvecVisitor(NativeTypeVisitor):
                  'this.valueBytes.position(4 + (4 * length));',
                  'this.valueBytes.asDoubleBuffer().put(buf.outputValVals, buf.outputValDoubleLookAsideBuffer[current], length);',
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (8 * length));' ]
+    def getPartitioner(self):
+        return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
 
 #################################################################################
 ########################## End of visitors ######################################
@@ -1944,6 +1968,10 @@ def writeHeader(fp, isMapper):
     fp.write('import java.util.TreeMap;\n')
     fp.write('import java.util.LinkedList;\n')
     fp.write('import java.util.Iterator;\n')
+    fp.write('import java.util.TreeSet;\n')
+    fp.write('import java.nio.ByteBuffer;\n')
+    fp.write('import org.apache.hadoop.util.Progress;\n')
+    fp.write('import java.util.Comparator;\n')
     if isMapper:
         fp.write('import org.apache.hadoop.mapreduce.Mapper.Context;\n')
     else:
@@ -2576,6 +2604,13 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     fp.write('    }\n')
     fp.write('\n')
 
+def writeGetPartitionFor(fp, nativeOutputKeyType):
+    fp.write('    @Override\n')
+    fp.write('    public int getPartitionFor(int index, int numReduceTasks) {\n')
+    writeln(visitor(nativeOutputKeyType).getPartitioner(), 2, fp)
+    fp.write('    }\n')
+    fp.write('\n')
+
 def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, isMapper):
     enclosingBufferName = ''.join( [ typeNameForClassName(nativeOutputKeyType),
             typeNameForClassName(nativeOutputValueType), 'HadoopCLOutput',
@@ -2598,8 +2633,7 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('                    int aPart = buf.getPartitionFor(a.intValue(), numReduceTasks);\n')
     fp.write('                    int bPart = buf.getPartitionFor(b.intValue(), numReduceTasks);\n')
     fp.write('                    if (aPart != bPart) return aPart - bPart;\n')
-    fp.write('                    return ')
-    writeln(visitor(nativeOutputKeyType).getIteratorComparison(), 1, fp)
+    writeln(visitor(nativeOutputKeyType).getIteratorComparison(), 5, fp)
     fp.write('                }\n')
     fp.write('                @Override\n')
     fp.write('                public boolean equals(Object i) {\n')
@@ -2915,6 +2949,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     kernelfp.write('        return this.javaProfile;\n')
     kernelfp.write('    }\n')
 
+    writeGetPartitionFor(output_fp, nativeOutputKeyType)
     output_fp.write('\n')
     writeKeyValueIteratorDefs(output_fp, nativeOutputKeyType, nativeOutputValueType, isMapper)
 

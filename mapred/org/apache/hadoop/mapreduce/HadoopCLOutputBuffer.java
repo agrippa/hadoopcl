@@ -18,6 +18,7 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public abstract void copyOverFromKernel(HadoopCLKernel kernel);
     public abstract HashSet<Integer> constructIterSet();
     public abstract HadoopCLKeyValueIterator getKeyValueIterator(int soFar, int numReduceTasks);
+    public abstract int getPartitionFor(int index, int numReduceTasks);
 
     @Override
     public long space() {
