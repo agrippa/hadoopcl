@@ -135,6 +135,14 @@ class NativeTypeVisitor:
         raise NotImplementedError()
     def getPartitioner(self):
         raise NotImplementedError()
+    def getKeyFor(self):
+        raise NotImplementedError()
+    def getValueFor(self):
+        raise NotImplementedError()
+    def getSerializeKey(self):
+        raise NotImplementedError()
+    def getSerializeValue(self):
+        raise NotImplementedError()
 
 #################################################################################
 ########################## Visitor for Primitive type ###########################
@@ -294,6 +302,30 @@ class PrimitiveVisitor(NativeTypeVisitor):
         elif self.typ == 'long':
             return [ 'return (((int)this.outputKeys[index]) & Integer.MAX_VALUE) % numReduceTasks;' ]
         return [ ]
+    def getKeyFor(self):
+        return [ 'return new '+self.typ.capitalize()+'Writable(this.outputKeys[index]);' ]
+    def getValueFor(self):
+        return [ 'return new '+self.typ.capitalize()+'Writable(this.outputVals[index]);' ]
+    def getSerializeKey(self):
+        if self.typ == 'int':
+            return [ 'out.writeInt(this.outputKeys[index];' ]
+        elif self.typ == 'float':
+            return [ 'out.writeFloat(this.outputKeys[index];' ]
+        elif self.typ == 'double':
+            return [ 'out.writeDouble(this.outputKeys[index];' ]
+        elif self.typ == 'long':
+            return [ 'out.writeLong(this.outputKeys[index];' ]
+        return [ ]
+    def getSerializeValue(self):
+        if self.typ == 'int':
+            return [ 'out.writeInt(this.outputVals[index];' ]
+        elif self.typ == 'float':
+            return [ 'out.writeFloat(this.outputVals[index];' ]
+        elif self.typ == 'double':
+            return [ 'out.writeDouble(this.outputVals[index];' ]
+        elif self.typ == 'long':
+            return [ 'out.writeLong(this.outputVals[index];' ]
+        return [ ]
 
 #################################################################################
 ########################## Visitor for Pair type ################################
@@ -447,6 +479,14 @@ class PairVisitor(NativeTypeVisitor):
                  'this.value.reset(valueBytes.array(), 0, 16);' ]
     def getPartitioner(self):
         return [ 'return (((int)this.outputKeys1[index] + (int)this.outputKeys2[index]) & Integer.MAX_VALUE) % numReduceTasks;' ]
+    def getKeyFor(self):
+        return [ 'return new PairWritable(this.outputKeys1[index], this.outputKeys2[index]);' ]
+    def getValueFor(self):
+        return [ 'return new PairWritable(this.outputVals1[index], this.outputVals2[index]);' ]
+    def getSerializeKey(self):
+        return [ 'out.writeDouble(this.outputKeys1[index]);', 'out.writeDouble(this.outputKeys2[index]);' ]
+    def getSerializeValue(self):
+        return [ 'out.writeDouble(this.outputVals1[index]);', 'out.writeDouble(this.outputVals2[index]);' ]
 
 #################################################################################
 ########################## Visitor for Ipair type ###############################
@@ -634,6 +674,14 @@ class IpairVisitor(NativeTypeVisitor):
                  'this.value.reset(valueBytes.array(), 0, 20);' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIds[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
+    def getKeyFor(self):
+        return [ 'return new UniquePairWritable(this.outputKeyIds[index], this.outputKeys1[index], this.outputKeys2[index]);' ]
+    def getValueFor(self):
+        return [ 'return new UniquePairWritable(this.outputValIds[index], this.outputVals1[index], this.outputVals2[index]);' ]
+    def getSerializeKey(self):
+        return [ 'out.writeInt(this.outputKeyIds[index]);', 'out.writeDouble(this.outputKeys1[index]);', 'out.writeDouble(this.outputKeys2[index]);' ]
+    def getSerializeValue(self):
+        return [ 'out.writeInt(this.outputValIds[index]);', 'out.writeDouble(this.outputVals1[index]);', 'out.writeDouble(this.outputVals2[index]);' ]
 
 #################################################################################
 ########################## Visitor for Svec type ################################
@@ -927,6 +975,16 @@ class SvecVisitor(NativeTypeVisitor):
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (8 * length));' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
+    def getKeyFor(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getValueFor(self):
+        return [ 'return new SparseVectorWritable(this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getSerializeKey(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getSerializeValue(self):
+        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
+                 'ReadArrayUtils.dumpDoubleArrayStatic(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
 #################################################################################
 ########################## Visitor for Ivec type ################################
@@ -1159,6 +1217,15 @@ class IvecVisitor(NativeTypeVisitor):
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length));' ]
     def getPartitioner(self):
         return [ 'return (this.outputValLengthBuffer[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
+    def getKeyFor(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getValueFor(self):
+        return [ 'return new IntegerVectorWritable(this.outputVals, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getSerializeKey(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getSerializeValue(self):
+        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputVals, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
 #################################################################################
 ########################## Visitor for Fsvec type ###############################
@@ -1465,6 +1532,16 @@ class FsvecVisitor(NativeTypeVisitor):
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (4 * length));' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
+    def getKeyFor(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getValueFor(self):
+        return [ 'return new FSparseVectorWritable(this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValVals, this.outputValFloatLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getSerializeKey(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getSerializeValue(self):
+        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
+                 'ReadArrayUtils.dumpFLoatArrayStatic(out, this.outputValVals, this.outputValFloatLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
 #################################################################################
 ########################## Visitor for Bsvec type ###############################
@@ -1769,6 +1846,16 @@ class BsvecVisitor(NativeTypeVisitor):
                  'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (8 * length));' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
+    def getKeyFor(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getValueFor(self):
+        return [ 'return new BSparseVectorWritable(this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getSerializeKey(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
+    def getSerializeValue(self):
+        return [ 'out.writeInt(this.outputValLengthBuffer[index];',
+                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
+                 'ReadArrayUtils.dumpDoubleArrayStatic(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
 
 #################################################################################
 ########################## End of visitors ######################################
@@ -2800,10 +2887,38 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    public int[] memAuxFloatIncr;\n')
         kernelfp.write('    public int outputAuxIntLength;\n')
         kernelfp.write('    public int outputAuxFloatLength;\n')
+    output_fp.write('    private int start, end;\n')
 
     kernelfp.write('\n')
     input_fp.write('\n')
     output_fp.write('\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public int start() { return this.start; }\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public int end() { return this.end; }\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public boolean isValid(int index) {\n')
+    output_fp.write('        return this.itersFinished.contains(this.outputIterMarkers[index]);\n')
+    output_fp.write('    }\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public '+hadoopOutputKeyType+'Writable getKeyFor(int index) {\n')
+    writeln(visitor(nativeOutputKeyType).getKeyFor(), 2, output_fp);
+    output_fp.write('    }\n')
+    output_fp.write('\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public '+hadoopOutputValueType+'Writable getValueFor(int index) {\n')
+    writeln(visitor(nativeOutputValueType).getValueFor(), 2, output_fp);
+    output_fp.write('    }\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public void serializeKey(int index, DataOutputStream out) throws IOException {\n')
+    writeln(visitor(nativeOutputKeyType).getSerializeKey(), 2, output_fp)
+    output_fp.write('    }\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public void serializeValue(int index, DataOutputStream out) throws IOException {\n')
+    writeln(visitor(nativeOutputValueType).getSerializeValue(), 2, output_fp)
+    output_fp.write('    }\n')
+    output_fp.write('\n')
+
 
     writeln(visitor(nativeInputKeyType).getKeyValDecl('inputKey', isMapper, True, True), 1, kernelfp)
     writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, True), 1, kernelfp)
