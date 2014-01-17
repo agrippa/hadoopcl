@@ -28,6 +28,44 @@ import org.apache.hadoop.io.RawComparator;
 import java.nio.ByteBuffer;
 import java.io.DataOutput;
 
+/*
+ * The Hadoop IFile format is confusing and difficult to parse from the code so
+ * I'm documenting it here. An IFile may be used for several purposes, though
+ * the only one I have experience with is as an on-disk storage for the
+ * intermediate results of a map task before they are passed to a reduce task.
+ *
+ * An IFile is divided into chunks of kv-pairs, where each chunk is sorted by
+ * key and contains kv-pairs which belong to the same partition (by default
+ * partition is determined by the HashPartitioner class). You can think of each
+ * of these chunks as a list of serialized kv-pairs with some extra metadata
+ * added to help with finding where the kv-pairs start and end.
+ *
+ * At a high level, each chunk contains an array of binary kv-pairs followed by
+ * a trailing EOF marker and a checksum. The checksum is the last 4 bytes and
+ * is calculated by calls to the DataChecksum class from the IFileOutputStream,
+ * but actually written in a call to IFileOutputStream.finish(). The EOF marker
+ * is composed of two IFile.EOF_MARKER objects and has a length determined by
+ * writeVInt. The array of kv-pairs is composed of cells, one cell for each
+ * pair.
+ *
+ * Each cell has the following format:
+ *   a variable length integer for the key length
+ *   a variable length integer for the value length
+ *   a binary chunk containing both the serialized key and value
+ * It is possible to find the key and value in the binary chunk using the
+ * lengths stored with them.
+ *
+ * For fast lookup of a certain partition's offset in an IFile, Hadoop also uses
+ * the SpillRecord object (which is essentially a list of IndexRecord objects,
+ * one for each partition in the IFile). Each IndexRecord object stores the
+ * offset in the IFile that the partition starts at, the decompressed size of
+ * that chunk in bytes excluding the checksum, and the compressed size of that
+ * chunk in bytes including the checksum (if compression is disabled, that just
+ * means the compressed size = decompressed size + 4 bytes). These spill records
+ * may be stored in memory or (if there are many of them) dumped to an on-disk
+ * file and stored as longs.
+ */
+
 public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparable<V> & Writable> extends
         IFile.Writer<K, V> implements IndexedSortable {
 
