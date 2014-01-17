@@ -2744,7 +2744,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             capitalizedKernelString(isMapper)+'Buffer {\n')
     output_fp.write('public class '+
             outputBufferClassName(isMapper, outputKeyType, outputValueType)+' extends HadoopCLOutput'+
-            capitalizedKernelString(isMapper)+'Buffer {\n')
+            capitalizedKernelString(isMapper)+'Buffer implements KVCollection<'+hadoopOutputKeyType+'Writable, '+hadoopOutputValueType+'Writable> {\n')
     # bufferfp.write('public class '+
     #     bufferClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType)+' extends HadoopCL'+
     #     capitalizedKernelString(isMapper)+'Buffer {\n')
