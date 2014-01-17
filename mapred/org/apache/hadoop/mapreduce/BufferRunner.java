@@ -523,112 +523,125 @@ public class BufferRunner implements Runnable {
         }
 
         if (!toWrite.isEmpty()) {
-            FSDataOutputStream out = null;
-            try {
-                final Counter combineInputCounter = 
-                  this.clContext.getContext().getCounter(COMBINE_INPUT_RECORDS);
-                final Counter spilledRecordsCounter =
-                  this.clContext.getContext().getCounter(SPILLED_RECORDS);
-                final Counter combineOutputCounter =
-                  this.clContext.getContext().getCounter(COMBINE_OUTPUT_RECORDS);
+            if (this.clContext.isMapper()) {
+                FSDataOutputStream out = null;
+                try {
+                    final Counter combineInputCounter = 
+                      this.clContext.getContext().getCounter(COMBINE_INPUT_RECORDS);
+                    final Counter spilledRecordsCounter =
+                      this.clContext.getContext().getCounter(SPILLED_RECORDS);
+                    final Counter combineOutputCounter =
+                      this.clContext.getContext().getCounter(COMBINE_OUTPUT_RECORDS);
 
-                final int partitions = this.clContext.getContext().getNumReduceTasks();
-                final FileSystem rfs = ((LocalFileSystem)FileSystem.getLocal(
-                      this.clContext.getContext().getConfiguration())).getRaw();
-                final LocalDirAllocator lDirAlloc = 
-                    new LocalDirAllocator("mapred.local.dir");
+                    final int partitions = this.clContext.getContext().getNumReduceTasks();
+                    final FileSystem rfs = ((LocalFileSystem)FileSystem.getLocal(
+                          this.clContext.getContext().getConfiguration())).getRaw();
+                    final LocalDirAllocator lDirAlloc = 
+                        new LocalDirAllocator("mapred.local.dir");
 
-                final int mySpillNo = MapTask.numSpills.getAndIncrement();
-                final SpillRecord spillRec = new SpillRecord(partitions, mySpillNo);
-                final Path filename = lDirAlloc.getLocalPathForWrite(
-                    TaskTracker.OUTPUT + "/spill"+mySpillNo+".out",
-                    this.clContext.getContext().getConfiguration());
-                out = rfs.create(filename);
-
-                final CombineOutputCollector combineCollector;
-                final CombinerRunner combinerRunner = CombinerRunner.create(
-                    ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()),
-                    (org.apache.hadoop.mapred.TaskAttemptID)this.clContext.getContext().getTaskAttemptID(),
-                    (org.apache.hadoop.mapred.Counters.Counter)combineInputCounter, null, null, null);
-                if (combinerRunner != null) {
-                    combineCollector = new CombineOutputCollector(
-                        (org.apache.hadoop.mapred.Counters.Counter)combineOutputCounter,
-                        new Progressable() {
-                            @Override
-                            public void progress() {
-                                clContext.getContext().getReporter().progress();
-                            }
-                        },
+                    final int mySpillNo = MapTask.numSpills.getAndIncrement();
+                    final SpillRecord spillRec = new SpillRecord(partitions, mySpillNo);
+                    final Path filename = lDirAlloc.getLocalPathForWrite(
+                        TaskTracker.OUTPUT + "/spill"+mySpillNo+".out",
                         this.clContext.getContext().getConfiguration());
-                } else {
-                    combineCollector = null;
+                    out = rfs.create(filename);
+
+                    final CombineOutputCollector combineCollector;
+                    final CombinerRunner combinerRunner = CombinerRunner.create(
+                        ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()),
+                        (org.apache.hadoop.mapred.TaskAttemptID)this.clContext.getContext().getTaskAttemptID(),
+                        (org.apache.hadoop.mapred.Counters.Counter)combineInputCounter, null, null, null);
+                    if (combinerRunner != null) {
+                        combineCollector = new CombineOutputCollector(
+                            (org.apache.hadoop.mapred.Counters.Counter)combineOutputCounter,
+                            new Progressable() {
+                                @Override
+                                public void progress() {
+                                    clContext.getContext().getReporter().progress();
+                                }
+                            },
+                            this.clContext.getContext().getConfiguration());
+                    } else {
+                        combineCollector = null;
+                    }
+
+                    final SortedWriter writer = new SortedWriter(
+                            this.clContext.getContext().getConfiguration(), out,
+                            toWrite.peekFirst().buffer().getOutputKeyClass(),
+                            toWrite.peekFirst().buffer().getOutputValClass(), null,
+                            (org.apache.hadoop.mapred.Counters.Counter)spilledRecordsCounter,
+                            ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()).getOutputKeyComparator(),
+                            true, mySpillNo);
+
+                    // LOG:DIAGNOSTIC
+                    // log("    At end, "+toWrite.size()+" output buffers remaining to write");
+                    while (!toWrite.isEmpty()) {
+                        boolean forwardProgress =
+                            doSingleOutputBuffer(toWrite.removeFirst());
+
+                        // if (!forwardProgress) {
+                        //     waitForMoreWork();
+                        // }
+                        if (!forwardProgress) {
+                            final OutputBufferSoFar soFar = toWrite.removeFirst();
+                            final HadoopCLOutputBuffer buffer = soFar.buffer();
+                            HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(
+                                soFar.soFar(), partitions);
+
+                            if (this.clContext.getCombinerKernel() == null) {
+                                while (iter.next()) {
+                                    writer.append(iter.getKey(), iter.getValue());
+                                }
+                            } else {
+                                combineCollector.setWriter(writer);
+                                combinerRunner.combine(iter, combineCollector);
+                            }
+                        }
+                    }
+
+                    writer.close();
+
+                    HashMap<Integer, Long> partitionSegmentStarts =
+                        writer.getPartitionSegmentStarts();
+                    HashMap<Integer, Long> partitionRawLengths =
+                        writer.getPartitionRawLengths();
+                    HashMap<Integer, Long> partitionCompressedLengths =
+                        writer.getPartitionCompressedLengths();
+
+                    for (int part = 0; part < partitions; part++) {
+                        final IndexRecord rec = new IndexRecord();
+
+                        rec.startOffset = partitionSegmentStarts.get(part);
+                        rec.rawLength = partitionRawLengths.get(part);
+                        rec.partLength = partitionCompressedLengths.get(part);
+                        spillRec.putIndex(rec, part);
+                    }
+
+                    synchronized (MapTask.indexCacheList) {
+                        MapTask.indexCacheList.put(spillRec.getSpillNo(), spillRec);
+                        MapTask.totalIndexCacheMemory +=
+                            spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
+                    }
+
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    try {
+                        if (out != null) out.close();
+                    } catch (IOException io) {
+                        throw new RuntimeException(io);
+                    }
                 }
-
-                final SortedWriter writer = new SortedWriter(
-                        this.clContext.getContext().getConfiguration(), out,
-                        toWrite.peekFirst().buffer().getOutputKeyClass(),
-                        toWrite.peekFirst().buffer().getOutputValClass(), null,
-                        (org.apache.hadoop.mapred.Counters.Counter)spilledRecordsCounter,
-                        ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()).getOutputKeyComparator(),
-                        true, mySpillNo);
-
+            } else {
                 // LOG:DIAGNOSTIC
                 // log("    At end, "+toWrite.size()+" output buffers remaining to write");
                 while (!toWrite.isEmpty()) {
                     boolean forwardProgress =
                         doSingleOutputBuffer(toWrite.removeFirst());
 
-                    // if (!forwardProgress) {
-                    //     waitForMoreWork();
-                    // }
                     if (!forwardProgress) {
-                        final OutputBufferSoFar soFar = toWrite.removeFirst();
-                        final HadoopCLOutputBuffer buffer = soFar.buffer();
-                        HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(
-                            soFar.soFar(), partitions);
-
-                        if (this.clContext.getCombinerKernel() == null) {
-                            while (iter.next()) {
-                                writer.append(iter.getKey(), iter.getValue());
-                            }
-                        } else {
-                            combineCollector.setWriter(writer);
-                            combinerRunner.combine(iter, combineCollector);
-                        }
+                        waitForMoreWork();
                     }
-                }
-
-                writer.close();
-
-                HashMap<Integer, Long> partitionSegmentStarts =
-                    writer.getPartitionSegmentStarts();
-                HashMap<Integer, Long> partitionRawLengths =
-                    writer.getPartitionRawLengths();
-                HashMap<Integer, Long> partitionCompressedLengths =
-                    writer.getPartitionCompressedLengths();
-
-                for (int part = 0; part < partitions; part++) {
-                    final IndexRecord rec = new IndexRecord();
-
-                    rec.startOffset = partitionSegmentStarts.get(part);
-                    rec.rawLength = partitionRawLengths.get(part);
-                    rec.partLength = partitionCompressedLengths.get(part);
-                    spillRec.putIndex(rec, part);
-                }
-
-                synchronized (MapTask.indexCacheList) {
-                    MapTask.indexCacheList.put(spillRec.getSpillNo(), spillRec);
-                    MapTask.totalIndexCacheMemory +=
-                        spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
-                }
-
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                try {
-                    if (out != null) out.close();
-                } catch (IOException io) {
-                    throw new RuntimeException(io);
                 }
             }
         }
