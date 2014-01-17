@@ -70,6 +70,7 @@ class IFileOutputStream extends FilterOutputStream {
       return;
     }
     finished = true;
+
     sum.writeValue(barray, 0, false);
     out.write (barray, 0, sum.getChecksumSize());
     out.flush();
@@ -88,6 +89,11 @@ class IFileOutputStream extends FilterOutputStream {
   public void write(int b) throws IOException {
     barray[0] = (byte) (b & 0xFF);
     write(barray,0,1);
+  }
+
+  @Override
+  public String toString() {
+      return "[ chksum = "+this.sum.toString()+" ]";
   }
 
 }

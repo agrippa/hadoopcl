@@ -36,17 +36,20 @@ import org.apache.hadoop.io.SecureIOUtils;
 
 import static org.apache.hadoop.mapred.MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
 
-class SpillRecord {
+public class SpillRecord {
 
   /** Backing store */
   private final ByteBuffer buf;
   /** View of backing storage as longs */
   private final LongBuffer entries;
+  /** Used to maintain a total ordering of ongoing spills */
+  private final int spill;
 
-  public SpillRecord(int numPartitions) {
+  public SpillRecord(int numPartitions, int spill) {
     buf = ByteBuffer.allocate(
         numPartitions * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH);
     entries = buf.asLongBuffer();
+    this.spill = spill;
   }
 
   public SpillRecord(Path indexFileName, JobConf job, String expectedIndexOwner)
@@ -70,12 +73,18 @@ class SpillRecord {
       if (crc != null) {
         crc.reset();
         CheckedInputStream chk = new CheckedInputStream(in, crc);
+        ByteBuffer tmp = ByteBuffer.allocate(4);
+        IOUtils.readFully(chk, tmp.array(), 0, 4);
+        this.spill = tmp.asIntBuffer().get();
         IOUtils.readFully(chk, buf.array(), 0, size);
         if (chk.getChecksum().getValue() != in.readLong()) {
           throw new ChecksumException("Checksum error reading spill index: " +
                                 indexFileName, -1);
         }
       } else {
+        ByteBuffer tmp = ByteBuffer.allocate(4);
+        IOUtils.readFully(in, tmp.array(), 0, 4);
+        this.spill = tmp.asIntBuffer().get();
         IOUtils.readFully(in, buf.array(), 0, size);
       }
       entries = buf.asLongBuffer();
@@ -89,6 +98,10 @@ class SpillRecord {
    */
   public int size() {
     return entries.capacity() / (MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH / 8);
+  }
+
+  public int getSpillNo() {
+      return this.spill;
   }
 
   /**
@@ -127,6 +140,9 @@ class SpillRecord {
       if (crc != null) {
         crc.reset();
         chk = new CheckedOutputStream(out, crc);
+        ByteBuffer tmp = ByteBuffer.allocate(4);
+        tmp.asIntBuffer().put(this.spill);
+        chk.write(tmp.array());
         chk.write(buf.array());
         out.writeLong(chk.getChecksum().getValue());
       } else {
@@ -143,16 +159,3 @@ class SpillRecord {
 
 }
 
-class IndexRecord {
-  long startOffset;
-  long rawLength;
-  long partLength;
-
-  public IndexRecord() { }
-
-  public IndexRecord(long startOffset, long rawLength, long partLength) {
-    this.startOffset = startOffset;
-    this.rawLength = rawLength;
-    this.partLength = partLength;
-  }
-}

@@ -135,6 +135,7 @@ public class BSparseVectorWritable implements WritableComparable {
         int len = in.readInt();
         this.indices = ReadArrayUtils.readIntArray(in, len);
         this.vals = ReadArrayUtils.readDoubleArray(in, len);
+
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = -1;

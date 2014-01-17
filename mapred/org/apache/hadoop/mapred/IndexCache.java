@@ -108,7 +108,7 @@ class IndexCache {
     try { 
       tmp = new SpillRecord(indexFileName, conf, expectedIndexOwner);
     } catch (Throwable e) { 
-      tmp = new SpillRecord(0);
+      tmp = new SpillRecord(0, 0);
       cache.remove(mapId);
       throw new IOException("Error Reading IndexFile", e);
     } finally { 

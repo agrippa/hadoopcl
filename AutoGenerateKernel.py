@@ -2579,6 +2579,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     # writeTransferBufferedValues(input_fp, isMapper)
 
     writeToHadoopMethod(output_fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType, nativeOutputKeyType, nativeOutputValueType)
+    output_fp.write('    @Override\n')
+    output_fp.write('    public Class<?> getOutputKeyClass() { return '+hadoopOutputKeyType+'Writable.class; }\n')
+    output_fp.write('    @Override\n')
+    output_fp.write('    public Class<?> getOutputValClass() { return '+hadoopOutputValueType+'Writable.class; }\n')
 
     writeInitBeforeKernelMethod(output_fp, isMapper, nativeOutputKeyType, nativeOutputValueType)
 

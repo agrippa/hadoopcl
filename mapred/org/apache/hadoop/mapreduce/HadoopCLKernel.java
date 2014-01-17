@@ -317,13 +317,21 @@ public abstract class HadoopCLKernel extends Kernel {
             int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks,
             int[] queueOfVectors) {
 
+        // System.err.println("Merging "+valsIter.nValues()+" values");
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
             indicesIntoVectors[i] = 0;
             queueOfSparseIndices[i] = valsIter.getValIndices()[0];
             queueOfVectors[i] = i;
             queueOfSparseIndicesLinks[i] = i+1;
+            // StringBuilder sb = new StringBuilder();
+            // sb.append("  "+i+": ");
+            // for (int j =0 ; j < valsIter.currentVectorLength(); j++) {
+            //   sb.append(valsIter.getValIndices()[j]+" ");
+            // }
+            // System.err.println(sb.toString());
         }
+
         queueOfSparseIndicesLinks[valsIter.nValues()-1] = -1;
         // The number of individual output elements we've written so far.
         // This may be less than nProcessed if there are duplicated sparse

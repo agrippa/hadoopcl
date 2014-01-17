@@ -13,8 +13,13 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public abstract int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar)
         throws IOException, InterruptedException;
 
+    public abstract Class<?> getOutputKeyClass();
+    public abstract Class<?> getOutputValClass();
     public abstract void copyOverFromKernel(HadoopCLKernel kernel);
     public abstract HashSet<Integer> constructIterSet();
+    public HadoopCLKeyValueIterator getKeyValueIterator(int soFar, int numReduceTasks) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public long space() {

@@ -328,7 +328,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   public static final String SUBDIR = "taskTracker";
   static final String DISTCACHEDIR = "distcache";
   static final String JOBCACHE = "jobcache";
-  static final String OUTPUT = "output";
+  public static final String OUTPUT = "output";
   static final String JARSDIR = "jars";
   static final String LOCAL_SPLIT_FILE = "split.info";
   static final String JOBFILE = "job.xml";

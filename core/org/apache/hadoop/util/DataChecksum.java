@@ -1,5 +1,4 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
+/** * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -176,6 +175,11 @@ public class DataChecksum implements Checksum {
        return checksum == (int) summer.getValue();
      }
      return size == 0;
+   }
+
+   @Override
+   public String toString() {
+     return Integer.toString((int)summer.getValue());
    }
    
   private final int type;

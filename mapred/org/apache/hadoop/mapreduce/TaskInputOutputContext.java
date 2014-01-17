@@ -103,6 +103,10 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
       output.writeChunk(buffer, length);
   }
 
+  public StatusReporter getReporter() {
+    return reporter;
+  }
+
   public Counter getCounter(Enum<?> counterName) {
     return reporter.getCounter(counterName);
   }

@@ -19,4 +19,9 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
     public boolean isEnd() {
       return true;
     }
+
+    @Override
+    public Class<?> getOutputKeyClass() { return null; }
+    @Override
+    public Class<?> getOutputValClass() { return null; }
 }
