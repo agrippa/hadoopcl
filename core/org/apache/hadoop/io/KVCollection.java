@@ -3,7 +3,7 @@ package org.apache.hadoop.io;
 import java.io.IOException;
 import java.io.DataOutputStream;
 
-public interface KVCollection<K, V> {
+public interface KVCollection<K, V> extends Iterable<Integer> {
     public int start();
     public int end();
     public void serializeKey(int index, DataOutputStream out) throws IOException;

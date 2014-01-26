@@ -56,7 +56,7 @@ public class IFile {
   public static class Writer<K extends Object, V extends Object> {
     FSDataOutputStream out;
     boolean ownOutputStream = false;
-    long start = 0;
+    protected long start = 0;
     FSDataOutputStream rawOut;
     
     CompressionOutputStream compressedOut;
@@ -373,7 +373,12 @@ public class IFile {
       if ((dataIn.getLength() - dataIn.getPosition()) < 2*MAX_VINT_SIZE) {
         readNextBlock(2*MAX_VINT_SIZE);
       }
-      
+     
+      System.err.println("position = "+dataIn.getPosition()+" length = "+dataIn.getLength()); 
+      StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+      for (StackTraceElement t : trace) {
+        System.err.println("  "+t.toString());
+      }
       // Read key and value lengths
       int oldPos = dataIn.getPosition();
       int keyLength = WritableUtils.readVInt(dataIn);

@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 import org.apache.hadoop.io.KVCollection;
 import java.io.DataInput;
@@ -502,6 +503,10 @@ class ReduceTask extends Task {
           out.write(key, value);
           // indicate that progress update needs to be sent
           reporter.progress();
+        }
+        @Override
+        public int collectCollection(KVCollection<OUTKEY, OUTVALUE> coll) {
+            throw new UnsupportedOperationException();
         }
       };
     

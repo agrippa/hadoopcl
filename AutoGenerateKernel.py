@@ -2910,6 +2910,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     output_fp.write('        return this.itersFinished.contains(this.outputIterMarkers[index]);\n')
     output_fp.write('    }\n')
     output_fp.write('    @Override\n')
+    output_fp.write('    public Iterator<Integer> iterator() {\n')
+    output_fp.write('        return new OutputIterator(this.start, this.end, this.itersFinished, this.outputIterMarkers);\n')
+    output_fp.write('    }\n')
+    output_fp.write('    @Override\n')
     output_fp.write('    public '+hadoopOutputKeyType+'Writable getKeyFor(int index) {\n')
     writeln(visitor(nativeOutputKeyType).getKeyFor(), 2, output_fp);
     output_fp.write('    }\n')

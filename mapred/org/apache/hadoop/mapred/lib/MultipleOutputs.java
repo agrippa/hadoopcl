@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapred.lib;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
@@ -516,6 +517,11 @@ public class MultipleOutputs {
       @SuppressWarnings({"unchecked"})
       public void collect(Object key, Object value) throws IOException {
         writer.write(key, value);
+      }
+
+      @Override
+      public int collectCollection(KVCollection coll) {
+          throw new UnsupportedOperationException();
       }
 
     };

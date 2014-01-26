@@ -157,65 +157,77 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
     public void close() throws IOException {
 
-      if (this.recordMarks.isEmpty()) return;
-
       partitionSegmentStarts = new HashMap<Integer, Long>();
       partitionRawLengths = new HashMap<Integer, Long>();
       partitionCompressedLengths = new HashMap<Integer, Long>();
 
-      new QuickSort().sort(this, 0, this.recordMarks.size());
+      long localStart = this.rawOut.getPos();
+      int currentPartition = -1;
 
-      int currentPartition = this.keyPartitions.get(0);
-      this.partitionSegmentStarts.put(currentPartition,
-          this.rawOut.getPos());
+      if (this.recordMarks.isEmpty()) {
+          StringBuilder sb = new StringBuilder();
+          sb.append("Empty recordMarks\n");
+          StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+          for (StackTraceElement t : trace) {
+              sb.append("  "+t.toString()+"\n");
+          }
+          System.err.println(sb.toString());
+      } else {
 
-      // Do sorted writes
-      for (int i = 0; i < this.recordMarks.size(); i++) {
-          int part = this.keyPartitions.get(i);
-          int startRecord = this.recordMarks.get(i);
-          int startVal = this.valueMarks.get(i);
-          int endRecord = this.endOfRecords.get(i);
+          new QuickSort().sort(this, 0, this.recordMarks.size());
 
-          if (part != currentPartition) {
-              WritableUtils.writeVInt(out, IFile.EOF_MARKER);
-              WritableUtils.writeVInt(out, IFile.EOF_MARKER);
-              decompressedBytesWritten +=
-                  2 * WritableUtils.getVIntSize(IFile.EOF_MARKER);
-              out.flush();
+          currentPartition = this.keyPartitions.get(0);
+          this.partitionSegmentStarts.put(currentPartition,
+              this.rawOut.getPos());
 
-              compressedBytesWritten = rawOut.getPos() -
-                  this.partitionSegmentStarts.get(currentPartition);
-          
-              if (compressOutput) {
-                // Flush
-                compressedOut.finish();
-                compressedOut.resetState();
+          // Do sorted writes
+          for (int i = 0; i < this.recordMarks.size(); i++) {
+              int part = this.keyPartitions.get(i);
+              int startRecord = this.recordMarks.get(i);
+              int startVal = this.valueMarks.get(i);
+              int endRecord = this.endOfRecords.get(i);
+
+              if (part != currentPartition) {
+                  WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+                  WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+                  decompressedBytesWritten +=
+                      2 * WritableUtils.getVIntSize(IFile.EOF_MARKER);
+                  out.flush();
+
+                  compressedBytesWritten = rawOut.getPos() -
+                      this.partitionSegmentStarts.get(currentPartition);
+              
+                  if (compressOutput) {
+                    // Flush
+                    compressedOut.finish();
+                    compressedOut.resetState();
+                  }
+
+                  checksumOut.finish();
+                  compressedBytesWritten = this.rawOut.getPos() -
+                      this.partitionSegmentStarts.get(currentPartition);
+
+                  this.partitionRawLengths.put(currentPartition,
+                      decompressedBytesWritten);
+                  this.partitionCompressedLengths.put(currentPartition,
+                      compressedBytesWritten);
+
+                  checksumOut = new IFileOutputStream(rawOut);
+                  this.out = new FSDataOutputStream(checksumOut,null);
+
+                  this.partitionSegmentStarts.put(part, this.rawOut.getPos());
+
+                  currentPartition = part;
+                  decompressedBytesWritten = 0;
               }
 
-              checksumOut.finish();
-              compressedBytesWritten = this.rawOut.getPos() -
-                  this.partitionSegmentStarts.get(currentPartition);
-
-              this.partitionRawLengths.put(currentPartition,
-                  decompressedBytesWritten);
-              this.partitionCompressedLengths.put(currentPartition,
-                  compressedBytesWritten);
-
-              checksumOut = new IFileOutputStream(rawOut);
-              this.out = new FSDataOutputStream(checksumOut,null);
-
-              this.partitionSegmentStarts.put(part, this.rawOut.getPos());
-
-              currentPartition = part;
-              decompressedBytesWritten = 0;
+              WritableUtils.writeVInt(out, startVal - startRecord); // keyLength
+              WritableUtils.writeVInt(out, endRecord - startVal); // valueLength
+              this.outputBuffer.dump(out, startRecord, endRecord);
+              decompressedBytesWritten += (endRecord - startRecord) + 
+                     WritableUtils.getVIntSize(startVal - startRecord) + 
+                     WritableUtils.getVIntSize(endRecord - startVal);
           }
-
-          WritableUtils.writeVInt(out, startVal - startRecord); // keyLength
-          WritableUtils.writeVInt(out, endRecord - startVal); // valueLength
-          this.outputBuffer.dump(out, startRecord, endRecord);
-          decompressedBytesWritten += (endRecord - startRecord) + 
-                 WritableUtils.getVIntSize(startVal - startRecord) + 
-                 WritableUtils.getVIntSize(endRecord - startVal);
       }
 
       // Close the serializers
@@ -230,8 +242,12 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       //Flush the stream
       out.flush();
 
-      compressedBytesWritten = rawOut.getPos() -
-          this.partitionSegmentStarts.get(currentPartition);
+      if (this.recordMarks.isEmpty()) {
+          compressedBytesWritten = rawOut.getPos() - localStart;
+      } else {
+          compressedBytesWritten = rawOut.getPos() -
+              this.partitionSegmentStarts.get(currentPartition);
+      }
   
       if (compressOutput) {
         // Flush
@@ -248,13 +264,17 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
         checksumOut.finish();
       }
 
-      compressedBytesWritten = rawOut.getPos() -
-        this.partitionSegmentStarts.get(currentPartition);
+      if (this.recordMarks.isEmpty()) {
+          compressedBytesWritten = rawOut.getPos() - localStart;
+      } else {
+          compressedBytesWritten = rawOut.getPos() -
+            this.partitionSegmentStarts.get(currentPartition);
 
-      this.partitionRawLengths.put(currentPartition,
-          decompressedBytesWritten);
-      this.partitionCompressedLengths.put(currentPartition,
-          compressedBytesWritten);
+          this.partitionRawLengths.put(currentPartition,
+              decompressedBytesWritten);
+          this.partitionCompressedLengths.put(currentPartition,
+              compressedBytesWritten);
+      }
 
       if (compressOutput) {
         // Return back the compressor
@@ -446,8 +466,17 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
                 currentBuffer.buffer.put(b, off, len);
             } else {
                 currentBuffer.buffer.put(b, off, avail);
-                addNewBuffer();
-                currentBuffer.buffer.put(b, off + avail, len - avail);
+                int left = len - avail;
+                int sofar = avail;
+                while (left > 0) {
+                    addNewBuffer();
+                    avail = availableInCurrentBuffer();
+                    int towrite = avail;
+                    if (left < towrite) towrite = left;
+                    currentBuffer.buffer.put(b, off + sofar, towrite);
+                    sofar += towrite;
+                    left -= towrite;
+                }
             }
         }
 

@@ -19,7 +19,7 @@
 package org.apache.hadoop.mapred;
 
 import java.io.IOException;
-
+import org.apache.hadoop.io.KVCollection;
 /**
  * Collects the <code>&lt;key, value&gt;</code> pairs output by {@link Mapper}s
  * and {@link Reducer}s.
@@ -38,4 +38,5 @@ public interface OutputCollector<K, V> {
    * @throws IOException
    */
   void collect(K key, V value) throws IOException;
+  int collectCollection(KVCollection<K, V> coll) throws IOException;
 }

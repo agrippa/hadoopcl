@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapred.lib;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Stringifier;
 import org.apache.hadoop.io.DefaultStringifier;
@@ -513,6 +514,11 @@ class Chain {
         // end of chain, user real output collector
         output.collect(key, value);
       }
+    }
+
+    @Override
+    public int collectCollection(KVCollection<K, V> coll) {
+        throw new UnsupportedOperationException();
     }
 
     private <E> E makeCopyForPassByValue(Serialization<E> serialization,

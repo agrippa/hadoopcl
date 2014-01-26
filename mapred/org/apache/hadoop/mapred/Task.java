@@ -1185,6 +1185,21 @@ abstract public class Task implements Writable, Configurable {
         progressable.progress();
       }
     }
+
+    @Override
+    public int collectCollection(KVCollection<K, V> coll) throws IOException {
+      System.err.println("writer  = "+writer.getClass().getName());
+        for (int i = coll.start(); i < coll.end(); i++) {
+            if (!coll.isValid(i)) continue;
+            outCounter.increment(1);
+            writer.append(coll.getKeyFor(i),
+                coll.getValueFor(i));
+            if ((outCounter.getValue() % progressBar) == 0) {
+              progressable.progress();
+            }
+        }
+        return -1;
+    }
   }
 
   /** Iterates values while keys match in sorted input. */
@@ -1519,8 +1534,8 @@ abstract public class Task implements Writable, Configurable {
       }
 
       @Override
-      public int writeCollection(KVCollection coll) {
-          throw new UnsupportedOperationException();
+      public int writeCollection(KVCollection coll) throws IOException {
+          return output.collectCollection(coll);
       }
 
       @Override

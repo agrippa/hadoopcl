@@ -20,6 +20,7 @@ package org.apache.hadoop.contrib.index.mapred;
 
 import java.io.IOException;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
@@ -71,6 +72,9 @@ public class IndexUpdateMapper<K extends WritableComparable, V extends Writable>
             throws IOException {
           tmpKey = key;
           tmpValue = value;
+        }
+        public int collectCollection(KVCollection<DocumentID, DocumentAndOp> coll) {
+            throw new UnsupportedOperationException();
         }
       };
 

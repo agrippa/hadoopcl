@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import java.util.Iterator;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.hadoop.io.KVCollection;
@@ -654,6 +655,11 @@ public class MapTask extends Task {
         throw new IOException("interrupt exception", ie);
       }
     }
+
+    @Override
+    public int collectCollection(KVCollection<K, V> coll) {
+        throw new UnsupportedOperationException();
+    }
   }
 
   private class NewDirectOutputCollector<K,V>
@@ -1200,6 +1206,7 @@ public class MapTask extends Task {
           return index;
         }
       }
+      // if (!indices.hasNext()) return -1;
       if (index == coll.end()) return -1;
       else return index;
     }
@@ -1717,8 +1724,6 @@ public class MapTask extends Task {
             } else {
               writer = new SortedWriter<K, V>(job, out, keyClass, valClass, codec,
                                         spilledRecordsCounter, comparator, false, spillNo);
-              // writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
-              //                           spilledRecordsCounter);
               int spstart = spindex;
               while (spindex < endPosition &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]

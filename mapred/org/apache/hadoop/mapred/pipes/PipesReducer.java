@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred.pipes;
 
+import org.apache.hadoop.io.KVCollection;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
@@ -102,6 +103,10 @@ class PipesReducer<K2 extends WritableComparable, V2 extends Writable,
         public void collect(K3 key, 
                             V3 value) throws IOException {
           // NULL
+        }
+        @Override
+        public int collectCollection(KVCollection<K3, V3> coll) {
+            throw new UnsupportedOperationException();
         }
       };
       startApplication(nullCollector, Reporter.NULL);
