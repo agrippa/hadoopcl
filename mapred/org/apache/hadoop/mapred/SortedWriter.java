@@ -228,42 +228,97 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
     public void close() throws IOException {
 
-      partitionSegmentStarts = new HashMap<Integer, Long>();
-      partitionRawLengths = new HashMap<Integer, Long>();
-      partitionCompressedLengths = new HashMap<Integer, Long>();
+      if (multiPartition) {
+          partitionSegmentStarts = new HashMap<Integer, Long>();
+          partitionRawLengths = new HashMap<Integer, Long>();
+          partitionCompressedLengths = new HashMap<Integer, Long>();
 
-      long localStart = this.rawOut.getPos();
+          this.partitionSegmentStarts.put(0,
+              this.rawOut.getPos());
+          int currentPair = 0;
+          int currentPartition = 0;
+          for ( ; currentPartition < partitions &&
+                  currentPair < this.keyPartitions.size(); currentPartition++) {
+              int part = this.keyPartitions.get(currentPair);
+              int startRecord = this.recordMarks.get(currentPair);
+              int startVal = this.valueMarks.get(currentPair);
+              int endRecord = this.endOfRecords.get(currentPair);
 
-      if (this.recordMarks.isEmpty()) {
-          StringBuilder sb = new StringBuilder();
-          sb.append("Empty recordMarks\n");
-          StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-          for (StackTraceElement t : trace) {
-              sb.append("  "+t.toString()+"\n");
-          }
-          System.err.println(sb.toString());
-
-          if (multiPartition) {
-              currentPartition = 0;
-              this.partitionSegmentStarts.put(currentPartition,
-                  this.rawOut.getPos());
-              while (currentPartition < partitions - 1) {
+              while (currentPartition != part) {
                   finishOffPartition(currentPartition);
                   currentPartition++;
               }
+
+              do {
+                  // keyLength
+                  WritableUtils.writeVInt(out, startVal - startRecord);
+                  // valueLength
+                  WritableUtils.writeVInt(out, endRecord - startVal);
+                  this.outputBuffer.dump(out, startRecord, endRecord);
+                  decompressedBytesWritten += (endRecord - startRecord) + 
+                         WritableUtils.getVIntSize(startVal - startRecord) + 
+                         WritableUtils.getVIntSize(endRecord - startVal);
+
+                  currentPair++;
+                  part = this.keyPartitions.get(currentPair);
+                  startRecord = this.recordMarks.get(currentPair);
+                  startVal = this.valueMarks.get(currentPair);
+                  endRecord = this.endOfRecords.get(currentPair);
+              } while (part == currentPartition);
+          }
+
+          while (currentPartition < partitions) {
+              finishOffPartition(currentPartition);
+              currentPartition++;
+          }
+
+          // Don't care about compressed or decompressed bytes written for the
+          // case of multiPartition writing
+          
+          // Close the serializers
+          keySerializer.close();
+          valueSerializer.close();
+
+          // Write EOF_MARKER for key/value length
+          WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+          WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+
+          out.flush();
+
+          if (compressOutput) {
+              compressedOut.finish();
+              compressedOut.resetState();
+          }
+     
+          // Close the underlying stream iff we own it...
+          if (ownOutputStream) {
+            out.close();
+          }
+          else {
+            // Write the checksum
+            checksumOut.finish();
+          }
+
+          this.partitionRawLengths.put(partitions - 1,
+              decompressedBytesWritten);
+          this.partitionCompressedLengths.put(partitions - 1,
+              compressedBytesWritten);
+
+          if (compressOutput) {
+            // Return back the compressor
+            CodecPool.returnCompressor(compressor);
+            compressor = null;
+          }
+
+          out = null;
+          if(writtenRecordsCounter != null) {
+            writtenRecordsCounter.increment(numRecordsWritten);
           }
       } else {
+          long localStart = this.rawOut.getPos();
 
-          if (multiPartition) {
-              currentPartition = 0;
-          } else {
-              currentPartition = this.keyPartitions.get(0);
-          }
-          this.partitionSegmentStarts.put(currentPartition,
-              this.rawOut.getPos());
-
-          // Do sorted writes
-          for (int i = 0; i < this.recordMarks.size(); i++) {
+          final int currentPartition = this.keyPartitions.get(0);
+          for (int i = 0; i < this.keyPartitions.size(); i++) {
               int part = this.keyPartitions.get(i);
               int startRecord = this.recordMarks.get(i);
               int startVal = this.valueMarks.get(i);
@@ -271,16 +326,8 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
               if (part != currentPartition) {
                 // Should only be possible when dumping from BufferRunner
-                System.err.println("Found different partition");
-                StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-                for (StackTraceElement t : trace) {
-                  System.err.println("  "+t.toString());
-                }
-
-                while (currentPartition != part) {
-                  finishOffPartition(currentPartition);
-                  currentPartition++;
-                }
+                throw new RuntimeException("Found different partition when " +
+                        "expecting only one");
               }
 
               WritableUtils.writeVInt(out, startVal - startRecord); // keyLength
@@ -289,65 +336,50 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
               decompressedBytesWritten += (endRecord - startRecord) + 
                      WritableUtils.getVIntSize(startVal - startRecord) + 
                      WritableUtils.getVIntSize(endRecord - startVal);
+
           }
-      }
+          // Close the serializers
+          keySerializer.close();
+          valueSerializer.close();
 
-      // Close the serializers
-      keySerializer.close();
-      valueSerializer.close();
+          // Write EOF_MARKER for key/value length
+          WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+          WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+          decompressedBytesWritten += 2 * WritableUtils.getVIntSize(
+                  IFile.EOF_MARKER);
+          
+          //Flush the stream
+          out.flush();
 
-      // Write EOF_MARKER for key/value length
-      WritableUtils.writeVInt(out, IFile.EOF_MARKER);
-      WritableUtils.writeVInt(out, IFile.EOF_MARKER);
-      decompressedBytesWritten += 2 * WritableUtils.getVIntSize(IFile.EOF_MARKER);
-      
-      //Flush the stream
-      out.flush();
-
-      if (this.recordMarks.isEmpty()) {
-          compressedBytesWritten = rawOut.getPos() - localStart;
-      } else {
-          compressedBytesWritten = rawOut.getPos() -
-              this.partitionSegmentStarts.get(currentPartition);
-      }
-  
-      if (compressOutput) {
-        // Flush
-        compressedOut.finish();
-        compressedOut.resetState();
-      }
-      
-      // Close the underlying stream iff we own it...
-      if (ownOutputStream) {
-        out.close();
-      }
-      else {
-        // Write the checksum
-        checksumOut.finish();
-      }
-
-      if (this.recordMarks.isEmpty()) {
           compressedBytesWritten = rawOut.getPos() - localStart;
 
-      } else {
-          compressedBytesWritten = rawOut.getPos() -
-            this.partitionSegmentStarts.get(currentPartition);
+          if (compressOutput) {
+            // Flush
+            compressedOut.finish();
+            compressedOut.resetState();
+          }
+          
+          // Close the underlying stream iff we own it...
+          if (ownOutputStream) {
+            out.close();
+          }
+          else {
+            // Write the checksum
+            checksumOut.finish();
+          }
 
-          this.partitionRawLengths.put(currentPartition,
-              decompressedBytesWritten);
-          this.partitionCompressedLengths.put(currentPartition,
-              compressedBytesWritten);
-      }
+          compressedBytesWritten = rawOut.getPos() - localStart;
 
-      if (compressOutput) {
-        // Return back the compressor
-        CodecPool.returnCompressor(compressor);
-        compressor = null;
-      }
+          if (compressOutput) {
+            // Return back the compressor
+            CodecPool.returnCompressor(compressor);
+            compressor = null;
+          }
 
-      out = null;
-      if(writtenRecordsCounter != null) {
-        writtenRecordsCounter.increment(numRecordsWritten);
+          out = null;
+          if(writtenRecordsCounter != null) {
+            writtenRecordsCounter.increment(numRecordsWritten);
+          }
       }
     }
 
