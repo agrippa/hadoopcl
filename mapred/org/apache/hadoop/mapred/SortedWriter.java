@@ -77,6 +77,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
     private final List<Integer> valueMarks;
     private final List<Integer> endOfRecords;
     private final List<Integer> keyPartitions;
+    private final boolean multiPartition;
 
     private HashMap<Integer, Long> partitionSegmentStarts = null;
     private HashMap<Integer, Long> partitionRawLengths = null;
@@ -91,7 +92,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
                   CompressionCodec codec,
                   Counters.Counter writesCounter,
                   RawComparator<K> keyComparator, boolean isHacky,
-                  int spillNo) throws IOException {
+                  int spillNo, boolean multiPartition) throws IOException {
       super(conf, fs, file, keyClass, valueClass, codec, writesCounter);
       this.outputBuffer = new OutputBuffer();
       this.keyComparator = keyComparator;
@@ -103,6 +104,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       this.isHacky = isHacky;
       this.spillNo = spillNo;
       this.startPos = this.rawOut.getPos();
+      this.multiPartition = multiPartition;
 
       if (this.partitions > 0) {
         partitioner = (org.apache.hadoop.mapreduce.Partitioner)
@@ -123,7 +125,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
         Class<K> keyClass, Class<V> valueClass,
         CompressionCodec codec, Counters.Counter writesCounter,
         RawComparator<K> keyComparator, boolean isHacky,
-        int spillNo) throws IOException {
+        int spillNo, boolean multiPartition) throws IOException {
       super(conf, out, keyClass, valueClass, codec, writesCounter);
       this.outputBuffer = new OutputBuffer();
       this.keyComparator = keyComparator;
@@ -135,6 +137,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       this.isHacky = isHacky;
       this.spillNo = spillNo;
       this.startPos = this.rawOut.getPos();
+      this.multiPartition = multiPartition;
 
       if (this.partitions > 0) {
         partitioner = (org.apache.hadoop.mapreduce.Partitioner)
@@ -193,6 +196,36 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
         return partitionCompressedLengths;
     }
 
+    private void finishOffPartition(int currentPartition) throws IOException {
+        WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+        WritableUtils.writeVInt(out, IFile.EOF_MARKER);
+        decompressedBytesWritten +=
+            2 * WritableUtils.getVIntSize(IFile.EOF_MARKER);
+        out.flush();
+
+        compressedBytesWritten = rawOut.getPos() -
+            this.partitionSegmentStarts.get(currentPartition);
+        if (compressOutput) {
+            compressedOut.finish();
+            compressedOut.resetState();
+        }
+        checksumOut.finish();
+        compressedBytesWritten = this.rawOut.getPos() -
+            this.partitionSegmentStarts.get(currentPartition);
+
+        this.partitionRawLengths.put(currentPartition,
+            decompressedBytesWritten);
+        this.partitionCompressedLengths.put(currentPartition,
+            compressedBytesWritten);
+
+        checksumOut = new IFileOutputStream(rawOut);
+        this.out = new FSDataOutputStream(checksumOut,null);
+
+        this.partitionSegmentStarts.put(currentPartition+1, this.rawOut.getPos());
+
+        decompressedBytesWritten = 0;
+    }
+
     public void close() throws IOException {
 
       partitionSegmentStarts = new HashMap<Integer, Long>();
@@ -200,7 +233,6 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       partitionCompressedLengths = new HashMap<Integer, Long>();
 
       long localStart = this.rawOut.getPos();
-      int currentPartition = -1;
 
       if (this.recordMarks.isEmpty()) {
           StringBuilder sb = new StringBuilder();
@@ -210,11 +242,23 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
               sb.append("  "+t.toString()+"\n");
           }
           System.err.println(sb.toString());
+
+          if (multiPartition) {
+              currentPartition = 0;
+              this.partitionSegmentStarts.put(currentPartition,
+                  this.rawOut.getPos());
+              while (currentPartition < partitions - 1) {
+                  finishOffPartition(currentPartition);
+                  currentPartition++;
+              }
+          }
       } else {
 
-          new QuickSort().sort(this, 0, this.recordMarks.size());
-
-          currentPartition = this.keyPartitions.get(0);
+          if (multiPartition) {
+              currentPartition = 0;
+          } else {
+              currentPartition = this.keyPartitions.get(0);
+          }
           this.partitionSegmentStarts.put(currentPartition,
               this.rawOut.getPos());
 
@@ -226,37 +270,17 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
               int endRecord = this.endOfRecords.get(i);
 
               if (part != currentPartition) {
-                  WritableUtils.writeVInt(out, IFile.EOF_MARKER);
-                  WritableUtils.writeVInt(out, IFile.EOF_MARKER);
-                  decompressedBytesWritten +=
-                      2 * WritableUtils.getVIntSize(IFile.EOF_MARKER);
-                  out.flush();
+                // Should only be possible when dumping from BufferRunner
+                System.err.println("Found different partition");
+                StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+                for (StackTraceElement t : trace) {
+                  System.err.println("  "+t.toString());
+                }
 
-                  compressedBytesWritten = rawOut.getPos() -
-                      this.partitionSegmentStarts.get(currentPartition);
-              
-                  if (compressOutput) {
-                    // Flush
-                    compressedOut.finish();
-                    compressedOut.resetState();
-                  }
-
-                  checksumOut.finish();
-                  compressedBytesWritten = this.rawOut.getPos() -
-                      this.partitionSegmentStarts.get(currentPartition);
-
-                  this.partitionRawLengths.put(currentPartition,
-                      decompressedBytesWritten);
-                  this.partitionCompressedLengths.put(currentPartition,
-                      compressedBytesWritten);
-
-                  checksumOut = new IFileOutputStream(rawOut);
-                  this.out = new FSDataOutputStream(checksumOut,null);
-
-                  this.partitionSegmentStarts.put(part, this.rawOut.getPos());
-
-                  currentPartition = part;
-                  decompressedBytesWritten = 0;
+                while (currentPartition != part) {
+                  finishOffPartition(currentPartition);
+                  currentPartition++;
+                }
               }
 
               WritableUtils.writeVInt(out, startVal - startRecord); // keyLength
@@ -304,6 +328,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
       if (this.recordMarks.isEmpty()) {
           compressedBytesWritten = rawOut.getPos() - localStart;
+
       } else {
           compressedBytesWritten = rawOut.getPos() -
             this.partitionSegmentStarts.get(currentPartition);

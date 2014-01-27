@@ -1723,7 +1723,7 @@ public class MapTask extends Task {
               }
             } else {
               writer = new SortedWriter<K, V>(job, out, keyClass, valClass, codec,
-                                        spilledRecordsCounter, comparator, false, spillNo);
+                                        spilledRecordsCounter, comparator, false, spillNo, false);
               int spstart = spindex;
               while (spindex < endPosition &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]
