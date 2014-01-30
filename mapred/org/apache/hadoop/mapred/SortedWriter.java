@@ -197,7 +197,6 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
     }
 
     private void finishOffPartition(int currentPartition) throws IOException {
-        // System.err.println("Finishing off partition "+currentPartition+", npartitions="+partitions);
         WritableUtils.writeVInt(out, IFile.EOF_MARKER);
         WritableUtils.writeVInt(out, IFile.EOF_MARKER);
         decompressedBytesWritten +=
@@ -233,6 +232,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
           new QuickSort().sort(this, 0, this.recordMarks.size());
       }
 
+      final int nPairs = this.keyPartitions.size();
       if (multiPartition) {
           partitionSegmentStarts = new HashMap<Integer, Long>();
           partitionRawLengths = new HashMap<Integer, Long>();
@@ -242,40 +242,32 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
               this.rawOut.getPos());
           int currentPair = 0;
           int currentPartition = 0;
-          // System.err.println("# pairs = "+this.keyPartitions.size());
-          while (currentPartition < partitions && currentPair < this.keyPartitions.size()) {
+          while (currentPartition < partitions && currentPair < nPairs) {
               int part = this.keyPartitions.get(currentPair);
-              int startRecord = this.recordMarks.get(currentPair);
-              int startVal = this.valueMarks.get(currentPair);
-              int endRecord = this.endOfRecords.get(currentPair);
 
               while (currentPartition != part) {
-                  // System.err.println("Comparing "+currentPartition+" to "+part);
                   finishOffPartition(currentPartition);
                   currentPartition++;
               }
 
-              do {
+              while (currentPair < nPairs && (part = this.keyPartitions.get(currentPair)) == currentPartition) {
+                  int startRecord = this.recordMarks.get(currentPair);
+                  int startVal = this.valueMarks.get(currentPair);
+                  int endRecord = this.endOfRecords.get(currentPair);
+
                   // keyLength
                   WritableUtils.writeVInt(out, startVal - startRecord);
                   // valueLength
                   WritableUtils.writeVInt(out, endRecord - startVal);
+
                   this.outputBuffer.dump(out, startRecord, endRecord);
                   decompressedBytesWritten += (endRecord - startRecord) + 
                          WritableUtils.getVIntSize(startVal - startRecord) + 
                          WritableUtils.getVIntSize(endRecord - startVal);
 
                   currentPair++;
-                  if (currentPair < this.keyPartitions.size()) {
-                      part = this.keyPartitions.get(currentPair);
-                      startRecord = this.recordMarks.get(currentPair);
-                      startVal = this.valueMarks.get(currentPair);
-                      endRecord = this.endOfRecords.get(currentPair);
-
-                  }
-              } while (currentPair < this.keyPartitions.size() && part == currentPartition);
+              }
           }
-          // System.err.println("Exiting loop with currentPartition = "+currentPartition);
 
           while (currentPartition < partitions) {
               finishOffPartition(currentPartition);
@@ -327,18 +319,11 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       } else {
           long localStart = this.rawOut.getPos();
 
-          final int currentPartition = this.keyPartitions.isEmpty() ? -1 : this.keyPartitions.get(0);
-          for (int i = 0; i < this.keyPartitions.size(); i++) {
+          for (int i = 0; i < nPairs; i++) {
               int part = this.keyPartitions.get(i);
               int startRecord = this.recordMarks.get(i);
               int startVal = this.valueMarks.get(i);
               int endRecord = this.endOfRecords.get(i);
-
-              if (part != currentPartition) {
-                // Should only be possible when dumping from BufferRunner
-                throw new RuntimeException("Found different partition when " +
-                        "expecting only one");
-              }
 
               WritableUtils.writeVInt(out, startVal - startRecord); // keyLength
               WritableUtils.writeVInt(out, endRecord - startVal); // valueLength
@@ -346,7 +331,6 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
               decompressedBytesWritten += (endRecord - startRecord) + 
                      WritableUtils.getVIntSize(startVal - startRecord) + 
                      WritableUtils.getVIntSize(endRecord - startVal);
-
           }
           // Close the serializers
           keySerializer.close();

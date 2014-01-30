@@ -374,11 +374,6 @@ public class IFile {
         readNextBlock(2*MAX_VINT_SIZE);
       }
      
-      // System.err.println("position = "+dataIn.getPosition()+" length = "+dataIn.getLength()); 
-      // StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-      // for (StackTraceElement t : trace) {
-      //   System.err.println("  "+t.toString());
-      // }
       // Read key and value lengths
       int oldPos = dataIn.getPosition();
       int keyLength = WritableUtils.readVInt(dataIn);

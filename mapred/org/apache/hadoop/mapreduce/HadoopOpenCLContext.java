@@ -33,7 +33,6 @@ import java.nio.ByteBuffer;
 public class HadoopOpenCLContext {
 
     private final boolean doHighLevelProfiling;
-    private final boolean doComparison;
     private final boolean enableBufferRunnerDiagnostics;
     private final boolean enableProfilingPrints;
     private final TaskInputOutputContext hadoopContext;
@@ -80,7 +79,6 @@ public class HadoopOpenCLContext {
       }
 
       Configuration conf = this.hadoopContext.getConfiguration();
-      this.doComparison = conf.getBoolean("opencl."+this.type+".compare", false);
       this.nKernels = conf.getInt("opencl."+type+".nkernels", 1);
       this.nInputBuffers = conf.getInt("opencl."+type+".ninputbuffers", 3);
       this.nOutputBuffers = conf.getInt("opencl."+type+".noutputbuffers", 1);
@@ -90,15 +88,9 @@ public class HadoopOpenCLContext {
       this.enableBufferRunnerDiagnostics = conf.getBoolean("opencl.buffer.diagnostics", false);
       this.enableProfilingPrints = conf.getBoolean("opencl.profiling", false);
       this.doHighLevelProfiling = conf.getBoolean("opencl.highlevel", false);
-      if (this.doComparison) {
-          this.inputBufferSize = 1;
-          this.inputValMultiplier = 100;
-          this.inputValEleMultiplier = 1000;
-      } else {
-          this.inputBufferSize = conf.getInt("opencl."+this.type+".inputBufferSize", 32768);
-          this.inputValMultiplier = conf.getInt("opencl."+this.type+".val_multiplier", this.isMapper() ? 1 : 128);
-          this.inputValEleMultiplier = conf.getInt("opencl."+this.type+".val_ele_multiplier", 5);
-      }
+      this.inputBufferSize = conf.getInt("opencl."+this.type+".inputBufferSize", 32768);
+      this.inputValMultiplier = conf.getInt("opencl."+this.type+".val_multiplier", this.isMapper() ? 1 : 128);
+      this.inputValEleMultiplier = conf.getInt("opencl."+this.type+".val_ele_multiplier", 5);
       this.outputBufferSize = conf.getInt("opencl."+this.type+".outputBufferSize", 32768);
 
       init(contextType, conf, globals);
@@ -377,9 +369,5 @@ public class HadoopOpenCLContext {
 
     public int getInputValEleMultiplier() {
         return this.inputValEleMultiplier;
-    }
-
-    public boolean doComparison() {
-        return this.doComparison;
     }
 }
