@@ -43,6 +43,8 @@ public class OpenCLDriver {
   private final int nOutputBuffers;
   public static final boolean profileMemory = false;
   public static HadoopCLLogger logger = null;
+  public static int taskId = -1;
+  public static int attemptId = -1;
   // public static final HadoopCLLogger logger = new HadoopCLLogger(false);
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
@@ -67,6 +69,10 @@ public class OpenCLDriver {
     this.nInputBuffers = this.clContext.getNInputBuffers();
     this.nOutputBuffers = this.clContext.getNOutputBuffers();
     logger = new HadoopCLLogger(this.clContext.enableProfilingPrints());
+    if (taskId == -1) {
+        taskId = context.getTaskAttemptID().getTaskID().getId();
+        attemptId = context.getTaskAttemptID().getId();
+    }
   }
 
   public static void hadoopclLog(Configuration conf, String str) throws IOException {

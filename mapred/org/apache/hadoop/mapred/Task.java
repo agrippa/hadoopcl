@@ -1188,7 +1188,6 @@ abstract public class Task implements Writable, Configurable {
 
     @Override
     public int collectCollection(KVCollection<K, V> coll) throws IOException {
-      System.err.println("writer  = "+writer.getClass().getName());
         for (int i = coll.start(); i < coll.end(); i++) {
             if (!coll.isValid(i)) continue;
             outCounter.increment(1);

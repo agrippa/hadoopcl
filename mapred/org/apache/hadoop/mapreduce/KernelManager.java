@@ -29,7 +29,9 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
                 this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
                 this.clContext.getGlobalsMap(),
                 this.clContext.nGlobalBuckets());
-            newKernel.doEntrypointInit(this.clContext.getDevice());
+            newKernel.doEntrypointInit(this.clContext.getDevice(),
+                this.clContext.getContext().getTaskAttemptID().getTaskID().getId(),
+                this.clContext.getContext().getTaskAttemptID().getId());
             this.free.add(newKernel);
             this.nAllocated++;
         }

@@ -229,7 +229,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
     public void close() throws IOException {
 
       if (!this.keyPartitions.isEmpty()) {
-          new QuickSort().sort(this, 0, this.recordMarks.size());
+          new QuickSort().sort(this, 0, this.keyPartitions.size());
       }
 
       final int nPairs = this.keyPartitions.size();
