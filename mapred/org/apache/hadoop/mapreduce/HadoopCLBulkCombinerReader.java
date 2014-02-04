@@ -3,9 +3,10 @@ package org.apache.hadoop.mapreduce;
 import java.io.DataInput;
 import org.apache.hadoop.mapred.MapTask.MapOutputBuffer;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.DoubleBuffer;
 
 public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
-    private final int size;
     private final int end;
     private int current;
     private int currentBase;
@@ -16,40 +17,68 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     private final int[] kvindices;
     private final byte[] kvbuffer;
     private final ByteBuffer bb;
+    private IntBuffer intBuffer;
+    private DoubleBuffer doubleBuffer;
 
     public HadoopCLBulkCombinerReader(int start, int end, int[] kvoffsets,
         int[] kvindices, byte[] kvbuffer, int bufvoid) {
       this.current = start - 1;
       this.end = end;
-      this.size = end - start;
       this.kvoffsets = kvoffsets;
       this.kvindices = kvindices;
       this.kvbuffer = kvbuffer;
-      bb = ByteBuffer.wrap(kvbuffer);
+      this.bb = ByteBuffer.wrap(kvbuffer);
+      this.intBuffer = this.bb.asIntBuffer();
+      this.doubleBuffer = this.bb.asDoubleBuffer();
       this.currentBase = -1;
       this.currentOffset = -1;
       this.bufvoid = bufvoid;
     }
 
+    @Override
     public boolean hasMore() {
-      int newCurr = current + 1;
-      if (newCurr < end) {
-          this.currentBase = kvindices[kvoffsets[newCurr % kvoffsets.length]
-              + MapOutputBuffer.KEYSTART];
-          this.currentOffset = 0;
-          this.current = newCurr;
-          return true;
-      } else {
-          return false;
-      }
+        return current + 1 < end;
     }
 
-    private void repositionBuffer() {
-        bb.position((this.currentBase + this.currentOffset) % bufvoid);
+    @Override
+    public void nextKey() {
+        int newCurr = current + 1;
+        if (newCurr < end) {
+            final int kvoff = kvoffsets[newCurr % kvoffsets.length];
+            this.currentBase = kvindices[kvoff + MapOutputBuffer.KEYSTART];
+            this.currentOffset = 0;
+        }
+        this.current = newCurr;
+    }
+
+    @Override
+    public void nextValue() {
+        if (this.current < end) {
+            final int kvoff = kvoffsets[this.current % kvoffsets.length];
+            this.currentBase = kvindices[kvoff + MapOutputBuffer.VALSTART];
+            this.currentOffset = 0;
+        }
+    }
+
+    @Override
+    public void prev() {
+        int previous = current - 1;
+        if (previous >= 0) {
+            final int kvoff = kvoffsets[previous % kvoffsets.length];
+            this.currentBase = kvindices[kvoff + MapOutputBuffer.KEYSTART];
+            this.currentOffset = 0;
+        }
+        this.current = previous;
     }
 
     private int currentAbsolutePosition() {
         return (this.currentBase + this.currentOffset) % bufvoid;
+    }
+
+    private void repositionBuffer() {
+        bb.position(currentAbsolutePosition());
+        intBuffer = bb.asIntBuffer();
+        doubleBuffer = bb.asDoubleBuffer();
     }
 
     @Override
@@ -62,42 +91,98 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     }
     @Override
     public char readChar() {
-        repositionBuffer();
-        this.currentOffset += 2;
-        return bb.getChar();
+        throw new UnsupportedOperationException();
+        // repositionBuffer();
+        // this.currentOffset += 2;
+        // return bb.getChar();
     }
     @Override
     public double readDouble() {
-        repositionBuffer();
-        this.currentOffset += 8;
-        return bb.getDouble();
+        throw new UnsupportedOperationException();
+        // repositionBuffer();
+        // this.currentOffset += 8;
+        // return bb.getDouble();
     }
     @Override
     public float readFloat() {
-        repositionBuffer();
-        this.currentOffset += 4;
-        return bb.getFloat();
+        throw new UnsupportedOperationException();
+        // repositionBuffer();
+        // this.currentOffset += 4;
+        // return bb.getFloat();
     }
 
     @Override
     public void readFully(byte[] b) {
         throw new UnsupportedOperationException();
     }
+
     @Override
     public void readFully(byte[] b, int off, int len) {
-        repositionBuffer();
-        if (currentAbsolutePosition() + len > bufvoid) {
-            int distToEnd = bufvoid - currentAbsolutePosition();
-            bb.get(b, off, distToEnd);
-            bb.get(b, off + distToEnd, len - distToEnd);
-        } else {
-            bb.get(b, off, len);
-        }
-        this.currentOffset += len;
+        throw new UnsupportedOperationException();
+        // repositionBuffer();
+        // if (currentAbsolutePosition() + len > bufvoid) {
+        //     int distToEnd = bufvoid - currentAbsolutePosition();
+        //     bb.get(b, off, distToEnd);
+        //     this.currentOffset += distToEnd;
+        //     repositionBuffer();
+        //     bb.get(b, off + distToEnd, len - distToEnd);
+        //     this.currentOffset += len - distToEnd;
+        // } else {
+        //     bb.get(b, off, len);
+        //     this.currentOffset += len;
+        // }
     }
+
+    @Override
+    public void readFully(int[] b, int off, int len) {
+        final int lenInBytes = len * 4;
+        final int distToEnd = bufvoid - currentAbsolutePosition();
+
+        if (distToEnd < lenInBytes) {
+            byte[] aggregate = new byte[lenInBytes];
+            System.arraycopy(kvbuffer, currentAbsolutePosition(),
+                aggregate, 0, distToEnd);
+            this.currentOffset += distToEnd;
+            System.arraycopy(kvbuffer, currentAbsolutePosition(),
+                aggregate, distToEnd, lenInBytes - distToEnd);
+            this.currentOffset += (lenInBytes - distToEnd);
+
+            ByteBuffer.wrap(aggregate).asIntBuffer().get(b, off, len);
+        } else {
+            repositionBuffer();
+            intBuffer.get(b, off, len);
+            this.currentOffset += lenInBytes;
+        }
+    }
+
+    @Override
+    public void readFully(double[] b, int off, int len) {
+        final int lenInBytes = len * 8;
+        final int distToEnd = bufvoid - currentAbsolutePosition();
+
+        if (distToEnd < lenInBytes) {
+            byte[] aggregate = new byte[lenInBytes];
+            System.arraycopy(kvbuffer, currentAbsolutePosition(),
+                aggregate, 0, distToEnd);
+            this.currentOffset += distToEnd;
+            System.arraycopy(kvbuffer, currentAbsolutePosition(),
+                aggregate, distToEnd, lenInBytes - distToEnd);
+            this.currentOffset += (lenInBytes - distToEnd);
+
+            ByteBuffer.wrap(aggregate).asDoubleBuffer().get(b, off, len);
+        } else {
+            repositionBuffer();
+            doubleBuffer.get(b, off, len);
+            this.currentOffset += lenInBytes;
+        }
+    }
+
     @Override
     public int readInt() {
         repositionBuffer();
+        if (bufvoid - currentAbsolutePosition() < 4) {
+          throw new RuntimeException("Wrap in readInt");
+        }
         this.currentOffset += 4;
         return bb.getInt();
     }
@@ -107,15 +192,17 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     }
     @Override
     public long readLong() {
-        repositionBuffer();
-        this.currentOffset += 8;
-        return bb.getLong();
+        throw new UnsupportedOperationException();
+        // repositionBuffer();
+        // this.currentOffset += 8;
+        // return bb.getLong();
     }
     @Override
     public short readShort() {
-        repositionBuffer();
-        this.currentOffset += 2;
-        return bb.getShort();
+        throw new UnsupportedOperationException();
+        // repositionBuffer();
+        // this.currentOffset += 2;
+        // return bb.getShort();
     }
     @Override
     public int readUnsignedShort() {

@@ -1891,13 +1891,11 @@ public class MapTask extends Task {
       private final InMemValBytes vbytes = new InMemValBytes();
       private final int start;
       private final int end;
-      private final long size;
       private int current;
       public MRResultIterator(int start, int end) {
+        this.start = start;
         this.end = end;
         current = start - 1;
-        this.size = end-start;
-        this.start = start;
       }
       public boolean next() throws IOException {
         return ++current < end;
@@ -1917,8 +1915,7 @@ public class MapTask extends Task {
       }
       public void close() { }
       public boolean supportsBulkReads() {
-          // return true;
-          return false;
+          return true;
       }
       public HadoopCLDataInput getBulkReader() {
           return new HadoopCLBulkCombinerReader(start, end, kvoffsets,
