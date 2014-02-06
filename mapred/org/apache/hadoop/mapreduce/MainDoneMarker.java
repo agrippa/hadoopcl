@@ -14,4 +14,5 @@ public class MainDoneMarker extends HadoopCLInputBuffer {
     public boolean isFull(TaskInputOutputContext ctx) { return true; }
     public void init(int pairsPerInput, HadoopOpenCLContext ctx) { }
     public boolean completedAll() { return true; }
+    public int bulkFill(HadoopCLDataInput stream) { return 0; }
 }

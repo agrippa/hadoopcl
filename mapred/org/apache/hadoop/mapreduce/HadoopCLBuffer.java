@@ -21,7 +21,6 @@ public abstract class HadoopCLBuffer {
     public int id = -1;
 
     public abstract boolean completedAll();
-    // public abstract void bulkFill(HadoopCLDataInput stream);
 
     public long space() {
         return 4 * nWrites.length;
@@ -104,13 +103,13 @@ public abstract class HadoopCLBuffer {
 
         public void startRead(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("starting read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            // OpenCLDriver.logger.log("starting read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.startRead = System.currentTimeMillis();
         }
 
         public void stopRead(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("finishing read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            // OpenCLDriver.logger.log("finishing read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.stopRead = System.currentTimeMillis();
         }
         
@@ -124,13 +123,13 @@ public abstract class HadoopCLBuffer {
 
         public void startWrite(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("starting write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            // OpenCLDriver.logger.log("starting write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.writeStarts.add(System.currentTimeMillis());
         }
 
         public void stopWrite(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("finishing write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            // OpenCLDriver.logger.log("finishing write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.writeStops.add(System.currentTimeMillis());
         }
 
@@ -143,6 +142,10 @@ public abstract class HadoopCLBuffer {
         }
 
         public long kernelTime() {
+            if (this.kernelStops.size() != this.kernelStarts.size()) {
+                throw new RuntimeException("Write mismatch: starts "+this.kernelStarts.size()+" stops "+this.kernelStops.size());
+            }
+
             long sum = 0;
             for (int i = 0; i < this.kernelStarts.size(); i++) {
                 sum = sum + (this.kernelStops.get(i) - this.kernelStarts.get(i));
@@ -151,6 +154,10 @@ public abstract class HadoopCLBuffer {
         }
 
         public long writeTime() {
+            if (this.writeStops.size() != this.writeStarts.size()) {
+                throw new RuntimeException("Write mismatch: starts "+this.writeStarts.size()+" stops "+this.writeStops.size());
+            }
+
             long sum = 0;
             for (int i = 0; i < this.writeStarts.size(); i++) {
                 sum = sum + (this.writeStops.get(i) - this.writeStarts.get(i));

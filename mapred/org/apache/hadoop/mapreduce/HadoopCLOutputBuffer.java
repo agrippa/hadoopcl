@@ -4,11 +4,13 @@ import java.util.Iterator;
 import java.util.HashSet;
 import java.io.IOException;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.hadoop.io.ReadArrayUtils;
 
 public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public int[] memIncr;
     protected int[] outputIterMarkers;
     public HashSet<Integer> itersFinished;
+    protected final ReadArrayUtils readUtils = new ReadArrayUtils();
 
     public abstract void initBeforeKernel(int outputsPerInput, HadoopOpenCLContext clContext);
     public abstract int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar)

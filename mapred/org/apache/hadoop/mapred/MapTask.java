@@ -1144,7 +1144,7 @@ public class MapTask extends Task {
             try {
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Blocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Blocking in collect", "mapper");
               }
               while (kvstart != kvend) {
                 reporter.progress();
@@ -1152,7 +1152,7 @@ public class MapTask extends Task {
               }
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Unblocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Unblocking in collect", "mapper");
               }
             } catch (InterruptedException e) {
               throw (IOException)new IOException(
@@ -1206,7 +1206,6 @@ public class MapTask extends Task {
           return index;
         }
       }
-      // if (!indices.hasNext()) return -1;
       if (index == coll.end()) return -1;
       else return index;
     }
@@ -1249,7 +1248,7 @@ public class MapTask extends Task {
             try {
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Blocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Blocking in collect", "mapper");
               }
               while (kvstart != kvend) {
                 reporter.progress();
@@ -1257,7 +1256,7 @@ public class MapTask extends Task {
               }
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
-                  OpenCLDriver.logger.log("Unblocking in collect", "mapper");
+                  // OpenCLDriver.logger.log("Unblocking in collect", "mapper");
               }
             } catch (InterruptedException e) {
               throw (IOException)new IOException(
@@ -1476,7 +1475,7 @@ public class MapTask extends Task {
               try {
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    OpenCLDriver.logger.log("Blocking in write", "mapper");
+                    // OpenCLDriver.logger.log("Blocking in write", "mapper");
                 }
                 while (kvstart != kvend) {
                   reporter.progress();
@@ -1484,7 +1483,7 @@ public class MapTask extends Task {
                 }
                 if (OpenCLDriver.logger != null) {
                     // LOG:PROFILE
-                    OpenCLDriver.logger.log("Unblocking in write", "mapper");
+                    // OpenCLDriver.logger.log("Unblocking in write", "mapper");
                 }
               } catch (InterruptedException e) {
                   throw (IOException)new IOException(
@@ -1516,7 +1515,7 @@ public class MapTask extends Task {
       try {
         if (OpenCLDriver.logger != null) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("Blocking in flush", "mapper");
+            // OpenCLDriver.logger.log("Blocking in flush", "mapper");
         }
         while (kvstart != kvend) {
           reporter.progress();
@@ -1524,7 +1523,7 @@ public class MapTask extends Task {
         }
         if (OpenCLDriver.logger != null) {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("Unblocking in flush", "mapper");
+            // OpenCLDriver.logger.log("Unblocking in flush", "mapper");
         }
         if (sortSpillException != null) {
           throw (IOException)new IOException("Spill failed"
@@ -1891,13 +1890,11 @@ public class MapTask extends Task {
       private final InMemValBytes vbytes = new InMemValBytes();
       private final int start;
       private final int end;
-      private final long size;
       private int current;
       public MRResultIterator(int start, int end) {
+        this.start = start;
         this.end = end;
         current = start - 1;
-        this.size = end-start;
-        this.start = start;
       }
       public boolean next() throws IOException {
         return ++current < end;
@@ -1917,8 +1914,7 @@ public class MapTask extends Task {
       }
       public void close() { }
       public boolean supportsBulkReads() {
-          // return true;
-          return false;
+          return true;
       }
       public HadoopCLDataInput getBulkReader() {
           return new HadoopCLBulkCombinerReader(start, end, kvoffsets,

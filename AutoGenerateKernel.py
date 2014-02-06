@@ -143,6 +143,18 @@ class NativeTypeVisitor:
         raise NotImplementedError()
     def getSerializeValue(self):
         raise NotImplementedError()
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        raise NotImplementedError()
+    def getPreliminaryValueFullCheck(self, isMapper):
+        raise NotImplementedError()
+    def getReadKeyFromStream(self):
+        raise NotImplementedError()
+    def getReadValueFromStream(self):
+        raise NotImplementedError()
+    def bulkAddKey(self, isMapper):
+        raise NotImplementedError()
+    def bulkAddValue(self, isMapper):
+        raise NotImplementedError()
 
 #################################################################################
 ########################## Visitor for Primitive type ###########################
@@ -326,6 +338,41 @@ class PrimitiveVisitor(NativeTypeVisitor):
         elif self.typ == 'long':
             return [ 'out.writeLong(this.outputVals[index]);' ]
         return [ ]
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'this.nPairs < this.capacity()' ]
+        else:
+            return [ 'this.nKeys < this.inputKeys.length' ]
+    def getPreliminaryValueFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'true' ]
+        else:
+            return [ 'this.nVals < this.inputVals.length' ]
+    def getReadKeyFromStream(self):
+        return [ 'final '+self.typ+' tmpKey = stream.read'+self.typ.capitalize()+'();' ]
+    def getReadValueFromStream(self):
+        return [ 'final '+self.typ+' tmpVal = stream.read'+self.typ.capitalize()+'();' ]
+    def bulkAddKey(self, isMapper):
+        if isMapper:
+            return [ 'this.inputKeys[this.nPairs] = tmpKey;' ]
+        else:
+            return [ 'if (this.currentKey == null || this.currentKey.get() != tmpKey) {',
+                     '    this.keyIndex[this.nKeys] = this.nVals;',
+                     '    this.inputKeys[this.nKeys] = tmpKey;',
+                     '    this.nKeys++;',
+                     '    if (this.currentKey == null) {',
+                     '        this.currentKey = new '+self.typ.capitalize()+'Writable(tmpKey);',
+                     '    } else {',
+                     '        this.currentKey.set(tmpKey);',
+                     '    }',
+                     '}' ]
+    def bulkAddValue(self, isMapper):
+        if isMapper:
+            return [ 'this.inputVals[this.nPairs] = tmpVal;',
+                     'this.nPairs++;' ]
+        else:
+            return [ 'this.inputVals[this.nVals] = tmpVal;',
+                     'this.nVals++;' ]
 
 #################################################################################
 ########################## Visitor for Pair type ################################
@@ -486,7 +533,49 @@ class PairVisitor(NativeTypeVisitor):
     def getSerializeKey(self):
         return [ 'out.writeDouble(this.outputKeys1[index]);', 'out.writeDouble(this.outputKeys2[index]);' ]
     def getSerializeValue(self):
-        return [ 'out.writeDouble(this.outputVals1[index]);', 'out.writeDouble(this.outputVals2[index]);' ]
+        return [ 'out.writeDouble(this.outputVals1[index]);',
+                 'out.writeDouble(this.outputVals2[index]);' ]
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'this.nPairs < this.capacity()' ]
+        else:
+            return [ 'this.nKeys < this.inputKeys1.length' ]
+    def getPreliminaryValueFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'true' ]
+        else:
+            return [ 'this.nVals < this.inputVals1.length' ]
+    def getReadKeyFromStream(self):
+        return [ 'final double tmpKey1 = stream.readDouble();',
+                 'final double tmpKey2 = stream.readDouble();' ]
+    def getReadValueFromStream(self):
+        return [ 'final double tmpVal1 = stream.readDouble();',
+                 'final double tmpVal2 = stream.readDouble();' ]
+    def bulkAddKey(self, isMapper):
+        if isMapper:
+            return [ 'this.inputKeys1[this.nPairs] = tmpKey1;',
+                     'this.inputKeys2[this.nPairs] = tmpKey2;' ]
+        else:
+            return [ 'if (this.currentKey == null || this.currentKey.getVal1() != tmpKey1 || this.currentKey.getVal2() != tmpKey2) {',
+                     '    this.keyIndex[this.nKeys] = this.nVals;',
+                     '    this.inputKeys1[this.nKeys] = tmpKey1;',
+                     '    this.inputKeys2[this.nKeys] = tmpKey2;',
+                     '    this.nKeys++;',
+                     '    if (this.currentKey == null) {',
+                     '        this.currentKey = new PairWritable(tmpKey1, tmpKey2);',
+                     '    } else {',
+                     '        this.currentKey.set(tmpKey1, tmpKey2);',
+                     '    }',
+                     '}' ]
+    def bulkAddValue(self, isMapper):
+        if isMapper:
+            return [ 'this.inputVals1[this.nPairs] = tmpVal1;',
+                     'this.inputVals2[this.nPairs] = tmpVal2;',
+                     'this.nPairs++;' ]
+        else:
+            return [ 'this.inputVals1[this.nVals] = tmpVal1;',
+                     'this.inputVals2[this.nVals] = tmpVal2;',
+                     'this.nVals++;' ]
 
 #################################################################################
 ########################## Visitor for Ipair type ###############################
@@ -681,7 +770,56 @@ class IpairVisitor(NativeTypeVisitor):
     def getSerializeKey(self):
         return [ 'out.writeInt(this.outputKeyIds[index]);', 'out.writeDouble(this.outputKeys1[index]);', 'out.writeDouble(this.outputKeys2[index]);' ]
     def getSerializeValue(self):
-        return [ 'out.writeInt(this.outputValIds[index]);', 'out.writeDouble(this.outputVals1[index]);', 'out.writeDouble(this.outputVals2[index]);' ]
+        return [ 'out.writeInt(this.outputValIds[index]);',
+                 'out.writeDouble(this.outputVals1[index]);',
+                 'out.writeDouble(this.outputVals2[index]);' ]
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'this.nPairs < this.capacity()' ]
+        else:
+            return [ 'this.nKeys < this.inputKeyIds.length' ]
+    def getPreliminaryValueFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'true' ]
+        else:
+            return [ 'this.nVals < this.inputValIds.length' ]
+    def getReadKeyFromStream(self):
+        return [ 'final int tmpKeyId = stream.readInt();',
+                 'final double tmpKey1 = stream.readDouble();',
+                 'final double tmpKey2 = stream.readDouble();' ]
+    def getReadValueFromStream(self):
+        return [ 'final int tmpValId = stream.readInt();',
+                 'final double tmpVal1 = stream.readDouble();',
+                 'final double tmpVal2 = stream.readDouble();' ]
+    def bulkAddKey(self, isMapper):
+        if isMapper:
+            return [ 'this.inputKeyIds[this.nPairs] = tmpKeyId;',
+                     'this.inputKeys1[this.nPairs] = tmpKey1;',
+                     'this.inputKeys2[this.nPairs] = tmpKey2;' ]
+        else:
+            return [ 'if (this.currentKey == null || this.currentKey.getIVal() != tmpKeyId || this.currentKey.getVal1() != tmpKey1 || this.currentKey.getVal2() != tmpKey2) {',
+                     '    this.keyIndex[this.nKeys] = this.nVals;',
+                     '    this.inputKeyIds[this.nKeys] = tmpKeyId;',
+                     '    this.inputKeys1[this.nKeys] = tmpKey1;',
+                     '    this.inputKeys2[this.nKeys] = tmpKey2;',
+                     '    this.nKeys++;',
+                     '    if (this.currentKey == null) {',
+                     '        this.currentKey = new UniquePairWritable(tmpKeyId, tmpKey1, tmpKey2);',
+                     '    } else {',
+                     '        this.currentKey.set(tmpKeyId, tmpKey1, tmpKey2);',
+                     '    }',
+                     '}' ]
+    def bulkAddValue(self, isMapper):
+        if isMapper:
+            return [ 'this.inputValIds[this.nPairs] = tmpValId;',
+                     'this.inputVals1[this.nPairs] = tmpVal1;',
+                     'this.inputVals2[this.nPairs] = tmpVal2;',
+                     'this.nPairs++;' ]
+        else:
+            return [ 'this.inputValIds[this.nVals] = tmpValId;',
+                     'this.inputVals1[this.nVals] = tmpVal1;',
+                     'this.inputVals2[this.nVals] = tmpVal2;',
+                     'this.nVals++;' ]
 
 #################################################################################
 ########################## Visitor for Svec type ################################
@@ -983,8 +1121,35 @@ class SvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
         return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpDoubleArrayStatic(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+                 'this.readUtils.dumpIntArray(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
+                 'this.readUtils.dumpDoubleArray(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        raise NotImplementedError()
+    def getPreliminaryValueFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'this.nPairs < this.inputValLookAsideBuffer.length' ]
+        else:
+            return [ 'this.nVals < this.inputValLookAsideBuffer.length' ]
+    def getReadKeyFromStream(self):
+        raise NotImplementedError()
+    def getReadValueFromStream(self):
+        return [ 'final int vectorLength = stream.readInt();',
+                 'if (this.individualInputValsCount + vectorLength > this.inputValIndices.length) {',
+                 '    stream.prev();',
+                 '    this.isFull = true;',
+                 '    return nread;',
+                 '}' ]
+    def bulkAddKey(self, isMapper):
+        raise NotImplementedError()
+    def bulkAddValue(self, isMapper):
+        if isMapper:
+            incrStr = 'this.nPairs'
+        else:
+            incrStr = 'this.nVals'
+        return [ 'this.inputValLookAsideBuffer['+incrStr+'++] = this.individualInputValsCount;',
+                 'stream.readFully(this.inputValIndices, this.individualInputValsCount, vectorLength);',
+                 'stream.readFully(this.inputValVals, this.individualInputValsCount, vectorLength);',
+                 'this.individualInputValsCount += vectorLength;' ]
 
 #################################################################################
 ########################## Visitor for Ivec type ################################
@@ -1225,7 +1390,33 @@ class IvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
         return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputVals, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+                 'this.readUtils.dumpIntArray(out, this.outputVals, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        raise NotImplementedError()
+    def getPreliminaryValueFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'this.nPairs < this.inputValLookAsideBuffer.length' ]
+        else:
+            return [ 'this.nVals < this.inputValLookAsideBuffer.length' ]
+    def getReadKeyFromStream(self):
+        raise NotImplementedError()
+    def getReadValueFromStream(self):
+        return [ 'final int vectorLength = stream.readInt();',
+                 'if (this.individualInputValsCount + vectorLength > this.inputVal.length) {',
+                 '    stream.prev();',
+                 '    this.isFull = true;',
+                 '    return nread;',
+                 '}' ]
+    def bulkAddKey(self, isMapper):
+        raise NotImplementedError()
+    def bulkAddValue(self, isMapper):
+        if isMapper:
+            incrStr = 'this.nPairs'
+        else:
+            incrStr = 'this.nVals'
+        return [ 'this.inputValLookAsideBuffer['+incrStr+'++] = this.individualInputValsCount;',
+                 'stream.readFully(this.inputVal, this.individualInputValsCount, vectorLength);',
+                 'this.individualInputValsCount += vectorLength;' ]
 
 #################################################################################
 ########################## Visitor for Fsvec type ###############################
@@ -1540,8 +1731,35 @@ class FsvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
         return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpFloatArrayStatic(out, this.outputValVals, this.outputValFloatLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+                 'this.readUtils.dumpIntArray(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
+                 'this.readUtils.dumpFloatArray(out, this.outputValVals, this.outputValFloatLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        raise NotImplementedError()
+    def getPreliminaryValueFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'this.nPairs < this.inputValLookAsideBuffer.length' ]
+        else:
+            return [ 'this.nVals < this.inputValLookAsideBuffer.length' ]
+    def getReadKeyFromStream(self):
+        raise NotImplementedError()
+    def getReadValueFromStream(self):
+        return [ 'final int vectorLength = stream.readInt();',
+                 'if (this.individualInputValsCount + vectorLength > this.inputValIndices.length) {',
+                 '    stream.prev();',
+                 '    this.isFull = true;',
+                 '    return nread;',
+                 '}' ]
+    def bulkAddKey(self, isMapper):
+        raise NotImplementedError()
+    def bulkAddValue(self, isMapper):
+        if isMapper:
+            incrStr = 'this.nPairs'
+        else:
+            incrStr = 'this.nVals'
+        return [ 'this.inputValLookAsideBuffer['+incrStr+'++] = this.individualInputValsCount;',
+                 'stream.readFully(this.inputValIndices, this.individualInputValsCount, vectorLength);',
+                 'stream.readFully(this.inputValVals, this.individualInputValsCount, vectorLength);',
+                 'this.individualInputValsCount += vectorLength;' ]
 
 #################################################################################
 ########################## Visitor for Bsvec type ###############################
@@ -1854,8 +2072,35 @@ class BsvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getSerializeValue(self):
         return [ 'out.writeInt(this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpIntArrayStatic(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
-                 'ReadArrayUtils.dumpDoubleArrayStatic(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+                 'this.readUtils.dumpIntArray(out, this.outputValIndices, this.outputValIntLookAsideBuffer[index], this.outputValLengthBuffer[index]);',
+                 'this.readUtils.dumpDoubleArray(out, this.outputValVals, this.outputValDoubleLookAsideBuffer[index], this.outputValLengthBuffer[index]);' ]
+    def getPreliminaryKeyFullCheck(self, isMapper):
+        raise NotImplementedError()
+    def getPreliminaryValueFullCheck(self, isMapper):
+        if isMapper:
+            return [ 'this.nPairs < this.inputValLookAsideBuffer.length' ]
+        else:
+            return [ 'this.nVals < this.inputValLookAsideBuffer.length' ]
+    def getReadKeyFromStream(self):
+        raise NotImplementedError()
+    def getReadValueFromStream(self):
+        return [ 'final int vectorLength = stream.readInt();',
+                 'if (this.individualInputValsCount + vectorLength > this.inputValIndices.length) {',
+                 '    stream.prev();',
+                 '    this.isFull = true;',
+                 '    return nread;',
+                 '}' ]
+    def bulkAddKey(self, isMapper):
+        raise NotImplementedError()
+    def bulkAddValue(self, isMapper):
+        if isMapper:
+            incrStr = 'this.nPairs'
+        else:
+            incrStr = 'this.nVals'
+        return [ 'this.inputValLookAsideBuffer['+incrStr+'++] = this.individualInputValsCount;',
+                 'stream.readFully(this.inputValIndices, this.individualInputValsCount, vectorLength);',
+                 'stream.readFully(this.inputValVals, this.individualInputValsCount, vectorLength);',
+                 'this.individualInputValsCount += vectorLength;' ]
 
 #################################################################################
 ########################## End of visitors ######################################
@@ -2060,6 +2305,7 @@ def writeHeader(fp, isMapper):
     fp.write('import org.apache.hadoop.util.Progress;\n')
     fp.write('import java.util.Comparator;\n')
     fp.write('import java.io.DataOutputStream;\n')
+    fp.write('import org.apache.hadoop.io.ReadArrayUtils;\n')
     if isMapper:
         fp.write('import org.apache.hadoop.mapreduce.Mapper.Context;\n')
     else:
@@ -2152,6 +2398,29 @@ def writeOriginalInputInitMethod(fp, nativeInputKeyType, nativeInputValueType):
     fp.write('        this.initialized = true;\n')
     fp.write('    }\n')
     fp.write('\n')
+
+def writeBulkFillMethod(fp, nativeInputKeyType, nativeInputValueType, isMapper):
+    fp.write('\n')
+    fp.write('    @Override\n')
+    fp.write('    public int bulkFill(HadoopCLDataInput stream) throws IOException {\n')
+    fp.write('        int nread = 0;\n')
+    fp.write('        while (stream.hasMore() &&\n')
+    fp.write('                '+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+' &&\n')
+    fp.write('                '+tostr_without_last_ln(visitor(nativeInputValueType).getPreliminaryValueFullCheck(isMapper), 0)+') {\n')
+    fp.write('            stream.nextKey();\n')
+    writeln(visitor(nativeInputKeyType).getReadKeyFromStream(), 3, fp)
+    fp.write('            stream.nextValue();\n')
+    writeln(visitor(nativeInputValueType).getReadValueFromStream(), 3, fp)
+    writeln(visitor(nativeInputKeyType).bulkAddKey(isMapper), 3, fp)
+    writeln(visitor(nativeInputValueType).bulkAddValue(isMapper), 3, fp)
+    fp.write('            nread++;\n')
+    fp.write('        }\n')
+    fp.write('        if (!('+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+') ||\n')
+    fp.write('            !('+tostr_without_last_ln(visitor(nativeInputValueType).getPreliminaryValueFullCheck(isMapper), 0)+')) {\n')
+    fp.write('            this.isFull = true;\n')
+    fp.write('        }\n')
+    fp.write('        return nread;\n')
+    fp.write('    }\n')
 
 def writeInitBeforeKernelMethod(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
@@ -2375,64 +2644,63 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
             fp.write('        this.individualInputValsCount = 0;\n')
         fp.write('        this.currentKey = null;\n')
 
+    fp.write('        this.isFull = false;\n')
     fp.write('    }\n')
     fp.write('\n')
 
 def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, hadoopInputValueType):
     fp.write('    @Override\n')
     fp.write('    public boolean isFull(TaskInputOutputContext context) throws IOException, InterruptedException {\n')
+    fp.write('        if (this.doingBulkRead) {\n')
+    fp.write('            return this.isFull;\n')
+    fp.write('        } else {\n')
     if isMapper:
         if nativeInputValueType == 'svec':
-            fp.write('        SparseVectorWritable curr = (SparseVectorWritable)((Context)context).getCurrentValue();\n')
-            fp.write('        if (this.enableStriding) {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
-            fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
-            fp.write('        }\n')
+            fp.write('            SparseVectorWritable curr = (SparseVectorWritable)((Context)context).getCurrentValue();\n')
+            fp.write('            if (this.enableStriding) {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('            } else {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('            }\n')
         elif nativeInputValueType == 'bsvec':
-            fp.write('        BSparseVectorWritable curr = (BSparseVectorWritable)((Context)context).getCurrentValue();\n')
-            fp.write('        if (this.enableStriding) {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
-            fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
-            fp.write('        }\n')
+            fp.write('            BSparseVectorWritable curr = (BSparseVectorWritable)((Context)context).getCurrentValue();\n')
+            fp.write('            if (this.enableStriding) {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('            } else {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('            }\n')
         elif nativeInputValueType == 'ivec':
-            fp.write('        IntegerVectorWritable curr = (IntegerVectorWritable)((Context)context).getCurrentValue();\n')
-            fp.write('        if (this.enableStriding) {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
-            fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputVal.length;\n')
-            fp.write('        }\n')
+            fp.write('            IntegerVectorWritable curr = (IntegerVectorWritable)((Context)context).getCurrentValue();\n')
+            fp.write('            if (this.enableStriding) {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('            } else {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputVal.length;\n')
+            fp.write('            }\n')
         elif nativeInputValueType == 'fsvec':
-            fp.write('        FSparseVectorWritable curr = (FSparseVectorWritable)((Context)context).getCurrentValue();\n')
-            fp.write('        if (this.enableStriding) {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
-            fp.write('        } else {\n')
-            fp.write('            return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
-            fp.write('        }\n')
+            fp.write('            FSparseVectorWritable curr = (FSparseVectorWritable)((Context)context).getCurrentValue();\n')
+            fp.write('            if (this.enableStriding) {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('            } else {\n')
+            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('            }\n')
 
         else:
-            fp.write('        return this.nPairs == this.capacity();\n')
+            fp.write('            return this.nPairs == this.capacity();\n')
     else:
-        fp.write('        Context reduceContext = (Context)context;\n')
-        # fp.write('        tempBuffer1.reset();\n')
-        # fp.write('        if(tempBuffer2 != null) tempBuffer2.reset();\n')
-        # fp.write('        if(tempBuffer3 != null) tempBuffer3.reset();\n')
-        # fp.write('        for(Object v : reduceContext.getValues()) {\n')
-        # fp.write('            bufferInputValue(v);\n')
-        # fp.write('        }\n')
+        fp.write('            Context reduceContext = (Context)context;\n')
         if nativeInputKeyType == 'pair' or nativeInputKeyType == 'ipair':
           keysName = 'inputKeys1'
         else:
           keysName = 'inputKeys'
         if isVariableLength(nativeInputValueType):
-          fp.write('        '+hadoopInputValueType+'Writable curr = ('+hadoopInputValueType+'Writable)reduceContext.getCurrentValue();\n')
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputValLookAsideBuffer.length || this.individualInputValsCount + curr.size() > this.inputValIndices.length);\n')
+          fp.write('            '+hadoopInputValueType+'Writable curr = ('+hadoopInputValueType+'Writable)reduceContext.getCurrentValue();\n')
+          fp.write('            return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputValLookAsideBuffer.length || this.individualInputValsCount + curr.size() > this.inputValIndices.length);\n')
         elif nativeInputValueType == 'pair' or nativeInputValueType == 'ipair':
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals1.length);\n')
+          fp.write('            return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals1.length);\n')
         else:
-          fp.write('        return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals.length);\n')
+          fp.write('            return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals.length);\n')
 
+    fp.write('        }\n')
     fp.write('    }\n')
     fp.write('\n')
    
@@ -2974,6 +3242,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('    }\n')
 
     writeOriginalInputInitMethod(input_fp, nativeInputKeyType, nativeInputValueType)
+    writeBulkFillMethod(input_fp, nativeInputKeyType, nativeInputValueType, isMapper)
 
     generateFill(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
     generatePrepareForRead(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)

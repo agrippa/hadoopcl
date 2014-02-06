@@ -214,6 +214,7 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     return iterable;
   }
 
+  @Override
   public void signalDoneReading() {
     if (caller != null) {
         caller.releaseCurrentlySpilling(false);
