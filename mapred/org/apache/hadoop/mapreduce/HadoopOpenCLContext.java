@@ -7,7 +7,6 @@ import java.util.LinkedList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.EnumSet;
-import com.amd.aparapi.Range;
 import com.amd.aparapi.internal.opencl.OpenCLPlatform;
 import com.amd.aparapi.device.OpenCLDevice;
 import com.amd.aparapi.device.Device;
@@ -42,7 +41,6 @@ public class HadoopOpenCLContext {
     private OpenCLDevice device;
     private int deviceId;
     private int isGPU;
-    private Range r;
     private final int inputBufferSize;
     private final int outputBufferSize;
     private final int inputValMultiplier;
@@ -141,12 +139,6 @@ public class HadoopOpenCLContext {
             this.threadsPerGroup = Integer.parseInt(threadsPerGroupStr);
         } else {
             this.threadsPerGroup = 256;
-        }
-
-        if(getDevice() == null) {
-            this.r = null;
-        } else {
-            this.r = getDevice().createRange(getNGroups() * getThreadsPerGroup(), getThreadsPerGroup());
         }
 
         String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
@@ -299,10 +291,6 @@ public class HadoopOpenCLContext {
 
     public OpenCLDevice getDevice() {
         return this.device;
-    }
-
-    public Range getRange() {
-        return this.r;
     }
 
     public int getInputBufferSize() {
