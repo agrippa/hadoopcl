@@ -1,5 +1,8 @@
 package org.apache.hadoop.mapreduce;
 
+import com.amd.aparapi.internal.kernel.KernelRunner;
+import com.amd.aparapi.Kernel;
+
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_INPUT_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.SPILLED_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_OUTPUT_RECORDS;
@@ -470,6 +473,12 @@ public class BufferRunner implements Runnable {
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
         this.freeKernels.preallocateKernels();
+        if (this.clContext.isMapper() && this.clContext.jobHasCombiner()) {
+            KernelRunner.doKernelAndArgLinesPrealloc(
+                this.clContext.newCombinerKernelObject(),
+                Kernel.TaskType.COMBINER, this.clContext.nCombinerKernels(),
+                this.clContext.getCombinerDevice());
+        }
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Done reallocating kernels", this.clContext);
 

@@ -225,15 +225,15 @@ public class JobContext {
       return conf.getClass(OCL_REDUCE_BUFFER_CLASS_ATTR);
   }
 
-  public Class getOCLMapperClass() throws ClassNotFoundException {
+  public Class getOCLMapperClass() {
     return conf.getClass(OCL_MAP_CLASS_ATTR);
   }
 
-  public Class getOCLReducerClass() throws ClassNotFoundException {
+  public Class getOCLReducerClass() {
       return conf.getClass(OCL_REDUCE_CLASS_ATTR);
   }
 
-  public Class getOCLCombinerClass() throws ClassNotFoundException {
+  public Class getOCLCombinerClass() {
       return conf.getClass(OCL_COMBINE_CLASS_ATTR);
   }
 

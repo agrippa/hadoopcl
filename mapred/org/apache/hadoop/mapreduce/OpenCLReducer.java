@@ -61,13 +61,10 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
             throw new RuntimeException("Unsupported raw value type "+valueClass);
         }
 
-        OpenCLDriver driver = null;
-        try {
-            boolean isCombiner = context.getContextType() == ContextType.Combiner;
-            driver = new OpenCLDriver("reducer", context, isCombiner ? context.getOCLCombinerClass() : context.getOCLReducerClass());
-        } catch(java.lang.ClassNotFoundException ce) {
-            throw new RuntimeException("Failed to load reducer kernel class");
-        }
+        boolean isCombiner = context.getContextType() == ContextType.Combiner;
+        OpenCLDriver driver = new OpenCLDriver("reducer", context,
+            isCombiner ? context.getOCLCombinerClass() :
+                context.getOCLReducerClass());
 
         driver.run();
         driver = null;

@@ -54,6 +54,8 @@ public class HadoopOpenCLContext {
     private int nVectorsToBuffer;
 
     private boolean isCombiner;
+    private boolean jobHasCombiner;
+    private final int nCombinerKernels;
 
     private HadoopCLMapperKernel mapperKernel;
     private HadoopCLReducerKernel reducerKernel;
@@ -80,6 +82,7 @@ public class HadoopOpenCLContext {
 
       Configuration conf = this.hadoopContext.getConfiguration();
       this.nKernels = conf.getInt("opencl."+type+".nkernels", 1);
+      this.nCombinerKernels = conf.getInt("opencl.combiner.nkernels", 1);
       this.nInputBuffers = conf.getInt("opencl."+type+".ninputbuffers", 3);
       this.nOutputBuffers = conf.getInt("opencl."+type+".noutputbuffers", 1);
       this.preallocIntLength = conf.getInt("opencl."+type+".prealloc.length.int", 5242880);
@@ -105,29 +108,7 @@ public class HadoopOpenCLContext {
         }
 
         if (this.isCombiner) {
-            final Device.TYPE combinerType;
-            if (!conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL").equals("FAIL")) {
-              final String combinerTypeString = conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL");
-              EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
-              Device.TYPE result = null;
-              for (Device.TYPE t : allTypes) {
-                if (t.toString().equals(combinerTypeString)) {
-                  result = t;
-                  break;
-                }
-              }
-              if (result == null) {
-                combinerType = Device.TYPE.CPU;
-              } else {
-                combinerType = result;
-              }
-            } else {
-              combinerType = Device.TYPE.CPU;
-            }
-
-            this.deviceId = findDeviceWithType(combinerType);
-            // this.deviceId = -1;
-            // this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
+            this.deviceId = findDeviceWithType(retrieveCombinerDeviceType(conf));
         } else if(System.getProperty("opencl.device") != null) {
             this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
         } else {
@@ -198,6 +179,7 @@ public class HadoopOpenCLContext {
                 this.globals.nGlobalBuckets);
 
             if(combinerClass != null) {
+                this.jobHasCombiner = true;
                 this.combinerKernel = (HadoopCLReducerKernel)combinerClass.newInstance();
                 this.combinerKernel.init(this);
                 this.combinerKernel.setGlobals(this.getGlobalsInd(),
@@ -206,11 +188,37 @@ public class HadoopOpenCLContext {
                     this.getGlobalsMapInd(), this.getGlobalsMapVal(),
                     this.getGlobalsMap(),
                     this.globals.nGlobalBuckets);
+            } else {
+                this.jobHasCombiner = false;
             }
         } catch(Exception ex) {
             throw new RuntimeException(ex);
         }
 
+    }
+
+    private Device.TYPE retrieveCombinerDeviceType(Configuration conf) {
+        final Device.TYPE combinerType;
+        if (!conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL").equals("FAIL")) {
+          final String combinerTypeString = conf.get(
+              JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL");
+          EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
+          Device.TYPE result = null;
+          for (Device.TYPE t : allTypes) {
+            if (t.toString().equals(combinerTypeString)) {
+              result = t;
+              break;
+            }
+          }
+          if (result == null) {
+            combinerType = Device.TYPE.CPU;
+          } else {
+            combinerType = result;
+          }
+        } else {
+          combinerType = Device.TYPE.CPU;
+        }
+        return combinerType;
     }
 
     private int findDeviceWithType(Device.TYPE type) {
@@ -369,5 +377,40 @@ public class HadoopOpenCLContext {
 
     public int getInputValEleMultiplier() {
         return this.inputValEleMultiplier;
+    }
+
+    private HadoopCLKernel instantiateKernelObject(Class cls) {
+        HadoopCLKernel kernel;
+        try {
+            kernel = (HadoopCLKernel)cls.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return kernel;
+    }
+
+    public HadoopCLKernel newCombinerKernelObject() {
+        return instantiateKernelObject(hadoopContext.getOCLCombinerClass());
+    }
+
+    public HadoopCLKernel newMapperKernelObject() {
+        return instantiateKernelObject(hadoopContext.getOCLMapperClass());
+    }
+
+    public HadoopCLKernel newReducerKernelObject() {
+        return instantiateKernelObject(hadoopContext.getOCLReducerClass());
+    }
+
+    public boolean jobHasCombiner() {
+        return this.jobHasCombiner;
+    }
+
+    public int nCombinerKernels() {
+        return this.nCombinerKernels;
+    }
+
+    public OpenCLDevice getCombinerDevice() {
+        return findDevice(findDeviceWithType(retrieveCombinerDeviceType(
+                this.hadoopContext.getConfiguration())));
     }
 }
