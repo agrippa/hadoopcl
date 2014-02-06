@@ -36,7 +36,6 @@ public class HadoopOpenCLContext {
     private final boolean enableProfilingPrints;
     private final TaskInputOutputContext hadoopContext;
     private final String type;
-    private int ngroups;
     private int threadsPerGroup;
     private OpenCLDevice device;
     private int deviceId;
@@ -127,13 +126,6 @@ public class HadoopOpenCLContext {
             }
         }
        
-        String groupsStr = System.getProperty("opencl."+contextType+".groups."+this.deviceString);
-        if(groupsStr != null) {
-            this.ngroups = Integer.parseInt(groupsStr);
-        } else {
-            this.ngroups = 32;
-        }
-
         String threadsPerGroupStr = System.getProperty("opencl."+contextType+".threadsPerGroup."+this.deviceString);
         if(threadsPerGroupStr != null) {
             this.threadsPerGroup = Integer.parseInt(threadsPerGroupStr);
@@ -279,10 +271,6 @@ public class HadoopOpenCLContext {
 
     public int getDeviceId() {
         return this.deviceId;
-    }
-
-    public int getNGroups() {
-        return this.ngroups;
     }
 
     public int getThreadsPerGroup() {
