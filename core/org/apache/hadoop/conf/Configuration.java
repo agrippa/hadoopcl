@@ -1560,10 +1560,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
       long start = System.currentTimeMillis();
       try {
-          final int nGlobalBuckets = this.getInt("opencl.global.buckets", -1);
-          if (nGlobalBuckets == -1) {
-              throw new RuntimeException("# of global buckets must be set");
-          }
+          final int nGlobalBuckets = this.getInt("opencl.global.buckets", 49152);
           int countGlobals = globalIndices.size();
           int totalGlobals = 0;
           for (int i = 0; i < globalIndices.size(); i++) {
