@@ -131,7 +131,11 @@ class NativeTypeVisitor:
         raise NotImplementedError()
     def getKeyFillForIterator(self):
         raise NotImplementedError()
+    def getKeyLengthForIterator(self):
+        raise NotImplementedError()
     def getValueFillForIterator(self):
+        raise NotImplementedError()
+    def getValueLengthForIterator(self):
         raise NotImplementedError()
     def getPartitioner(self):
         raise NotImplementedError()
@@ -264,46 +268,54 @@ class PrimitiveVisitor(NativeTypeVisitor):
         if self.typ == 'int':
             return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 4);',
                      'this.keyBytes.position(0);',
-                     'this.keyBytes.putInt(buf.outputKeys[current]);',
-                     'this.key.reset(keyBytes.array(), 0, 4);' ]
+                     'this.keyBytes.putInt(buf.outputKeys[index]);' ]
         elif self.typ == 'float':
             return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 4);',
                      'this.keyBytes.position(0);',
-                     'this.keyBytes.putFloat(buf.outputKeys[current]);',
-                     'this.key.reset(keyBytes.array(), 0, 4);' ]
+                     'this.keyBytes.putFloat(buf.outputKeys[index]);' ]
         elif self.typ == 'double':
             return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 8);',
                      'this.keyBytes.position(0);',
-                     'this.keyBytes.putDouble(buf.outputKeys[current]);',
-                     'this.key.reset(keyBytes.array(), 0, 8);' ]
+                     'this.keyBytes.putDouble(buf.outputKeys[index]);' ]
         elif self.typ == 'long':
             return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 8);',
                      'this.keyBytes.position(0);',
-                     'this.keyBytes.putLong(buf.outputKeys[current]);',
-                     'this.key.reset(keyBytes.array(), 0, 8);' ]
-        return [ ]
+                     'this.keyBytes.putLong(buf.outputKeys[index]);' ]
+    def getKeyLengthForIterator(self):
+        if self.typ == 'int':
+            return [ 'return 4;' ]
+        elif self.typ == 'float':
+            return [ 'return 4;' ]
+        elif self.typ == 'double':
+            return [ 'return 8;' ]
+        elif self.typ == 'long':
+            return [ 'return 8;' ]
     def getValueFillForIterator(self):
         if self.typ == 'int':
             return [ 'this.valueBytes = resizeByteBuffer(this.valueBytes, 4);',
                      'this.valueBytes.position(0);',
-                     'this.valueBytes.putInt(buf.outputVals[current]);',
-                     'this.value.reset(valueBytes.array(), 0, 4);' ]
+                     'this.valueBytes.putInt(buf.outputVals[index]);' ]
         elif self.typ == 'float':
             return [ 'this.valueBytes = resizeByteBuffer(this.valueBytes, 4);',
                      'this.valueBytes.position(0);',
-                     'this.valueBytes.putFloat(buf.outputVals[current]);',
-                     'this.value.reset(valueBytes.array(), 0, 4);' ]
+                     'this.valueBytes.putFloat(buf.outputVals[index]);' ]
         elif self.typ == 'double':
             return [ 'this.valueBytes = resizeByteBuffer(this.valueBytes, 8);',
                      'this.valueBytes.position(0);',
-                     'this.valueBytes.putDouble(buf.outputVals[current]);',
-                     'this.value.reset(valueBytes.array(), 0, 8);' ]
+                     'this.valueBytes.putDouble(buf.outputVals[index]);' ]
         elif self.typ == 'long':
             return [ 'this.valueBytes = resizeByteBuffer(this.valueBytes, 8);',
                      'this.valueBytes.position(0);',
-                     'this.valueBytes.putLong(buf.outputVals[current]);',
-                     'this.value.reset(valueBytes.array(), 0, 8);' ]
-        return [ ]
+                     'this.valueBytes.putLong(buf.outputVals[index]);' ]
+    def getValueLengthForIterator(self):
+        if self.typ == 'int':
+            return [ 'return 4;' ]
+        elif self.typ == 'float':
+            return [ 'return 4;' ]
+        elif self.typ == 'double':
+            return [ 'return 8;' ]
+        elif self.typ == 'long':
+            return [ 'return 8;' ]
     def getPartitioner(self):
         if self.typ == 'int':
             return [ 'return (this.outputKeys[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
@@ -515,15 +527,17 @@ class PairVisitor(NativeTypeVisitor):
     def getKeyFillForIterator(self):
         return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 16);',
                  'this.keyBytes.position(0);',
-                 'this.keyBytes.putDouble(buf.outputKeys1[current]);',
-                 'this.keyBytes.putDouble(buf.outputKeys2[current]);',
-                 'this.key.reset(keyBytes.array(), 0, 16);' ]
+                 'this.keyBytes.putDouble(buf.outputKeys1[index]);',
+                 'this.keyBytes.putDouble(buf.outputKeys2[index]);' ]
+    def getKeyLengthForIterator(self):
+        return [ 'return 16;' ]
     def getValueFillForIterator(self):
         return [ 'this.valueBytes = resizeByteBuffer(this.valueBytes, 16);',
                  'this.valueBytes.position(0);',
-                 'this.valueBytes.putDouble(buf.outputVals1[current]);',
-                 'this.valueBytes.putDouble(buf.outputVals2[current]);',
-                 'this.value.reset(valueBytes.array(), 0, 16);' ]
+                 'this.valueBytes.putDouble(buf.outputVals1[index]);',
+                 'this.valueBytes.putDouble(buf.outputVals2[index]);' ]
+    def getValueLengthForIterator(self):
+        return [ 'return 16;' ]
     def getPartitioner(self):
         return [ 'return (((int)this.outputKeys1[index] + (int)this.outputKeys2[index]) & Integer.MAX_VALUE) % numReduceTasks;' ]
     def getKeyFor(self):
@@ -750,17 +764,19 @@ class IpairVisitor(NativeTypeVisitor):
     def getKeyFillForIterator(self):
         return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 20);',
                  'this.keyBytes.position(0);',
-                 'this.keyBytes.putInt(buf.outputKeyIds[current]);',
-                 'this.keyBytes.putDouble(buf.outputKeys1[current]);',
-                 'this.keyBytes.putDouble(buf.outputKeys2[current]);',
-                 'this.key.reset(keyBytes.array(), 0, 20);' ]
+                 'this.keyBytes.putInt(buf.outputKeyIds[index]);',
+                 'this.keyBytes.putDouble(buf.outputKeys1[index]);',
+                 'this.keyBytes.putDouble(buf.outputKeys2[index]);' ]
+    def getKeyLengthForIterator(self):
+        return [ 'return 20;' ]
     def getValueFillForIterator(self):
         return [ 'this.valueBytes = resizeByteBuffer(this.valueBytes, 20);',
                  'this.valueBytes.position(0);',
-                 'this.valueBytes.putInt(buf.outputValIds[current]);',
-                 'this.valueBytes.putDouble(buf.outputVals1[current]);',
-                 'this.valueBytes.putDouble(buf.outputVals2[current]);',
-                 'this.value.reset(valueBytes.array(), 0, 20);' ]
+                 'this.valueBytes.putInt(buf.outputValIds[index]);',
+                 'this.valueBytes.putDouble(buf.outputVals1[index]);',
+                 'this.valueBytes.putDouble(buf.outputVals2[index]);' ]
+    def getValueLengthForIterator(self):
+        return [ 'return 20;' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIds[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
     def getKeyFor(self):
@@ -1102,15 +1118,19 @@ class SvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getKeyLengthForIterator(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
     def getValueFillForIterator(self):
-        return [ 'final int length = buf.outputValLengthBuffer[current];',
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
                  'this.valueBytes = resizeByteBuffer(this.valueBytes, 4 + (4 * length) + (8 * length));',
                  'this.valueBytes.position(0);',
                  'this.valueBytes.putInt(length);',
-                 'this.valueBytes.asIntBuffer().put(buf.outputValIndices, buf.outputValIntLookAsideBuffer[current], length);',
+                 'this.valueBytes.asIntBuffer().put(buf.outputValIndices, buf.outputValIntLookAsideBuffer[index], length);',
                  'this.valueBytes.position(4 + (4 * length));',
-                 'this.valueBytes.asDoubleBuffer().put(buf.outputValVals, buf.outputValDoubleLookAsideBuffer[current], length);',
-                 'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (8 * length));' ]
+                 'this.valueBytes.asDoubleBuffer().put(buf.outputValVals, buf.outputValDoubleLookAsideBuffer[index], length);' ]
+    def getValueLengthForIterator(self):
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
+                 'return 4 + (4 * length) + (8 * length);' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
     def getKeyFor(self):
@@ -1373,13 +1393,17 @@ class IvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getKeyLengthForIterator(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
     def getValueFillForIterator(self):
-        return [ 'final int length = buf.outputValLengthBuffer[current];',
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
                  'this.valueBytes = resizeByteBuffer(this.valueBytes, 4 + (4 * length));',
                  'this.valueBytes.position(0);',
                  'this.valueBytes.putInt(length);',
-                 'this.valueBytes.asIntBuffer().put(buf.outputVals, buf.outputValIntLookAsideBuffer[current], length);',
-                 'value.reset(valueBytes.array(), 0, 4 + (4 * length));' ]
+                 'this.valueBytes.asIntBuffer().put(buf.outputVals, buf.outputValIntLookAsideBuffer[index], length);' ]
+    def getValueLengthForIterator(self):
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
+                 'return 4 + (4 * length);' ]
     def getPartitioner(self):
         return [ 'return (this.outputValLengthBuffer[index] & Integer.MAX_VALUE) % numReduceTasks;' ]
     def getKeyFor(self):
@@ -1712,15 +1736,19 @@ class FsvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getKeyLengthForIterator(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
     def getValueFillForIterator(self):
-        return [ 'final int length = buf.outputValLengthBuffer[current];',
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
                  'this.valueBytes = resizeByteBuffer(this.valueBytes, 4 + (4 * length) + (4 * length));',
                  'this.valueBytes.position(0);',
                  'this.valueBytes.putInt(length);',
-                 'this.valueBytes.asIntBuffer().put(buf.outputValIndices, buf.outputValIntLookAsideBuffer[current], length);',
+                 'this.valueBytes.asIntBuffer().put(buf.outputValIndices, buf.outputValIntLookAsideBuffer[index], length);',
                  'this.valueBytes.position(4 + (4 * length));',
-                 'this.valueBytes.asFloatBuffer().put(buf.outputValVals, buf.outputValFloatLookAsideBuffer[current], length);',
-                 'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (4 * length));' ]
+                 'this.valueBytes.asFloatBuffer().put(buf.outputValVals, buf.outputValFloatLookAsideBuffer[index], length);' ]
+    def getValueLengthForIterator(self):
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
+                 'return 4 + (4 * length) + (4 * length);' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
     def getKeyFor(self):
@@ -2053,15 +2081,19 @@ class BsvecVisitor(NativeTypeVisitor):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getKeyLengthForIterator(self):
+        raise NotImplementedError('sparse vector types not supported as keys')
     def getValueFillForIterator(self):
-        return [ 'final int length = buf.outputValLengthBuffer[current];',
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
                  'this.valueBytes = resizeByteBuffer(this.valueBytes, 4 + (4 * length) + (8 * length));',
                  'this.valueBytes.position(0);',
                  'this.valueBytes.putInt(length);',
-                 'this.valueBytes.asIntBuffer().put(buf.outputValIndices, buf.outputValIntLookAsideBuffer[current], length);',
+                 'this.valueBytes.asIntBuffer().put(buf.outputValIndices, buf.outputValIntLookAsideBuffer[index], length);',
                  'this.valueBytes.position(4 + (4 * length));',
-                 'this.valueBytes.asDoubleBuffer().put(buf.outputValVals, buf.outputValDoubleLookAsideBuffer[current], length);',
-                 'value.reset(valueBytes.array(), 0, 4 + (4 * length) + (8 * length));' ]
+                 'this.valueBytes.asDoubleBuffer().put(buf.outputValVals, buf.outputValDoubleLookAsideBuffer[index], length);' ]
+    def getValueLengthForIterator(self):
+        return [ 'final int length = buf.outputValLengthBuffer[index];',
+                 'return 4 + (4 * length) + (8 * length);' ]
     def getPartitioner(self):
         return [ 'return (this.outputValIndices[this.outputValIntLookAsideBuffer[index]] & Integer.MAX_VALUE) % numReduceTasks;' ]
     def getKeyFor(self):
@@ -2287,6 +2319,7 @@ def generateKernelCall(isMapper, keyType, valType, fp):
 def writeHeader(fp, isMapper):
     fp.write('package org.apache.hadoop.mapreduce;\n')
     fp.write('\n')
+    fp.write('import java.util.Stack;\n')
     fp.write('import java.io.IOException;\n')
     fp.write('import java.lang.InterruptedException;\n')
     fp.write('import org.apache.hadoop.mapreduce.TaskInputOutputContext;\n')
@@ -2981,7 +3014,6 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
             ('Mapper' if isMapper else 'Reducer'), 'Buffer' ] )
     fp.write('    public static class KeyValueIterator extends HadoopCLKeyValueIterator {\n')
     fp.write('        private final '+enclosingBufferName+' buf;\n')
-    fp.write('        private final TreeSet<Integer> sortedIndices;\n')
     fp.write('        private final DataInputBuffer key = new DataInputBuffer();\n')
     fp.write('        private final DataInputBuffer value = new DataInputBuffer();\n')
     fp.write('        private ByteBuffer keyBytes = null;\n')
@@ -3019,16 +3051,36 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('            }\n')
     fp.write('        }\n')
     fp.write('\n')
+    fp.write('        private ByteBuffer getKeyFor(int index) throws IOException {\n')
+    writeln(visitor(nativeOutputKeyType).getKeyFillForIterator(), 3, fp)
+    fp.write('            return this.keyBytes;\n')
+    fp.write('        }\n')
+    fp.write('\n')
+    fp.write('        private int getLengthForKey(int index) {\n')
+    writeln(visitor(nativeOutputKeyType).getKeyLengthForIterator(), 3, fp)
+    fp.write('        }\n')
+    fp.write('\n')
     fp.write('        @Override\n')
     fp.write('        public DataInputBuffer getKey() throws IOException {\n')
-    writeln(visitor(nativeOutputKeyType).getKeyFillForIterator(), 3, fp)
-    fp.write('            return key;\n')
+    fp.write('            final ByteBuffer tmp = getKeyFor(this.current);\n')
+    fp.write('            this.key.reset(tmp.array(), 0, getLengthForKey(this.current));\n')
+    fp.write('            return this.key;\n')
+    fp.write('        }\n')
+    fp.write('\n')
+    fp.write('       private ByteBuffer getValueFor(int index) throws IOException {\n')
+    writeln(visitor(nativeOutputValueType).getValueFillForIterator(), 3, fp)
+    fp.write('            return this.valueBytes;\n')
+    fp.write('        }\n')
+    fp.write('\n')
+    fp.write('        private int getLengthForValue(int index) {\n')
+    writeln(visitor(nativeOutputValueType).getValueLengthForIterator(), 3, fp)
     fp.write('        }\n')
     fp.write('\n')
     fp.write('        @Override\n')
     fp.write('        public DataInputBuffer getValue() throws IOException {\n')
-    writeln(visitor(nativeOutputValueType).getValueFillForIterator(), 3, fp)
-    fp.write('            return value;\n')
+    fp.write('            final ByteBuffer tmp = getValueFor(this.current);\n')
+    fp.write('            this.value.reset(tmp.array(), 0, getLengthForValue(this.current));\n')
+    fp.write('            return this.value;\n')
     fp.write('        }\n')
     fp.write('\n')
     fp.write('        @Override\n')
@@ -3052,12 +3104,54 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('\n')
     fp.write('        @Override\n')
     fp.write('        public boolean supportsBulkReads() {\n')
-    fp.write('            return false;\n')
+    fp.write('            return true;\n')
     fp.write('        }\n')
     fp.write('\n')
     fp.write('        @Override\n')
     fp.write('        public HadoopCLDataInput getBulkReader() {\n')
-    fp.write('            throw new UnsupportedOperationException();\n')
+    fp.write('            return new HadoopCLBulkMapperReader() {\n')
+    fp.write('                @Override\n')
+    fp.write('                public boolean hasMore() {\n')
+    fp.write('                    return !sortedIndices.isEmpty();\n')
+    fp.write('                }\n')
+    fp.write('                @Override\n')
+    fp.write('                public void nextKey() throws IOException {\n')
+    fp.write('                    if (this.current != -1) {\n')
+    fp.write('                        processed.push(this.current);\n')
+    fp.write('                    }\n')
+    fp.write('                    this.current = sortedIndices.pollFirst();\n')
+    fp.write('                    this.currentBuffer = getKeyFor(this.current);\n')
+    fp.write('                    this.currentBufferPosition = 0;\n')
+    fp.write('                }\n')
+    fp.write('                @Override\n')
+    fp.write('                public void nextValue() throws IOException {\n')
+    fp.write('                    this.currentBuffer = getValueFor(this.current);\n')
+    fp.write('                    this.currentBufferPosition = 0;\n')
+    fp.write('                }\n')
+    fp.write('                @Override\n')
+    fp.write('                public void prev() {\n')
+    fp.write('                    sortedIndices.add(this.current);\n')
+    fp.write('                    this.current = processed.pop();\n')
+    fp.write('                }\n')
+    fp.write('                @Override\n')
+    fp.write('                public void readFully(int[] b, int off, int len) {\n')
+    fp.write('                    this.currentBuffer.position(this.currentBufferPosition);\n')
+    fp.write('                    this.currentBufferPosition += (len * 4);\n')
+    fp.write('                    this.currentBuffer.asIntBuffer().get(b, off, len);\n')
+    fp.write('                }\n')
+    fp.write('                @Override\n')
+    fp.write('                public void readFully(double[] b, int off, int len) {\n')
+    fp.write('                    this.currentBuffer.position(this.currentBufferPosition);\n')
+    fp.write('                    this.currentBufferPosition += (len * 8);\n')
+    fp.write('                    this.currentBuffer.asDoubleBuffer().get(b, off, len);\n')
+    fp.write('                }\n')
+    fp.write('                @Override\n')
+    fp.write('                public int readInt() {\n')
+    fp.write('                    this.currentBuffer.position(this.currentBufferPosition);\n')
+    fp.write('                    this.currentBufferPosition += 4;\n')
+    fp.write('                    return this.currentBuffer.getInt();\n')
+    fp.write('                }\n')
+    fp.write('            };\n')
     fp.write('        }\n')
     fp.write('\n')
     fp.write('    }\n')
