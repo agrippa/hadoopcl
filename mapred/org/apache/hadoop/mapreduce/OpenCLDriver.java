@@ -114,26 +114,26 @@ public class OpenCLDriver {
   }
 
   private String profilesToString(IHadoopCLAccumulatedProfile profile,
-          long startupTime) {
+          long startupTime, long totalTime) {
+      StringBuilder sb = new StringBuilder();
+      sb.append("DIAGNOSTICS: ");
+      sb.append(this.clContext.typeName());
+      sb.append("(");
+      sb.append(this.clContext.getDeviceString());
+      sb.append("), runTime=");
+      sb.append(totalTime);
+      sb.append(" ms, startupTime=");
+      sb.append(startupTime);
+      sb.append(" ms");
       if (this.clContext.doHighLevelProfiling()) {
-          StringBuffer sb = new StringBuffer();
-          sb.append("DIAGNOSTICS: ");
-          sb.append(this.clContext.typeName());
-          sb.append("(");
-          sb.append(this.clContext.getDeviceString());
-          sb.append("), startupTime=");
-          sb.append(startupTime);
-          sb.append(" ms, ");
-          sb.append(profile.toString());
-          return sb.toString();
-      } else {
-          return "";
+          sb.append(", "+profile.toString());
       }
+      return sb.toString();
   }
 
   private String profilesToString(long overallTime, long startupTime,
           List<HadoopCLProfile> profiles) {
-      StringBuffer sb = new StringBuffer();
+      StringBuilder sb = new StringBuilder();
       sb.append("DIAGNOSTICS: ");
       sb.append(this.clContext.typeName());
       sb.append("(");
@@ -201,12 +201,12 @@ public class OpenCLDriver {
     // logger.log("entering run", this.clContext);
 
     if(this.clContext.getDevice() == null) {
+        final long start = System.currentTimeMillis();
         IHadoopCLAccumulatedProfile javaProfile = javaRun();
-        String profileStr = profilesToString(javaProfile, startupTime);
-        if (profileStr.length() > 0) {
-          System.out.println(profileStr);
-        }
+        final long stop = System.currentTimeMillis();
         OpenCLDriver.processingFinish = System.currentTimeMillis();
+        String profileStr = profilesToString(javaProfile, startupTime, stop - start);
+        System.out.println(profileStr);
         // LOG:PROFILE
         // logger.log("exiting run", this.clContext);
         return;
@@ -385,9 +385,7 @@ public class OpenCLDriver {
     // logger.log("exiting run", this.clContext);
     String profileStr = profilesToString(stop - start, startupTime,
         bufferRunner.profiles());
-    if (profileStr.length() > 0) {
-      System.out.println(profileStr);
-    }
+    System.out.println(profileStr);
   }
 
   /*

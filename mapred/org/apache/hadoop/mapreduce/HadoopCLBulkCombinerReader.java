@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.io.IOException;
 import java.io.DataInput;
 import org.apache.hadoop.mapred.MapTask.MapOutputBuffer;
 import java.nio.ByteBuffer;
@@ -19,6 +20,8 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     private final ByteBuffer bb;
     private IntBuffer intBuffer;
     private DoubleBuffer doubleBuffer;
+    private final IntBuffer absoluteIntBuffer;
+    private final DoubleBuffer absoluteDoubleBuffer;
 
     public HadoopCLBulkCombinerReader(int start, int end, int[] kvoffsets,
         int[] kvindices, byte[] kvbuffer, int bufvoid) {
@@ -30,6 +33,8 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
       this.bb = ByteBuffer.wrap(kvbuffer);
       this.intBuffer = this.bb.asIntBuffer();
       this.doubleBuffer = this.bb.asDoubleBuffer();
+      this.absoluteIntBuffer = this.bb.asIntBuffer();
+      this.absoluteDoubleBuffer = this.bb.asDoubleBuffer();
       this.currentBase = -1;
       this.currentOffset = -1;
       this.bufvoid = bufvoid;
@@ -41,7 +46,7 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     }
 
     @Override
-    public void nextKey() {
+    public void nextKey() throws IOException {
         int newCurr = current + 1;
         if (newCurr < end) {
             final int kvoff = kvoffsets[newCurr % kvoffsets.length];
@@ -52,7 +57,7 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     }
 
     @Override
-    public void nextValue() {
+    public void nextValue() throws IOException {
         if (this.current < end) {
             final int kvoff = kvoffsets[this.current % kvoffsets.length];
             this.currentBase = kvindices[kvoff + MapOutputBuffer.VALSTART];
@@ -76,9 +81,32 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     }
 
     private void repositionBuffer() {
-        bb.position(currentAbsolutePosition());
-        intBuffer = bb.asIntBuffer();
-        doubleBuffer = bb.asDoubleBuffer();
+        final int pos = currentAbsolutePosition();
+        bb.position(pos);
+    }
+
+    private IntBuffer repositionIntBuffer() {
+        final int pos = currentAbsolutePosition();
+        if (pos % 4 == 0) {
+            absoluteIntBuffer.position(pos / 4);
+            return absoluteIntBuffer;
+        } else {
+            repositionBuffer();
+            intBuffer = bb.asIntBuffer();
+            return intBuffer;
+        }
+    }
+
+    private DoubleBuffer repositionDoubleBuffer() {
+        final int pos = currentAbsolutePosition();
+        if (pos % 8 == 0) {
+            absoluteDoubleBuffer.position(pos / 8);
+            return absoluteDoubleBuffer;
+        } else {
+            repositionBuffer();
+            doubleBuffer = bb.asDoubleBuffer();
+            return doubleBuffer;
+        }
     }
 
     @Override
@@ -149,8 +177,7 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
 
             ByteBuffer.wrap(aggregate).asIntBuffer().get(b, off, len);
         } else {
-            repositionBuffer();
-            intBuffer.get(b, off, len);
+            repositionIntBuffer().get(b, off, len);
             this.currentOffset += lenInBytes;
         }
     }
@@ -171,8 +198,7 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
 
             ByteBuffer.wrap(aggregate).asDoubleBuffer().get(b, off, len);
         } else {
-            repositionBuffer();
-            doubleBuffer.get(b, off, len);
+            repositionDoubleBuffer().get(b, off, len);
             this.currentOffset += lenInBytes;
         }
     }

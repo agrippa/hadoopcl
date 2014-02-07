@@ -988,6 +988,7 @@ public class MapTask extends Task {
     private volatile Throwable sortSpillException = null;
     private int softRecordLimit;
     private int softBufferLimit;
+    private final float quickRestartPercent;
     private int minSpillsForCombine;
     private final IndexedSorter sorter;
     private final ReentrantLock spillLock = new ReentrantLock();
@@ -1032,6 +1033,7 @@ public class MapTask extends Task {
           initialspillper = spillper;
       }
 
+      quickRestartPercent = job.getFloat("io.sort.quickrestart", (float)0.3);
       final float recper = job.getFloat("io.sort.record.percent",(float)0.05);
       final int sortmb = job.getInt("io.sort.mb", 100);
       if (spillper > (float)1.0 || spillper < (float)0.0) {
@@ -1595,7 +1597,7 @@ public class MapTask extends Task {
         int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
         double newKvRatio = (double)newDiff / (double)kvoffsets.length;
         double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
-        if (newKvRatio > 0.30) {
+        if (newKvRatio > quickRestartPercent) {
           LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
           kvend = kvindex;
           bufend = bufmark;
