@@ -24,7 +24,7 @@ public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
         return super.space();
     }
 
-    public void setDoingBulkRead() {
-        this.doingBulkRead = true;
+    public void setDoingBulkRead(boolean val) {
+        this.doingBulkRead = valw;
     }
 }

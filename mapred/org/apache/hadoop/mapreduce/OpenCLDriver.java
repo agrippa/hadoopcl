@@ -182,6 +182,40 @@ public class OpenCLDriver {
       return buffer;
   }
 
+  private HadoopCLBuffer handleFullBuffer(HadoopCLInputBuffer buffer,
+          int itemCount, HadoopCLKernel kernel) {
+      HadoopCLBuffer newBuffer;
+      System.gc();
+      buffer.getProfile().stopRead(buffer);
+      buffer.getProfile().addItemsProcessed(itemCount);
+      bufferRunner.addWork(buffer);
+
+       // LOG:PROFILE
+       // logger.log("start allocating input", this.clContext);
+      if (this.nAllocatedInputBuffers < this.nInputBuffers) {
+          newBuffer = allocateNewInputBuffer(kernel.getInputBufferClass());
+          newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
+      } else {
+          newBuffer = inputManager.poll();
+          if (newBuffer == null) {
+              synchronized(inputManager) {
+                  while (inputManager.isEmpty()) {
+                      inputManager.wait();
+                  }
+              }
+              newBuffer = inputManager.poll();
+          }
+          newBuffer.reset();
+      }
+      // LOG:PROFILE
+      // logger.log("done allocating input", this.clContext);
+
+      newBuffer.tracker = new HadoopCLGlobalId(bufferCounter++);
+      newBuffer.resetProfile();
+      newBuffer.setDoingBulkRead(true);
+      newBuffer.getProfile().startRead(newBuffer);
+  }
+
   /**
    * Expert users can override this method for more complete control over the
    * execution of the Mapper.
@@ -268,93 +302,29 @@ public class OpenCLDriver {
     
     buffer.getProfile().startRead(buffer);
 
+    int itemCount = 0;
     if (this.context.supportsBulkReads()) {
-       HadoopCLDataInput stream = this.context.getBulkReader();
-       int itemCount = 0;
-       buffer.setDoingBulkRead();
-       while (stream.hasMore()) {
-           itemCount += buffer.bulkFill(stream);
+        HadoopCLDataInput stream = this.context.getBulkReader();
+        buffer.setDoingBulkRead();
+        while (stream.hasMore()) {
+            itemCount += buffer.bulkFill(stream);
 
-           buffer.getProfile().addItemsProcessed(itemCount);
-           if (this.clContext.isMapper()) {
-               OpenCLDriver.inputsRead += itemCount;
-           }
+            buffer.getProfile().addItemsProcessed(itemCount);
+            if (this.clContext.isMapper()) {
+                OpenCLDriver.inputsRead += itemCount;
+            }
 
-           if (buffer.isFull(this.context)) {
-               System.gc();
-               buffer.getProfile().stopRead(buffer);
-               buffer.getProfile().addItemsProcessed(itemCount);
-               bufferRunner.addWork(buffer);
-               itemCount = 0;
-
-               if (nAllocatedInputBuffers < this.nInputBuffers) {
-                   buffer = allocateNewInputBuffer(kernel.getInputBufferClass());
-                   buffer.init(kernel.getOutputPairsPerInput(), clContext);
-               } else {
-                   buffer = inputManager.poll();
-                   if (buffer == null) {
-                       synchronized(inputManager) {
-                           while (inputManager.isEmpty()) {
-                               inputManager.wait();
-                           }
-                       }
-                       buffer = inputManager.poll();
-                   }
-                   buffer.reset();
-               }
-               // LOG:PROFILE
-               // logger.log("done allocating input", this.clContext);
-
-               buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
-               buffer.resetProfile();
-               buffer.setDoingBulkRead();
-               buffer.getProfile().startRead(buffer);
-           }
-       }
-       buffer.getProfile().stopRead(buffer);
-       buffer.getProfile().addItemsProcessed(itemCount);
+            if (buffer.isFull(this.context)) {
+                buffer = handleFullBuffer(buffer, itemCount, kernel);
+                itemCount = 0;
+            }
+        }
     } else {
         final boolean isMapper = this.clContext.isMapper();
-        int itemCount = 0;
         while (this.context.nextKeyValue()) {
             if (buffer.isFull(this.context)) {
-
-                // if (OpenCLDriver.profileMemory) {
-                //     System.err.println(getDetailedSpaceStats(globalSpace));
-                // }
-                // long spaceEstimate = estimateSpace(inputManager,
-                //     outputManager, th0, runner, buffer);
-                // System.err.println("DIAGNOSTICS: OpenCLDriver estimating space usage of "+spaceEstimate+" bytes");
-
-                System.gc();
-                buffer.getProfile().stopRead(buffer);
-                buffer.getProfile().addItemsProcessed(itemCount);
-                bufferRunner.addWork(buffer);
+                buffer = handleFullBuffer(buffer, itemCount, kernel);
                 itemCount = 0;
-
-                // LOG:PROFILE
-                // logger.log("start allocating input", this.clContext);
-                if (nAllocatedInputBuffers < this.nInputBuffers) {
-                    buffer = allocateNewInputBuffer(kernel.getInputBufferClass());
-                    buffer.init(kernel.getOutputPairsPerInput(), clContext);
-                } else {
-                    buffer = inputManager.poll();
-                    if (buffer == null) {
-                        synchronized(inputManager) {
-                            while (inputManager.isEmpty()) {
-                                inputManager.wait();
-                            }
-                        }
-                        buffer = inputManager.poll();
-                    }
-                    buffer.reset();
-                }
-                // LOG:PROFILE
-                // logger.log("done allocating input", this.clContext);
-
-                buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
-                buffer.resetProfile();
-                buffer.getProfile().startRead(buffer);
             }
 
             buffer.addKeyAndValue(this.context);
@@ -363,9 +333,9 @@ public class OpenCLDriver {
             }
             itemCount++;
         }
-        buffer.getProfile().stopRead(buffer);
-        buffer.getProfile().addItemsProcessed(itemCount);
     }
+    buffer.getProfile().stopRead(buffer);
+    buffer.getProfile().addItemsProcessed(itemCount);
 
     this.context.signalDoneReading();
 
