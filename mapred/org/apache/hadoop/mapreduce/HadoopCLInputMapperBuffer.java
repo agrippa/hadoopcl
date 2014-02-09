@@ -46,6 +46,7 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
         addTypedKey(((Context)context).getCurrentKey());
         addTypedValue(((Context)context).getCurrentValue());
         this.nPairs++;
+        this.isFull |= this.nPairs == this.capacity;
     }
 
     @Override

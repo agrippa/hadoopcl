@@ -1171,6 +1171,7 @@ public class MapTask extends Task {
       for ( ; index < coll.end() &&
               ((kvindex + 1) % kvoffsets.length) != kvstart; index++) {
         if (!coll.isValid(index)) continue;
+
         final int partition = coll.getPartitionFor(index, partitions);
         if (partition < 0 || partition >= partitions) {
           throw new IOException("Illegal partition");

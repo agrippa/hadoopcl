@@ -2666,32 +2666,32 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, ha
     fp.write('        } else {\n')
     if isMapper:
         if nativeInputValueType == 'svec':
-            fp.write('            SparseVectorWritable curr = (SparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
             fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount +\n')
+            fp.write('                    ((SparseVectorWritable)((Context)context).getCurrentValue()).size() > this.inputValIndices.length;\n')
             fp.write('            }\n')
         elif nativeInputValueType == 'bsvec':
-            fp.write('            BSparseVectorWritable curr = (BSparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
             fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount +\n')
+            fp.write('                    ((BSparseVectorWritable)((Context)context).getCurrentValue()).size() > this.inputValIndices.length;\n')
             fp.write('            }\n')
         elif nativeInputValueType == 'ivec':
-            fp.write('            IntegerVectorWritable curr = (IntegerVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
             fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputVal.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount +\n')
+            fp.write('                    ((IntegerVectorWritable)((Context)context).getCurrentValue()).size() > this.inputVal.length;\n')
             fp.write('            }\n')
         elif nativeInputValueType == 'fsvec':
-            fp.write('            FSparseVectorWritable curr = (FSparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
             fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount +\n')
+            fp.write('                    ((FSparseVectorWritable)((Context)context).getCurrentValue()).size() > this.inputValIndices.length;\n')
             fp.write('            }\n')
 
         else:
@@ -2703,8 +2703,9 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, ha
         else:
           keysName = 'inputKeys'
         if isVariableLength(nativeInputValueType):
-          fp.write('            '+hadoopInputValueType+'Writable curr = ('+hadoopInputValueType+'Writable)reduceContext.getCurrentValue();\n')
-          fp.write('            return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputValLookAsideBuffer.length || this.individualInputValsCount + curr.size() > this.inputValIndices.length);\n')
+          fp.write('            return (this.nKeys == this.'+keysName+'.length ||\n')
+          fp.write('                this.nVals == this.inputValLookAsideBuffer.length ||\n')
+          fp.write('                this.individualInputValsCount + (('+hadoopInputValueType+'Writable)reduceContext.getCurrentValue()).size() > this.inputValIndices.length);\n')
         elif nativeInputValueType == 'pair' or nativeInputValueType == 'ipair':
           fp.write('            return (this.nKeys == this.'+keysName+'.length || this.nVals == this.inputVals1.length);\n')
         else:

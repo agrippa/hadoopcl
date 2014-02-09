@@ -109,9 +109,9 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
 
-        this.toRun.add(input);
+        // this.toRun.add(input);
         synchronized (this.somethingHappenedLocal) {
-            // this.toRun.add(input);
+            this.toRun.add(input);
             this.somethingHappenedLocal.set(true);
             this.somethingHappenedLocal.notify();
         }
