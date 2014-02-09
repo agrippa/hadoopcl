@@ -39,6 +39,7 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   private StatusReporter reporter;
   private OutputCommitter committer;
   private final ContextType ctxType;
+  private final String label;
 
   public static enum ContextType {
       Mapper, Reducer, Combiner
@@ -47,12 +48,14 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   public TaskInputOutputContext(Configuration conf, TaskAttemptID taskid,
                                 RecordWriter<KEYOUT,VALUEOUT> output,
                                 OutputCommitter committer,
-                                StatusReporter reporter, ContextType setType) {
+                                StatusReporter reporter, ContextType setType,
+                                String label) {
     super(conf, taskid);
     this.output = output;
     this.reporter = reporter;
     this.committer = committer;
     this.ctxType = setType;
+    this.label = label;
   }
 
   public abstract boolean supportsBulkReads();
@@ -85,6 +88,10 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
 
   public ContextType getContextType() {
       return this.ctxType;
+  }
+
+  public String getLabel() {
+      return this.label;
   }
 
   /**

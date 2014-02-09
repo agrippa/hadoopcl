@@ -188,17 +188,17 @@ public abstract class HadoopCLBuffer {
               accumAttempts += p.nKernelAttempts();
               nItemsProcessed += p.nItemsProcessed();
             }
-            sb.append(", nBuffers=");
+            sb.append(", nBuffers = ");
             sb.append(profiles.size());
-            sb.append(", readTime=");
+            sb.append(", readTime = ");
             sb.append(accumRead);
-            sb.append(" ms, kernelTime=");
+            sb.append(" ms, kernelTime = ");
             sb.append(accumKernel);
-            sb.append(" ms, writeTime=");
+            sb.append(" ms, writeTime = ");
             sb.append(accumWrite);
-            sb.append(" ms, kernelAttempts=");
+            sb.append(" ms, kernelAttempts = ");
             sb.append(accumAttempts);
-            sb.append(", itemsProcessed=");
+            sb.append(", itemsProcessed = ");
             sb.append(nItemsProcessed);
           }
           return sb.toString();

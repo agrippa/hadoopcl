@@ -85,15 +85,15 @@ public class HadoopCLAccumulatedProfile implements IHadoopCLAccumulatedProfile {
     @Override
     public String toString() {
         StringBuffer sb = new StringBuffer();
-        sb.append("runTime=");
+        sb.append("runTime = ");
         sb.append(this.overallTime);
-        sb.append(" ms, readTime=");
+        sb.append(" ms, readTime = ");
         sb.append(this.accumRead);
-        sb.append(" ms, kernelTime=");
+        sb.append(" ms, kernelTime = ");
         sb.append(this.accumKernel);
-        sb.append(" ms, writeTime=");
+        sb.append(" ms, writeTime = ");
         sb.append(this.accumWrite);
-        sb.append(" ms, keysProcessed=");
+        sb.append(" ms, keysProcessed = ");
         sb.append(this.accumKeys);
         return sb.toString();
     }

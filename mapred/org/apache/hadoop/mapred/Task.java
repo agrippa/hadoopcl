@@ -1348,7 +1348,8 @@ abstract public class Task implements Writable, Configurable {
             org.apache.hadoop.mapreduce.StatusReporter.class,
             RawComparator.class,
             Class.class,
-            Class.class, ContextType.class, MapTask.MapOutputBuffer.class });
+            Class.class, ContextType.class, MapTask.MapOutputBuffer.class,
+            String.class });
     } catch (NoSuchMethodException nme) {
       throw new IllegalArgumentException("Can't find constructor");
     }
@@ -1372,13 +1373,12 @@ abstract public class Task implements Writable, Configurable {
                       ContextType setType, MapTask.MapOutputBuffer caller
   ) throws IOException, ClassNotFoundException {
     try {
-
       return contextConstructor.newInstance(reducer, job, taskId,
                                             rIter, inputKeyCounter, 
                                             inputValueCounter, output, 
                                             committer, reporter, comparator, 
                                             keyClass, valueClass, setType,
-                                            caller);
+                                            caller, Thread.currentThread().getName());
     } catch (InstantiationException e) {
       throw new IOException("Can't create Context", e);
     } catch (InvocationTargetException e) {

@@ -44,7 +44,7 @@ public class BufferRunner implements Runnable {
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
     // private final KernelManager freeKernels; // exclusive
-    private final List<HadoopCLKernel> freeKernels;
+    private final LinkedList<HadoopCLKernel> freeKernels;
 
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> toRun;
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
@@ -66,7 +66,7 @@ public class BufferRunner implements Runnable {
 
     public BufferRunner(ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
-            List<HadoopCLKernel> freeKernels,
+            LinkedList<HadoopCLKernel> freeKernels,
             HadoopOpenCLContext clContext) {
         this.freeInputBuffers = freeInputBuffers;
         this.freeOutputBuffers = freeOutputBuffers;
@@ -98,7 +98,7 @@ public class BufferRunner implements Runnable {
 
     private void log(String s) {
         if (enableLogs) {
-            System.err.println(System.currentTimeMillis()+"|"+this.clContext.typeName()+" "+s);
+            System.err.println(System.currentTimeMillis()+"|"+this.clContext.verboseTypeName()+" "+s);
         }
     }
 
@@ -427,8 +427,8 @@ public class BufferRunner implements Runnable {
                 } else {
                     forwardProgress = true;
                     profiles.add(inputBuffer.getProfile());
-                    freeInputBuffers.add(inputBuffer);
                     synchronized(freeInputBuffers) {
+                        freeInputBuffers.add(inputBuffer);
                         freeInputBuffers.notify();
                     }
                     // freeInputBuffers.free(inputBuffer);
@@ -452,6 +452,8 @@ public class BufferRunner implements Runnable {
         if (local) {
             return;
         } else {
+            // LOG:DIAGNOSTIC
+            // log("Waiting for more work");
             synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
@@ -467,6 +469,8 @@ public class BufferRunner implements Runnable {
                 // OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
                 this.somethingHappenedLocal.set(false);
             }
+            // LOG:DIAGNOSTIC
+            // log("Done waiting for more work");
         }
     }
 
@@ -550,6 +554,9 @@ public class BufferRunner implements Runnable {
             }
         }
 
+        // LOG:DIAGNOSTIC
+        // log("    Exiting main BufferRunner loop with "+toWrite.size()+" output buffers remaining");
+
         if (!toWrite.isEmpty()) {
             if (this.clContext.isMapper()) {
                 FSDataOutputStream out = null;
@@ -612,6 +619,8 @@ public class BufferRunner implements Runnable {
                         // }
                         if (!forwardProgress) {
                             final OutputBufferSoFar soFar = toWrite.removeFirst();
+                            // LOG:DIAGNOSTIC
+                            // log("      No forward progress made so running combiner directly from mapper on "+soFar.buffer().id);
                             final HadoopCLOutputBuffer buffer = soFar.buffer();
                             HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(
                                 soFar.soFar(), partitions);
@@ -624,6 +633,8 @@ public class BufferRunner implements Runnable {
                                 combineCollector.setWriter(writer);
                                 combinerRunner.combine(iter, combineCollector);
                             }
+                            // LOG:DIAGNOSTIC
+                            // log("      Finished combine from mapper on "+soFar.buffer().id);
                         }
                     }
 
@@ -672,6 +683,8 @@ public class BufferRunner implements Runnable {
                     }
                 }
             }
+            // LOG:DIAGNOSTIC
+            // log("BufferRunner exiting");
         }
     }
 

@@ -111,9 +111,9 @@ public class OpenCLDriver {
       sb.append(this.clContext.typeName());
       sb.append("(");
       sb.append(this.clContext.getDeviceString());
-      sb.append("), runTime=");
+      sb.append("), runTime = ");
       sb.append(totalTime);
-      sb.append(" ms, startupTime=");
+      sb.append(" ms, startupTime = ");
       sb.append(startupTime);
       sb.append(" ms");
       if (this.clContext.doHighLevelProfiling()) {
@@ -129,9 +129,9 @@ public class OpenCLDriver {
       sb.append(this.clContext.typeName());
       sb.append("(");
       sb.append(this.clContext.getDeviceString());
-      sb.append("), runTime=");
+      sb.append("), runTime = ");
       sb.append(overallTime);
-      sb.append(" ms, startupTime=");
+      sb.append(" ms, startupTime = ");
       sb.append(startupTime);
       sb.append(" ms");
       if (!profiles.isEmpty()) {
@@ -167,7 +167,6 @@ public class OpenCLDriver {
       try {
           buffer = this.clContext.inputBufferConstructor.newInstance(
               this.clContext, nAllocatedInputBuffers);
-          // buffer = toInstantiate.newInstance();
       } catch (Exception e) {
           throw new RuntimeException(e);
       }
@@ -177,7 +176,9 @@ public class OpenCLDriver {
 
   private int bufferCounter = 0;
   private HadoopCLInputBuffer handleFullBuffer(HadoopCLInputBuffer buffer,
-          int itemCount, BufferRunner bufferRunner, final ConcurrentLinkedQueue<HadoopCLInputBuffer> inputManager) throws InterruptedException {
+          int itemCount, BufferRunner bufferRunner,
+          final ConcurrentLinkedQueue<HadoopCLInputBuffer> inputManager)
+              throws InterruptedException {
       HadoopCLInputBuffer newBuffer;
       System.gc();
       buffer.getProfile().stopRead(buffer);
@@ -255,7 +256,7 @@ public class OpenCLDriver {
     // final BufferManager<HadoopCLInputBuffer> inputManager;
     final BufferManager<HadoopCLOutputBuffer> outputManager;
     // final KernelManager kernelManager;
-    final List<HadoopCLKernel> kernelManager;
+    final LinkedList<HadoopCLKernel> kernelManager;
 
     BufferRunner bufferRunner = null;
     Thread bufferRunnerThread = null;

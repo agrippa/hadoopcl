@@ -37,6 +37,7 @@ public class HadoopOpenCLContext {
     private final boolean enableProfilingPrints;
     private final TaskInputOutputContext hadoopContext;
     private final String type;
+    private final String verboseType;
     private int threadsPerGroup;
     private OpenCLDevice device;
     private int deviceId;
@@ -80,6 +81,7 @@ public class HadoopOpenCLContext {
         enableProfilingPrints = false;
         hadoopContext = null;
         type = "scheduler";
+        verboseType = "scheduler";
         inputBufferSize = 0;
         outputBufferSize = 0;
         inputValMultiplier = 0;
@@ -111,9 +113,11 @@ public class HadoopOpenCLContext {
       if (this.hadoopContext.getContextType() == ContextType.Combiner) {
         this.isCombiner = true;
         this.type = "combiner";
+        this.verboseType = "combiner-"+this.hadoopContext.getLabel();
       } else {
         this.isCombiner = false;
         this.type = contextType;
+        this.verboseType = type;
       }
 
       Configuration conf = this.hadoopContext.getConfiguration();
@@ -301,6 +305,10 @@ public class HadoopOpenCLContext {
 
     public boolean isMapper() {
         return !isCombiner() && this.type.equals("mapper");
+    }
+
+    public String verboseTypeName() {
+        return this.verboseType;
     }
 
     public String typeName() {

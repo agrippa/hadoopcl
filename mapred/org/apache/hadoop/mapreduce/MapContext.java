@@ -45,7 +45,7 @@ public class MapContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                     OutputCommitter committer,
                     StatusReporter reporter,
                     InputSplit split) {
-    super(conf, taskid, writer, committer, reporter, ContextType.Mapper);
+    super(conf, taskid, writer, committer, reporter, ContextType.Mapper, "");
     this.reader = reader;
     this.split = split;
   }
