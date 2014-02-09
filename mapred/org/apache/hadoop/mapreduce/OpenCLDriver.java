@@ -256,7 +256,7 @@ public class OpenCLDriver {
     // final BufferManager<HadoopCLInputBuffer> inputManager;
     final BufferManager<HadoopCLOutputBuffer> outputManager;
     // final KernelManager kernelManager;
-    final LinkedList<HadoopCLKernel> kernelManager;
+    final ConcurrentLinkedQueue<HadoopCLKernel> kernelManager;
 
     BufferRunner bufferRunner = null;
     Thread bufferRunnerThread = null;
@@ -264,7 +264,7 @@ public class OpenCLDriver {
     try {
         outputManager = new BufferManager<HadoopCLOutputBuffer>("\""+this.clContext.typeName()+" outputs\"", nOutputBuffers,
             globalSpace, this.clContext, this.clContext.outputBufferConstructor);
-        kernelManager = new LinkedList<HadoopCLKernel>();
+        kernelManager = new ConcurrentLinkedQueue<HadoopCLKernel>();
         // kernelManager = new KernelManager("\""+this.clContext.typeName()+"kernels\"", nKernels,
         //         this.clContext, this.clContext.thisKernelConstructor);
 

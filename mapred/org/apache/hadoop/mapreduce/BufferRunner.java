@@ -44,7 +44,8 @@ public class BufferRunner implements Runnable {
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
     // private final KernelManager freeKernels; // exclusive
-    private final LinkedList<HadoopCLKernel> freeKernels;
+    // private final LinkedList<HadoopCLKernel> freeKernels;
+    private final ConcurrentLinkedQueue<HadoopCLKernel> freeKernels;
 
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> toRun;
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
@@ -66,7 +67,8 @@ public class BufferRunner implements Runnable {
 
     public BufferRunner(ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
-            LinkedList<HadoopCLKernel> freeKernels,
+            // LinkedList<HadoopCLKernel> freeKernels,
+            ConcurrentLinkedQueue<HadoopCLKernel> freeKernels,
             HadoopOpenCLContext clContext) {
         this.freeInputBuffers = freeInputBuffers;
         this.freeOutputBuffers = freeOutputBuffers;
