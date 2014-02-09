@@ -15,7 +15,7 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public HadoopCLOutputBuffer(HadoopOpenCLContext clContext, Integer id) {
         super(clContext, id);
         this.memIncr = new int[1];
-        this.outputIterMarks = new int[this.clContext.getOutputBufferSize()];
+        this.outputIterMarkers = new int[this.clContext.getOutputBufferSize()];
     }
 
     public abstract int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar)

@@ -168,7 +168,7 @@ class PrimitiveVisitor(NativeTypeVisitor):
         self.typ = typ
 
     def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
-        return [ 'public '+('final' if isFinal else '')+'+self.typ+'[] '+basename+'s;' ]
+        return [ 'public '+('final' if isFinal else '')+' '+self.typ+'[] '+basename+'s;' ]
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
         if forceNull:
             initializer = 'null'
@@ -848,13 +848,13 @@ class SvecVisitor(NativeTypeVisitor):
             buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'Indices;')
             buf.append('public '+('final' if isFinal else '')+' double[] '+basename+'Vals;')
         else:
-            buf.append('public '+('final' if isFinal else '')+'int[] '+basename+'IntLookAsideBuffer;')
-            buf.append('public '+('final' if isFinal else '')+'int[] '+basename+'DoubleLookAsideBuffer;')
-            buf.append('public '+('final' if isFinal else '')+'int[] '+basename+'Indices;')
-            buf.append('public '+('final' if isFinal else '')+'double[] '+basename+'Vals;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'IntLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'DoubleLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'Indices;')
+            buf.append('public '+('final' if isFinal else '')+' double[] '+basename+'Vals;')
 
         if not isInput:
-            buf.append('public '+('final' if isFinal else '')+'int[] outputValLengthBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] outputValLengthBuffer;')
         return buf
 
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
@@ -2434,7 +2434,7 @@ def writeBulkFillMethod(fp, nativeInputKeyType, nativeInputValueType, isMapper):
     fp.write('        return nread;\n')
     fp.write('    }\n')
 
-def writeInitBeforeKernelMethod(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
+def writeOutputBufferConstructor(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
     fp.write('    @Override\n')
     fp.write('    public '+outputBufferClassName(isMapper, nativeOutputKeyType, nativeOutputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')

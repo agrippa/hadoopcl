@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.io.IOException;
 
 public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
-    protected final boolean doingBulkRead = false;
+    protected final boolean doingBulkRead;
     protected boolean isFull = false;
 
     public HadoopCLInputBuffer(HadoopOpenCLContext clContext, Integer id) {
