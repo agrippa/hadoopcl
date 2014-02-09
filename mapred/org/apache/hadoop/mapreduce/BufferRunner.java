@@ -43,7 +43,8 @@ public class BufferRunner implements Runnable {
     private final List<HadoopCLProfile> profiles;
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
-    private final KernelManager freeKernels; // exclusive
+    // private final KernelManager freeKernels; // exclusive
+    private final List<HadoopCLKernel> freeKernels;
 
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> toRun;
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
@@ -65,7 +66,7 @@ public class BufferRunner implements Runnable {
 
     public BufferRunner(ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
-            KernelManager freeKernels,
+            List<HadoopCLKernel> freeKernels,
             HadoopOpenCLContext clContext) {
         this.freeInputBuffers = freeInputBuffers;
         this.freeOutputBuffers = freeOutputBuffers;
@@ -118,8 +119,7 @@ public class BufferRunner implements Runnable {
     }
 
     private HadoopCLKernel newKernelInstance() {
-        AllocManager.TypeAlloc<HadoopCLKernel> result = freeKernels.alloc();
-        return (result == null ? null : result.obj());
+        return freeKernels.poll();
     }
 
     // private List<HadoopCLKernel> getCompleteKernels() {
@@ -269,7 +269,7 @@ public class BufferRunner implements Runnable {
         } else {
             // LOG:DIAGNOSTIC
             // log("      Releasing kernel "+complete.id+" due to completedAll="+completedAll);
-            freeKernels.free(complete);
+            freeKernels.add(complete);
         }
     }
 
@@ -423,7 +423,7 @@ public class BufferRunner implements Runnable {
                     // LOG:DIAGNOSTIC
                     // log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing kernel "+k.id);
                     toRunPrivate.add(inputBuffer);
-                    freeKernels.free(k);
+                    freeKernels.add(k);
                 } else {
                     forwardProgress = true;
                     profiles.add(inputBuffer.getProfile());
@@ -474,7 +474,21 @@ public class BufferRunner implements Runnable {
     public void run() {
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
-        this.freeKernels.preallocateKernels();
+        for (int i = 0; i < this.clContext.getNKernels(); i++) {
+            HadoopCLKernel newKernel;
+            try {
+                newKernel = this.clContext.thisKernelConstructor.newInstance(
+                        this.clContext, i);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            newKernel.doEntrypointInit(this.clContext.getDevice(),
+                this.clContext.getContext().getTaskAttemptID().getTaskID().getId(),
+                this.clContext.getContext().getTaskAttemptID().getId());
+            this.freeKernels.add(newKernel);
+        }
+
+        // this.freeKernels.preallocateKernels();
         OpenCLDevice combinerDevice;
         if (this.clContext.isMapper() && this.clContext.jobHasCombiner() &&
                 (combinerDevice = this.clContext.getCombinerDevice()) != null) {
