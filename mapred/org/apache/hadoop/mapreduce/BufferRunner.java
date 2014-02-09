@@ -103,14 +103,14 @@ public class BufferRunner implements Runnable {
     }
 
     public void addWork(HadoopCLInputBuffer input) {
+        // LOG:DIAGNOSTIC
+        // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
+
         // possible if getting DONE signal from main
         if (!(input instanceof MainDoneMarker)) {
             input.clearNWrites();
         }
-        // LOG:DIAGNOSTIC
-        // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
 
-        // this.toRun.add(input);
         synchronized (this.somethingHappenedLocal) {
             this.toRun.add(input);
             this.somethingHappenedLocal.set(true);
@@ -413,7 +413,6 @@ public class BufferRunner implements Runnable {
 
         HadoopCLInputBuffer inputBuffer;
         if ((inputBuffer = getInputBuffer()) != null) {
-        // while ((inputBuffer = getInputBuffer()) != null) {
             HadoopCLKernel k = newKernelInstance();
             if (k != null) {
                 // LOG:DIAGNOSTIC
@@ -439,11 +438,8 @@ public class BufferRunner implements Runnable {
                 // LOG:DIAGNOSTIC
                 // log("    Failed to allocate kernel, marking "+inputBuffer.id+" for retry");
                 toRunPrivate.add(inputBuffer);
-                // break;
-                return forwardProgress;
             }
         }
-
         return forwardProgress;
     }
 
