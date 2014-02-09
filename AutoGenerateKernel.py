@@ -2573,11 +2573,11 @@ def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValue
 
     fp.write('    }\n')
 
-def writeInitMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
+def writeKernelConstructor(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
     fp.write('    @Override\n')
-    fp.write('    public void init(HadoopOpenCLContext clContext) {\n')
-    fp.write('        baseInit(clContext);\n')
+    fp.write('    public '+kernelClassName(isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')
+    fp.write('        super(clContext, id);\n')
     # Just init to false, it gets actually set in fill
     fp.write('        this.setStrided(false);\n')
     fp.write('\n')
@@ -3280,7 +3280,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     writePostKernelSetupMethod(kernelfp, isMapper, nativeOutputKeyType, nativeOutputValueType)
     writePreKernelSetupMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
-    writeInitMethod(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
+    writeKernelConstructor(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
     kernelfp.write('    public Class<? extends HadoopCLInputBuffer> getInputBufferClass() { return '+inputBufferClassName(isMapper, inputKeyType, inputValueType)+'.class; }\n')
     kernelfp.write('    public Class<? extends HadoopCLOutputBuffer> getOutputBufferClass() { return '+outputBufferClassName(isMapper, outputKeyType, outputValueType)+'.class; }\n')
