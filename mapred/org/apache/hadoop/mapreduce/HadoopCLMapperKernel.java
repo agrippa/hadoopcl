@@ -10,16 +10,15 @@ import com.amd.aparapi.Kernel;
 import com.amd.aparapi.Range;
 
 public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
-
-    protected int deviceID;
-    public int isGPU;
+    protected final int deviceID;
+    public final int isGPU;
     public int[] nWrites;
     public int nPairs;
 
-    public void baseInit(HadoopOpenCLContext clContext) {
-        this.clContext = clContext;
-        this.deviceID = this.clContext.getDeviceId();
+    public HadoopCLMapperKernel(HadoopOpenCLContext clContext, Integer id) {
+        super(clContext, id);
         this.isGPU = this.clContext.isGPU();
+        this.deviceID = this.clContext.getDeviceId();
     }
 
     /* Type specific stuff */

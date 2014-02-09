@@ -16,39 +16,40 @@ import org.apache.hadoop.io.HadoopCLResizableFloatArray;
 public abstract class HadoopCLKernel extends Kernel {
     // protected final static AtomicInteger idIncr = new AtomicInteger(0);
     // public final int id = HadoopCLKernel.idIncr.getAndIncrement();
-    public int id = -1;
+    public final int id;
     public HadoopCLGlobalId tracker;
 
-    protected HadoopOpenCLContext clContext;
-    protected IHadoopCLAccumulatedProfile javaProfile;
+    protected final HadoopOpenCLContext clContext;
+    protected final IHadoopCLAccumulatedProfile javaProfile;
     protected HadoopCLProfile openclProfile;
 
-    public double[] globalsVal;
-    // public float[] globalsFval;
-    public int[] globalsInd;
-    public int[] globalIndices;
-    public int nGlobals;
+    public final double[] globalsVal;
+    public final int[] globalsInd;
+    public final int[] globalIndices;
+    public final int nGlobals;
 
-    public int[] globalsMapInd;
-    public double[] globalsMapVal;
-    // public float[] globalsMapFval;
-    public int[] globalsMap;
-    public int nGlobalBuckets;
+    public final int[] globalsMapInd;
+    public final double[] globalsMapVal;
+    public final int[] globalsMap;
+    public final int nGlobalBuckets;
 
     public int[] outputIterMarkers;
     public int[] memIncr;
     public int outputsPerInput;
-    private HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
-    private HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
-    // private HadoopCLResizableFloatArray copyFvals = new HadoopCLResizableFloatArray();
+    private final HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
+    private final HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();
     protected final HashMap<String, Integer> arrayLengths = new HashMap<String, Integer>();
+
+    public HadoopCLKernel(HadoopOpenCLContext clContext, Integer id) {
+        this.clContext = clContext;
+        this.id = id.intValue();
+    }
 
     // public abstract Class getBufferClass();
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
     public abstract Class<? extends HadoopCLOutputBuffer> getOutputBufferClass();
     public abstract boolean launchKernel() throws IOException, InterruptedException;
     public abstract boolean relaunchKernel() throws IOException, InterruptedException;
-    public abstract void init(HadoopOpenCLContext clContext);
     public abstract IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException;
     public abstract void fill(HadoopCLInputBuffer inputBuffer);
     public abstract void prepareForRead(HadoopCLOutputBuffer outputBuffer);
