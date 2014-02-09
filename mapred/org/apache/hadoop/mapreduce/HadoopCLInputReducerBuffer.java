@@ -18,7 +18,7 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     public int nVals;
 
     public HadoopCLInputReducerBuffer(HadoopOpenCLContext clContext, Integer id) {
-        supre(clContext, id);
+        super(clContext, id);
         this.keyIndex = new int[this.clContext.getInputBufferSize()];
         this.nKeys = 0;
         this.nVals = 0;

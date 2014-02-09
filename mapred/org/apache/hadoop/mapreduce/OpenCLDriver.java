@@ -53,16 +53,14 @@ public class OpenCLDriver {
   public static long processingStart = -1L;
   public static long processingFinish = -1L;
   private final TaskInputOutputContext context;
-  private final Class kernelClass;
   private final HadoopOpenCLContext clContext;
   private final Configuration conf;
   private final long startTime;
 
-  public OpenCLDriver(String type, TaskInputOutputContext context, Class kernelClass) {
+  public OpenCLDriver(String type, TaskInputOutputContext context) {
     this.startTime = System.currentTimeMillis();
     this.clContext = new HadoopOpenCLContext(type, context, globals);
     this.context = context;
-    this.kernelClass = kernelClass;
     this.conf = context.getConfiguration();
 
     this.nKernels = this.clContext.getNKernels();
@@ -98,18 +96,11 @@ public class OpenCLDriver {
   public IHadoopCLAccumulatedProfile javaRun() throws IOException, InterruptedException {
     HadoopCLKernel kernel = null;
     try {
-        kernel = (HadoopCLKernel)kernelClass.newInstance();
-        kernel.init(clContext);
-        kernel.setGlobals(this.clContext.getGlobalsInd(),
-                this.clContext.getGlobalsVal(),
-                this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
-                this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
-                this.clContext.getGlobalsMap(),
-                this.clContext.nGlobalBuckets());
+        kernel = this.clContext.thisKernelConstructor.newInstance(this.clContext,
+            -1);
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
-
     return kernel.javaProcess(this.context);
   }
 
@@ -171,10 +162,12 @@ public class OpenCLDriver {
   // }
 
   private int nAllocatedInputBuffers = 0;
-  private HadoopCLInputBuffer allocateNewInputBuffer(Class<? extends HadoopCLInputBuffer> toInstantiate) {
+  private HadoopCLInputBuffer allocateNewInputBuffer() {
       HadoopCLInputBuffer buffer;
       try {
-          buffer = toInstantiate.newInstance();
+          buffer = this.clContext.inputBufferConstructor.newInstance(
+              this.clContext, nAllocatedInputBuffers);
+          // buffer = toInstantiate.newInstance();
       } catch (Exception e) {
           throw new RuntimeException(e);
       }
@@ -182,9 +175,10 @@ public class OpenCLDriver {
       return buffer;
   }
 
-  private HadoopCLBuffer handleFullBuffer(HadoopCLInputBuffer buffer,
-          int itemCount, HadoopCLKernel kernel) {
-      HadoopCLBuffer newBuffer;
+  private int bufferCounter = 0;
+  private HadoopCLInputBuffer handleFullBuffer(HadoopCLInputBuffer buffer,
+          int itemCount, BufferRunner bufferRunner, final ConcurrentLinkedQueue<HadoopCLInputBuffer> inputManager) throws InterruptedException {
+      HadoopCLInputBuffer newBuffer;
       System.gc();
       buffer.getProfile().stopRead(buffer);
       buffer.getProfile().addItemsProcessed(itemCount);
@@ -193,8 +187,7 @@ public class OpenCLDriver {
        // LOG:PROFILE
        // logger.log("start allocating input", this.clContext);
       if (this.nAllocatedInputBuffers < this.nInputBuffers) {
-          newBuffer = allocateNewInputBuffer(kernel.getInputBufferClass());
-          newBuffer.init(kernel.getOutputPairsPerInput(), clContext);
+          newBuffer = allocateNewInputBuffer();
       } else {
           newBuffer = inputManager.poll();
           if (newBuffer == null) {
@@ -213,6 +206,8 @@ public class OpenCLDriver {
       newBuffer.tracker = new HadoopCLGlobalId(bufferCounter++);
       newBuffer.resetProfile();
       newBuffer.getProfile().startRead(newBuffer);
+
+      return newBuffer;
   }
 
   /**
@@ -247,7 +242,6 @@ public class OpenCLDriver {
 
     final long start = System.currentTimeMillis();
 
-    HadoopCLKernel kernel = null;
     HadoopCLInputBuffer buffer = null;
     final List<HadoopCLBuffer> globalSpace;
     if (OpenCLDriver.profileMemory) {
@@ -261,37 +255,24 @@ public class OpenCLDriver {
     // final BufferManager<HadoopCLInputBuffer> inputManager;
     final BufferManager<HadoopCLOutputBuffer> outputManager;
     final KernelManager kernelManager;
-    int bufferCounter = 0;
 
     BufferRunner bufferRunner = null;
     Thread bufferRunnerThread = null;
 
     try {
-        kernel = (HadoopCLKernel)kernelClass.newInstance();
-        kernel.init(clContext);
-        kernel.setGlobals(this.clContext.getGlobalsInd(),
-                this.clContext.getGlobalsVal(),
-                this.clContext.getGlobalIndices(), this.clContext.getNGlobals(),
-                this.clContext.getGlobalsMapInd(), this.clContext.getGlobalsMapVal(),
-                this.clContext.getGlobalsMap(),
-                this.clContext.nGlobalBuckets());
-
-        // inputManager = new BufferManager<HadoopCLInputBuffer>("\""+this.clContext.typeName()+" inputs\"", nInputBuffers,
-        //     kernel.getInputBufferClass(), globalSpace, false, this.clContext);
         outputManager = new BufferManager<HadoopCLOutputBuffer>("\""+this.clContext.typeName()+" outputs\"", nOutputBuffers,
-            kernel.getOutputBufferClass(), globalSpace, this.clContext);
+            globalSpace, this.clContext, this.clContext.outputBufferConstructor);
         kernelManager = new KernelManager("\""+this.clContext.typeName()+"kernels\"", nKernels,
-                kernelClass, this.clContext);
+                this.clContext, this.clContext.thisKernelConstructor);
 
-        bufferRunner = new BufferRunner(kernelClass, inputManager, outputManager,
+        bufferRunner = new BufferRunner(inputManager, outputManager,
                 kernelManager, clContext);
         bufferRunnerThread = new Thread(bufferRunner);
         bufferRunnerThread.start();
 
-        buffer = allocateNewInputBuffer(kernel.getInputBufferClass());
+        buffer = allocateNewInputBuffer();
         // BufferManager.TypeAlloc<HadoopCLInputBuffer> newBufferContainer = inputManager.alloc();
         // buffer = newBufferContainer.obj();
-        buffer.init(kernel.getOutputPairsPerInput(), clContext);
         buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
         buffer.resetProfile();
     } catch(Exception ex) {
@@ -313,7 +294,7 @@ public class OpenCLDriver {
             }
 
             if (buffer.isFull(this.context)) {
-                buffer = handleFullBuffer(buffer, itemCount, kernel);
+                buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager);
                 itemCount = 0;
             }
         }
@@ -321,7 +302,7 @@ public class OpenCLDriver {
         final boolean isMapper = this.clContext.isMapper();
         while (this.context.nextKeyValue()) {
             if (buffer.isFull(this.context)) {
-                buffer = handleFullBuffer(buffer, itemCount, kernel);
+                buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager);
                 itemCount = 0;
             }
 
@@ -341,7 +322,7 @@ public class OpenCLDriver {
         bufferRunner.addWork(buffer);
     }
 
-    bufferRunner.addWork(MainDoneMarker.SINGLETON);
+    bufferRunner.addWork(new MainDoneMarker(this.clContext));
 
     bufferRunnerThread.join();
     kernelManager.dispose();

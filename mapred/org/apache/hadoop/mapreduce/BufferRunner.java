@@ -32,6 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/*
+ * Main state storage:
+ *   toCopyFromOpenCL
+ *   toWrite
+ *   toRun
+ */
 public class BufferRunner implements Runnable {
     private final boolean enableLogs;
     private final List<HadoopCLProfile> profiles;
@@ -55,15 +61,12 @@ public class BufferRunner implements Runnable {
     // private final List<HadoopCLKernel> running;
     private final AtomicInteger kernelsActive;
 
-    private final Class kernelClass;
     private final HadoopOpenCLContext clContext;
 
-    public BufferRunner(Class kernelClass,
-            ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers,
+    public BufferRunner(ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
             KernelManager freeKernels,
             HadoopOpenCLContext clContext) {
-        this.kernelClass = kernelClass;
         this.freeInputBuffers = freeInputBuffers;
         this.freeOutputBuffers = freeOutputBuffers;
         this.freeKernels = freeKernels;
@@ -100,7 +103,7 @@ public class BufferRunner implements Runnable {
 
     public void addWork(HadoopCLInputBuffer input) {
         // possible if getting DONE signal from main
-        if (input != MainDoneMarker.SINGLETON) {
+        if (!(input instanceof MainDoneMarker)) {
             input.clearNWrites();
         }
         // LOG:DIAGNOSTIC
@@ -215,15 +218,12 @@ public class BufferRunner implements Runnable {
         }
     }
 
-    private HadoopCLOutputBuffer allocOutputBufferWithInit(int outputPairsPerInput) {
+    private HadoopCLOutputBuffer allocOutputBufferWithInit() {
         HadoopCLOutputBuffer result = null;
         BufferManager.TypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
             freeOutputBuffers.alloc();
         if (outputBufferContainer != null) {
           result = outputBufferContainer.obj();
-          if (outputBufferContainer.isFresh()) {
-            result.initBeforeKernel(outputPairsPerInput, this.clContext);
-          }
         }
         return result;
     }
@@ -295,13 +295,14 @@ public class BufferRunner implements Runnable {
     private boolean doOutputBuffers() {
         boolean forwardProgress = false;
 
-        while (!toWrite.isEmpty()) {
+        if (!toWrite.isEmpty()) {
+        // while (!toWrite.isEmpty()) {
             int sizeBefore = this.toWrite.size();
             final OutputBufferSoFar soFar = toWrite.removeFirst();
             // LOG:DIAGNOSTIC
             // log("    Got output buffer "+soFar.buffer().id+" to write");
             forwardProgress |= doSingleOutputBuffer(soFar);
-            if (sizeBefore == this.toWrite.size()) break;
+            // if (sizeBefore == this.toWrite.size()) break;
         }
 
         return forwardProgress;
@@ -315,7 +316,7 @@ public class BufferRunner implements Runnable {
             if (kernel == null) break;
 
             HadoopCLOutputBuffer output =
-                allocOutputBufferWithInit(kernel.getOutputPairsPerInput());
+                allocOutputBufferWithInit();
             if (output == null) {
                 toCopyFromOpenCL.add(kernel);
                 break;
@@ -371,7 +372,7 @@ public class BufferRunner implements Runnable {
         //     toRun.nonBlockingGet();
 
         if (inputBuffer != null) {
-            if (inputBuffer == MainDoneMarker.SINGLETON) {
+            if (inputBuffer instanceof MainDoneMarker) {
                 // LOG:DIAGNOSTIC
                 // log("   Got DONE signal from main");
                 this.mainDone = true;
@@ -478,7 +479,8 @@ public class BufferRunner implements Runnable {
         if (this.clContext.isMapper() && this.clContext.jobHasCombiner() &&
                 (combinerDevice = this.clContext.getCombinerDevice()) != null) {
             KernelRunner.doKernelAndArgLinesPrealloc(
-                this.clContext.newCombinerKernelObject(),
+                this.clContext.getCombinerKernel(),
+                // this.clContext.newCombinerKernelObject(),
                 Kernel.TaskType.COMBINER, this.clContext.nCombinerKernels(),
                 combinerDevice);
         }

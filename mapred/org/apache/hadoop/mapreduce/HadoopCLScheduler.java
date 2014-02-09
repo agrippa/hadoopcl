@@ -4,6 +4,7 @@ import org.apache.hadoop.mapred.Task;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskStatus;
 
+import java.lang.reflect.Constructor;
 import java.io.IOException;
 import java.util.List;
 import java.util.HashMap;
@@ -128,9 +129,12 @@ public abstract class HadoopCLScheduler {
         HadoopCLKernel kernel = null;
 
         try {
-            kernel = (HadoopCLKernel)taskClass.newInstance();
+            Constructor<? extends HadoopCLKernel> c = taskClass.getConstructor(
+                new Class[] { HadoopOpenCLContext.class, Integer.class });
+            kernel = c.newInstance(new HadoopOpenCLContext(),
+                -1);
         } catch(Exception ex) {
-            throw new RuntimeException("Exception loading kernel class in TaskTracker ("+jarStr+" | "+taskClassName+")");
+            throw new RuntimeException("Exception loading kernel class in TaskTracker ("+jarStr+" | "+taskClassName+")", ex);
         }
         return kernel;
     }

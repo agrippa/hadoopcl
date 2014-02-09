@@ -4,7 +4,8 @@ import java.util.HashSet;
 import java.io.IOException;
 
 public class RunnerDoneMarker extends HadoopCLOutputBuffer {
-    public void initBeforeKernel(int outputsPerInput, HadoopOpenCLContext clContext) {
+    public RunnerDoneMarker(HadoopOpenCLContext clContext) {
+        super(clContext, -1);
     }
 
     public int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar)

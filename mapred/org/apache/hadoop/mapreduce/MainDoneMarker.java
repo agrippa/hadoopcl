@@ -3,7 +3,9 @@ package org.apache.hadoop.mapreduce;
 import java.io.IOException;
 
 public class MainDoneMarker extends HadoopCLInputBuffer {
-    public static final MainDoneMarker SINGLETON = new MainDoneMarker();
+    public MainDoneMarker(HadoopOpenCLContext clContext) {
+        super(clContext, -1);
+    }
 
     public void reset() { }
     public void addTypedKey(Object obj) { }

@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.LinkedList;
 
@@ -7,16 +8,16 @@ public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManag
     private final List<HadoopCLBuffer> globalSpace;
 
     public BufferManager(String name, int setMax,
-            Class<? extends BufferType> toInstantiate,
-            List<HadoopCLBuffer> globalSpace, HadoopOpenCLContext clContext) {
-        super(name, setMax, toInstantiate, clContext);
+            /* Class<? extends BufferType> toInstantiate, */
+            List<HadoopCLBuffer> globalSpace, HadoopOpenCLContext clContext,
+            Constructor<? extends BufferType> constructor) {
+        super(name, setMax, /* toInstantiate, */ clContext, constructor);
         this.globalSpace = globalSpace;
     }
 
     public TypeAlloc<BufferType> alloc() {
         TypeAlloc<BufferType> result = this.allocHelper();
         if (result != null && result.isFresh()) {
-            result.obj().id = idIncr++;
             // LOG:DIAGNOSTIC
             // log("Allocating "+this.name+" buffer "+result.obj().id);
             if (OpenCLDriver.profileMemory) {

@@ -62,9 +62,7 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
         }
 
         boolean isCombiner = context.getContextType() == ContextType.Combiner;
-        OpenCLDriver driver = new OpenCLDriver("reducer", context,
-            isCombiner ? context.getOCLCombinerClass() :
-                context.getOCLReducerClass());
+        OpenCLDriver driver = new OpenCLDriver("reducer", context);
 
         driver.run();
         driver = null;

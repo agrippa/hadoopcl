@@ -1,6 +1,7 @@
 
 package org.apache.hadoop.mapreduce;
 
+import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.LinkedList;
@@ -51,12 +52,20 @@ public class HadoopOpenCLContext {
     private int nVectorsToBuffer;
 
     private boolean isCombiner;
-    private boolean jobHasCombiner;
+    private final boolean jobHasCombiner;
     private final int nCombinerKernels;
 
-    private HadoopCLMapperKernel mapperKernel;
-    private HadoopCLReducerKernel reducerKernel;
-    private HadoopCLReducerKernel combinerKernel;
+    public final Constructor<? extends HadoopCLInputBuffer> inputBufferConstructor;
+    public final Constructor<? extends HadoopCLOutputBuffer> outputBufferConstructor;
+    public final Constructor<HadoopCLMapperKernel> mapperKernelConstructor;
+    public final Constructor<HadoopCLReducerKernel> reducerKernelConstructor;
+    public final Constructor<HadoopCLReducerKernel> combinerKernelConstructor;
+    public final Constructor<? extends HadoopCLKernel> thisKernelConstructor;
+
+    public final HadoopCLMapperKernel mapperKernel;
+    public final HadoopCLReducerKernel reducerKernel;
+    public final HadoopCLReducerKernel combinerKernel;
+    public final HadoopCLKernel thisKernel;
 
     private GlobalsWrapper globals;
     
@@ -64,17 +73,47 @@ public class HadoopOpenCLContext {
     private final int nInputBuffers;
     private final int nOutputBuffers;
 
+    public HadoopOpenCLContext() {
+        globals = new GlobalsWrapper();
+        doHighLevelProfiling = false;
+        enableBufferRunnerDiagnostics = false;
+        enableProfilingPrints = false;
+        hadoopContext = null;
+        type = "scheduler";
+        inputBufferSize = 0;
+        outputBufferSize = 0;
+        inputValMultiplier = 0;
+        inputValEleMultiplier = 0;
+        preallocIntLength = 0;
+        preallocFloatLength = 0;
+        preallocDoubleLength = 0;
+        jobHasCombiner = false;
+        nCombinerKernels = 0;
+        inputBufferConstructor = null;
+        outputBufferConstructor = null;
+        mapperKernelConstructor = null;
+        reducerKernelConstructor = null;
+        combinerKernelConstructor = null;
+        thisKernelConstructor = null;
+        mapperKernel = null;
+        reducerKernel = null;
+        combinerKernel = null;
+        thisKernel = null;
+        nKernels = 0;
+        nInputBuffers = nOutputBuffers = 0;
+    }
+
     public HadoopOpenCLContext(String contextType,
         TaskInputOutputContext setHadoopContext, GlobalsWrapper globals) {
 
       this.hadoopContext = setHadoopContext;
 
       if (this.hadoopContext.getContextType() == ContextType.Combiner) {
-          this.isCombiner = true;
-          this.type = "combiner";
+        this.isCombiner = true;
+        this.type = "combiner";
       } else {
-          this.isCombiner = false;
-          this.type = contextType;
+        this.isCombiner = false;
+        this.type = contextType;
       }
 
       Configuration conf = this.hadoopContext.getConfiguration();
@@ -93,92 +132,98 @@ public class HadoopOpenCLContext {
       this.inputValEleMultiplier = conf.getInt("opencl."+this.type+".val_ele_multiplier", 5);
       this.outputBufferSize = conf.getInt("opencl."+this.type+".outputBufferSize", 32768);
 
-      init(contextType, conf, globals);
-    }
+      this.globals = globals;
+      synchronized(this.globals) {
+        this.globals.init(conf);
+      }
 
-    public void init(String contextType, Configuration conf,
-            GlobalsWrapper globals) {
+      if (this.isCombiner) {
+        this.deviceId = findDeviceWithType(retrieveCombinerDeviceType(conf));
+      } else if(System.getProperty("opencl.device") != null) {
+        this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
+      } else {
+        this.deviceId = 0;
+      }
+      this.device = findDevice(this.deviceId);
 
-        this.globals = globals;
-        synchronized(this.globals) {
-          this.globals.init(conf);
-        }
-
-        if (this.isCombiner) {
-            this.deviceId = findDeviceWithType(retrieveCombinerDeviceType(conf));
-        } else if(System.getProperty("opencl.device") != null) {
-            this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
+      if(this.device == null) {
+        this.deviceString = "java";
+        this.isGPU = 0;
+      } else {
+        if(this.device.getType() == Device.TYPE.GPU) {
+          this.deviceString = "gpu";
+          this.isGPU = 1;
         } else {
-            this.deviceId = 0;
+          this.deviceString = "cpu";
+          this.isGPU = 0;
         }
-        this.device = findDevice(this.deviceId);
+      }
 
-        if(this.device == null) {
-            this.deviceString = "java";
-            this.isGPU = 0;
+      String threadsPerGroupStr = System.getProperty("opencl."+this.type+".threadsPerGroup."+this.deviceString);
+      if(threadsPerGroupStr != null) {
+        this.threadsPerGroup = Integer.parseInt(threadsPerGroupStr);
+      } else {
+        this.threadsPerGroup = 256;
+      }
+
+      String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
+      if (vectorsToBufferStr != null) {
+        this.nVectorsToBuffer = Integer.parseInt(vectorsToBufferStr);
+      } else {
+        this.nVectorsToBuffer = 65536;
+      }
+
+      try {
+        final Class mapperClass = hadoopContext.getOCLMapperClass();
+        final Class reducerClass = hadoopContext.getOCLReducerClass();
+        final Class combinerClass = hadoopContext.getOCLCombinerClass();
+
+        this.mapperKernelConstructor = mapperClass.getConstructor(new Class[] {
+          HadoopOpenCLContext.class, Integer.class });
+        this.reducerKernelConstructor = reducerClass.getConstructor(new Class[] {
+          HadoopOpenCLContext.class, Integer.class });
+        if (combinerClass != null) {
+          this.jobHasCombiner = true;
+          this.combinerKernelConstructor = combinerClass.getConstructor(new Class[] {
+            HadoopOpenCLContext.class, Integer.class });
         } else {
-            if(this.device.getType() == Device.TYPE.GPU) {
-                this.deviceString = "gpu";
-                this.isGPU = 1;
-            } else {
-                this.deviceString = "cpu";
-                this.isGPU = 0;
-            }
+          this.jobHasCombiner = false;
+          this.combinerKernelConstructor = null;
         }
-       
-        String threadsPerGroupStr = System.getProperty("opencl."+contextType+".threadsPerGroup."+this.deviceString);
-        if(threadsPerGroupStr != null) {
-            this.threadsPerGroup = Integer.parseInt(threadsPerGroupStr);
+
+        this.mapperKernel = this.mapperKernelConstructor.newInstance(this, -1);
+        this.reducerKernel = this.reducerKernelConstructor.newInstance(this, -1);
+        if (this.combinerKernelConstructor != null) {
+          this.combinerKernel = this.combinerKernelConstructor.newInstance(
+              this, -1);
         } else {
-            this.threadsPerGroup = 256;
+          this.combinerKernel = null;
         }
 
-        String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
-        if (vectorsToBufferStr != null) {
-            this.nVectorsToBuffer = Integer.parseInt(vectorsToBufferStr);
+        final HadoopCLKernel kernel;
+        if (this.isMapper()) {
+          this.thisKernelConstructor = this.mapperKernelConstructor;
+          kernel = this.mapperKernel;
+        } else if (this.isReducer()) {
+          this.thisKernelConstructor = this.reducerKernelConstructor;
+          kernel = this.reducerKernel;
         } else {
-            this.nVectorsToBuffer = 65536;
+          this.thisKernelConstructor = this.combinerKernelConstructor;
+          kernel = this.combinerKernel;
         }
+        this.thisKernel = kernel;
 
-        try {
-            Class mapperClass = hadoopContext.getOCLMapperClass();
-            Class reducerClass = hadoopContext.getOCLReducerClass();
-            Class combinerClass = hadoopContext.getOCLCombinerClass();
-
-            this.mapperKernel = (HadoopCLMapperKernel)mapperClass.newInstance();
-            this.mapperKernel.init(this);
-            this.mapperKernel.setGlobals(this.getGlobalsInd(),
-                this.getGlobalsVal(),
-                this.getGlobalIndices(), this.getNGlobals(),
-                this.getGlobalsMapInd(), this.getGlobalsMapVal(),
-                this.getGlobalsMap(),
-                this.globals.nGlobalBuckets);
-
-            this.reducerKernel = (HadoopCLReducerKernel)reducerClass.newInstance();
-            this.reducerKernel.init(this);
-            this.reducerKernel.setGlobals(this.getGlobalsInd(),
-                this.getGlobalsVal(),                this.getGlobalIndices(), this.getNGlobals(),
-                this.getGlobalsMapInd(), this.getGlobalsMapVal(),
-                this.getGlobalsMap(),
-                this.globals.nGlobalBuckets);
-
-            if(combinerClass != null) {
-                this.jobHasCombiner = true;
-                this.combinerKernel = (HadoopCLReducerKernel)combinerClass.newInstance();
-                this.combinerKernel.init(this);
-                this.combinerKernel.setGlobals(this.getGlobalsInd(),
-                    this.getGlobalsVal(),
-                    this.getGlobalIndices(), this.getNGlobals(),
-                    this.getGlobalsMapInd(), this.getGlobalsMapVal(),
-                    this.getGlobalsMap(),
-                    this.globals.nGlobalBuckets);
-            } else {
-                this.jobHasCombiner = false;
-            }
-        } catch(Exception ex) {
-            throw new RuntimeException(ex);
-        }
-
+        final Class<? extends HadoopCLInputBuffer> inputBufferClass =
+          kernel.getInputBufferClass();
+        final Class<? extends HadoopCLOutputBuffer> outputBufferClass =
+          kernel.getOutputBufferClass();
+        this.inputBufferConstructor = inputBufferClass.getConstructor(new Class[] {
+          HadoopOpenCLContext.class, Integer.class });
+        this.outputBufferConstructor = outputBufferClass.getConstructor(new Class[] {
+          HadoopOpenCLContext.class, Integer.class });
+      } catch(Exception ex) {
+        throw new RuntimeException(ex);
+      }
     }
 
     private Device.TYPE retrieveCombinerDeviceType(Configuration conf) {
@@ -236,6 +281,7 @@ public class HadoopOpenCLContext {
         return dev;
     }
 
+    public GlobalsWrapper getGlobals() { return this.globals; }
     public int[] getGlobalIndices() { return this.globals.globalIndices; }
     public double[] getGlobalsVal() { return this.globals.globalsVal; }
     public int[] getGlobalsInd() { return this.globals.globalsInd; }
@@ -355,27 +401,19 @@ public class HadoopOpenCLContext {
         return this.inputValEleMultiplier;
     }
 
-    private HadoopCLKernel instantiateKernelObject(Class cls) {
-        HadoopCLKernel kernel;
-        try {
-            kernel = (HadoopCLKernel)cls.newInstance();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return kernel;
-    }
+    // private HadoopCLKernel instantiateKernelObject(Class cls) {
+    //     HadoopCLKernel kernel;
+    //     try {
+    //         kernel = (HadoopCLKernel)cls.newInstance();
+    //     } catch (Exception e) {
+    //         throw new RuntimeException(e);
+    //     }
+    //     return kernel;
+    // }
 
-    public HadoopCLKernel newCombinerKernelObject() {
-        return instantiateKernelObject(hadoopContext.getOCLCombinerClass());
-    }
-
-    public HadoopCLKernel newMapperKernelObject() {
-        return instantiateKernelObject(hadoopContext.getOCLMapperClass());
-    }
-
-    public HadoopCLKernel newReducerKernelObject() {
-        return instantiateKernelObject(hadoopContext.getOCLReducerClass());
-    }
+    // public HadoopCLKernel newCombinerKernelObject() {
+    //     return this.combinerKernel;
+    // }
 
     public boolean jobHasCombiner() {
         return this.jobHasCombiner;

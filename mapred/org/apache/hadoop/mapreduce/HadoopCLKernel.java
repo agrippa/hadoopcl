@@ -20,7 +20,7 @@ public abstract class HadoopCLKernel extends Kernel {
     public HadoopCLGlobalId tracker;
 
     protected final HadoopOpenCLContext clContext;
-    protected final IHadoopCLAccumulatedProfile javaProfile;
+    protected IHadoopCLAccumulatedProfile javaProfile;
     protected HadoopCLProfile openclProfile;
 
     public final double[] globalsVal;
@@ -43,6 +43,16 @@ public abstract class HadoopCLKernel extends Kernel {
     public HadoopCLKernel(HadoopOpenCLContext clContext, Integer id) {
         this.clContext = clContext;
         this.id = id.intValue();
+
+        GlobalsWrapper globals = clContext.getGlobals();
+        this.globalIndices = globals.globalIndices;
+        this.nGlobals = globals.nGlobals;
+        this.nGlobalBuckets = globals.nGlobalBuckets;
+        this.globalsInd = globals.globalsInd;
+        this.globalsVal = globals.globalsVal;
+        this.globalsMapInd = globals.globalsMapInd;
+        this.globalsMapVal = globals.globalsMapVal;
+        this.globalsMap = globals.globalsMap;
     }
 
     // public abstract Class getBufferClass();
@@ -60,22 +70,6 @@ public abstract class HadoopCLKernel extends Kernel {
 
     public boolean outOfMemory() {
         return false;
-    }
-
-    public void setGlobals(int[] globalsInd, double[] globalsVal,
-            int[] globalIndices, int nGlobals,
-            int[] globalsMapInd, double[] globalsMapVal,
-            int[] globalsMap, int nBuckets) {
-        this.globalIndices = globalIndices;
-        this.nGlobals = nGlobals;
-        this.nGlobalBuckets = nBuckets;
-
-        this.globalsInd = globalsInd;
-        this.globalsVal = globalsVal;
-
-        this.globalsMapInd = globalsMapInd;
-        this.globalsMapVal = globalsMapVal;
-        this.globalsMap = globalsMap;
     }
 
     protected int[] getGlobalIndices(int gid) {

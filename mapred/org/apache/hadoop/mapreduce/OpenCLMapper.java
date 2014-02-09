@@ -88,8 +88,7 @@ public class OpenCLMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN
         throw new RuntimeException("Unsupported value type \'"+valueClass+"\'");
     }
 
-    OpenCLDriver driver = new OpenCLDriver("mapper", context,
-        context.getOCLMapperClass());
+    OpenCLDriver driver = new OpenCLDriver("mapper", context);
 
     driver.run();
 

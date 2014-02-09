@@ -352,7 +352,7 @@ class PrimitiveVisitor(NativeTypeVisitor):
         return [ ]
     def getPreliminaryKeyFullCheck(self, isMapper):
         if isMapper:
-            return [ 'this.nPairs < this.capacity()' ]
+            return [ 'this.nPairs < this.capacity' ]
         else:
             return [ 'this.nKeys < this.inputKeys.length' ]
     def getPreliminaryValueFullCheck(self, isMapper):
@@ -551,7 +551,7 @@ class PairVisitor(NativeTypeVisitor):
                  'out.writeDouble(this.outputVals2[index]);' ]
     def getPreliminaryKeyFullCheck(self, isMapper):
         if isMapper:
-            return [ 'this.nPairs < this.capacity()' ]
+            return [ 'this.nPairs < this.capacity' ]
         else:
             return [ 'this.nKeys < this.inputKeys1.length' ]
     def getPreliminaryValueFullCheck(self, isMapper):
@@ -791,7 +791,7 @@ class IpairVisitor(NativeTypeVisitor):
                  'out.writeDouble(this.outputVals2[index]);' ]
     def getPreliminaryKeyFullCheck(self, isMapper):
         if isMapper:
-            return [ 'this.nPairs < this.capacity()' ]
+            return [ 'this.nPairs < this.capacity' ]
         else:
             return [ 'this.nKeys < this.inputKeyIds.length' ]
     def getPreliminaryValueFullCheck(self, isMapper):
@@ -898,7 +898,7 @@ class SvecVisitor(NativeTypeVisitor):
         buf.append('this.arrayLengths.put("'+basename+'Indices", this.clContext.getPreallocIntLength());')
         buf.append('this.arrayLengths.put("'+basename+'Vals", this.clContext.getPreallocDoubleLength());')
         if not isKey:
-            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput());')
+            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getOutputBufferSize());')
             buf.append('this.arrayLengths.put("memAuxIntIncr", 1);')
             buf.append('this.arrayLengths.put("memAuxDoubleIncr", 1);')
 
@@ -1500,7 +1500,7 @@ class FsvecVisitor(NativeTypeVisitor):
         buf.append('this.arrayLengths.put("'+basename+'Indices", this.clContext.getPreallocIntLength());')
         buf.append('this.arrayLengths.put("'+basename+'Vals", this.clContext.getPreallocFloatLength());')
         if isMapper and not isKey:
-            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput());')
+            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getOutputBufferSize());')
             buf.append('this.arrayLengths.put("memAuxIntIncr", 1);')
             buf.append('this.arrayLengths.put("memAuxFloatIncr", 1);')
 
@@ -1842,7 +1842,7 @@ class BsvecVisitor(NativeTypeVisitor):
         buf.append('this.arrayLengths.put("'+basename+'Indices", this.clContext.getPreallocIntLength());')
         buf.append('this.arrayLengths.put("'+basename+'Vals", this.clContext.getPreallocDoubleLength());')
         if not isKey:
-            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput());')
+            buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getOutputBufferSize());')
             buf.append('this.arrayLengths.put("memAuxIntIncr", 1);')
             buf.append('this.arrayLengths.put("memAuxDoubleIncr", 1);')
 
@@ -2385,9 +2385,9 @@ def writeHeader(fp, isMapper):
 #     fp.write('    }\n')
 
 def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType):
-    writeln(visitor(nativeOutputKeyType).getMarkerInit(
-        'outputIterMarkers', 'this.clContext.getOutputBufferSize()',
-            False), 3, fp)
+    # writeln(visitor(nativeOutputKeyType).getMarkerInit(
+    #     'outputIterMarkers', 'this.clContext.getOutputBufferSize()',
+    #         False), 3, fp)
     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
         'this.clContext.getOutputBufferSize()', False, False,
             isMapper, True), 3, fp)
@@ -2395,9 +2395,8 @@ def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueTy
         'this.clContext.getOutputBufferSize()', False, False,
             isMapper, False), 3, fp)
 
-def writeInputMapBufferConstructor(fp, nativeInputKeyType, nativeInputValueType, isMapper):
+def writeInputBufferConstructor(fp, nativeInputKeyType, nativeInputValueType, isMapper):
     fp.write('\n')
-    fp.write('    @Override\n')
     fp.write('    public '+inputBufferClassName(isMapper, nativeInputKeyType, nativeInputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')
     fp.write('        super(clContext, id);\n')
     fp.write('\n')
@@ -2414,7 +2413,7 @@ def writeInputMapBufferConstructor(fp, nativeInputKeyType, nativeInputValueType,
 def writeBulkFillMethod(fp, nativeInputKeyType, nativeInputValueType, isMapper):
     fp.write('\n')
     fp.write('    @Override\n')
-    fp.write('    public int bulkFill(HadoopCLDataInput stream) throws IOException {\n')
+    fp.write('    public final int bulkFill(HadoopCLDataInput stream) throws IOException {\n')
     fp.write('        int nread = 0;\n')
     fp.write('        while (stream.hasMore() &&\n')
     fp.write('                '+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+' &&\n')
@@ -2436,7 +2435,6 @@ def writeBulkFillMethod(fp, nativeInputKeyType, nativeInputValueType, isMapper):
 
 def writeOutputBufferConstructor(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
-    fp.write('    @Override\n')
     fp.write('    public '+outputBufferClassName(isMapper, nativeOutputKeyType, nativeOutputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')
     fp.write('        super(clContext, id);\n')
     fp.write('\n')
@@ -2575,26 +2573,29 @@ def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValue
 
 def writeKernelConstructor(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
-    fp.write('    @Override\n')
+    fp.write('    public '+kernelClassName(isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)+'() {\n')
+    fp.write('        super(null, null);\n')
+    fp.write('        throw new UnsupportedOperationException();\n')
+    fp.write('    }\n')
     fp.write('    public '+kernelClassName(isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')
     fp.write('        super(clContext, id);\n')
     # Just init to false, it gets actually set in fill
     fp.write('        this.setStrided(false);\n')
     fp.write('\n')
-    fp.write('        this.arrayLengths.put("outputIterMarkers", this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput());\n')
+    fp.write('        this.arrayLengths.put("outputIterMarkers", this.clContext.getOutputBufferSize());\n')
     fp.write('        this.arrayLengths.put("memIncr", 1);\n')
     writeln(visitor(nativeOutputKeyType).getArrayLengthInit('outputKey',
-        'this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput()',
+        'this.clContext.getOutputBufferSize()',
             isMapper, True), 2, fp)
     writeln(visitor(nativeOutputValueType).getArrayLengthInit('outputVal',
-        'this.clContext.getOutputBufferSize() * this.getOutputPairsPerInput()',
+        'this.clContext.getOutputBufferSize()',
             isMapper, False), 2, fp)
     fp.write('    }\n')
     fp.write('\n')
 
 def writeAddValueMethod(fp, hadoopInputValueType, nativeInputValueType):
     fp.write('    @Override\n')
-    fp.write('    public void addTypedValue(Object val) {\n')
+    fp.write('    public final void addTypedValue(Object val) {\n')
     fp.write('        '+hadoopInputValueType+'Writable actual = ('+hadoopInputValueType+'Writable)val;\n')
 
     if isMapper:
@@ -2607,7 +2608,7 @@ def writeAddValueMethod(fp, hadoopInputValueType, nativeInputValueType):
 
 def writeAddKeyMethod(fp, hadoopInputKeyType, nativeInputKeyType):
     fp.write('    @Override\n')
-    fp.write('    public void addTypedKey(Object key) {\n')
+    fp.write('    public final void addTypedKey(Object key) {\n')
     fp.write('        '+hadoopInputKeyType+'Writable actual = ('+hadoopInputKeyType+'Writable)key;\n')
     if isMapper:
         writeln(visitor(nativeInputKeyType).getAddKeyMethod('this.nPairs'), 2, fp)
@@ -2659,7 +2660,7 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
 
 def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, hadoopInputValueType):
     fp.write('    @Override\n')
-    fp.write('    public boolean isFull(TaskInputOutputContext context) throws IOException, InterruptedException {\n')
+    fp.write('    public final boolean isFull(TaskInputOutputContext context) throws IOException, InterruptedException {\n')
     fp.write('        if (this.doingBulkRead) {\n')
     fp.write('            return this.isFull;\n')
     fp.write('        } else {\n')
@@ -2667,34 +2668,34 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, ha
         if nativeInputValueType == 'svec':
             fp.write('            SparseVectorWritable curr = (SparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
             fp.write('            }\n')
         elif nativeInputValueType == 'bsvec':
             fp.write('            BSparseVectorWritable curr = (BSparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
             fp.write('            }\n')
         elif nativeInputValueType == 'ivec':
             fp.write('            IntegerVectorWritable curr = (IntegerVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputVal.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputVal.length;\n')
             fp.write('            }\n')
         elif nativeInputValueType == 'fsvec':
             fp.write('            FSparseVectorWritable curr = (FSparseVectorWritable)((Context)context).getCurrentValue();\n')
             fp.write('            if (this.enableStriding) {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.nPairs == nVectorsToBuffer;\n')
+            fp.write('                return this.nPairs == this.capacity || this.nPairs == nVectorsToBuffer;\n')
             fp.write('            } else {\n')
-            fp.write('                return this.nPairs == this.capacity() || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
+            fp.write('                return this.nPairs == this.capacity || this.individualInputValsCount + curr.size() > this.inputValIndices.length;\n')
             fp.write('            }\n')
 
         else:
-            fp.write('            return this.nPairs == this.capacity();\n')
+            fp.write('            return this.nPairs == this.capacity;\n')
     else:
         fp.write('            Context reduceContext = (Context)context;\n')
         if nativeInputKeyType == 'pair' or nativeInputKeyType == 'ipair':
@@ -2777,7 +2778,7 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
 def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
     fp.write('    @Override\n')
-    fp.write('    public int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar) throws IOException, InterruptedException {\n')
+    fp.write('    public final int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar) throws IOException, InterruptedException {\n')
     # fp.write('        final '+hadoopOutputKeyType+'Writable saveKey = new '+hadoopOutputKeyType+'Writable();\n')
     # fp.write('        final '+hadoopOutputValueType+'Writable saveVal = new '+hadoopOutputValueType+'Writable();\n')
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
@@ -2979,7 +2980,7 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
 
 def writeGetPartitionFor(fp, nativeOutputKeyType):
     fp.write('    @Override\n')
-    fp.write('    public int getPartitionFor(int index, int numReduceTasks) {\n')
+    fp.write('    public final int getPartitionFor(int index, int numReduceTasks) {\n')
     writeln(visitor(nativeOutputKeyType).getPartitioner(), 2, fp)
     fp.write('    }\n')
     fp.write('\n')
@@ -3037,7 +3038,7 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('        }\n')
     fp.write('\n')
     fp.write('        @Override\n')
-    fp.write('        public DataInputBuffer getKey() throws IOException {\n')
+    fp.write('        public final DataInputBuffer getKey() throws IOException {\n')
     fp.write('            final ByteBuffer tmp = getKeyFor(this.current);\n')
     fp.write('            this.key.reset(tmp.array(), 0, getLengthForKey(this.current));\n')
     fp.write('            return this.key;\n')
@@ -3053,14 +3054,14 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('        }\n')
     fp.write('\n')
     fp.write('        @Override\n')
-    fp.write('        public DataInputBuffer getValue() throws IOException {\n')
+    fp.write('        public final DataInputBuffer getValue() throws IOException {\n')
     fp.write('            final ByteBuffer tmp = getValueFor(this.current);\n')
     fp.write('            this.value.reset(tmp.array(), 0, getLengthForValue(this.current));\n')
     fp.write('            return this.value;\n')
     fp.write('        }\n')
     fp.write('\n')
     fp.write('        @Override\n')
-    fp.write('        public boolean next() throws IOException {\n')
+    fp.write('        public final boolean next() throws IOException {\n')
     fp.write('            if (sortedIndices.isEmpty()) {\n')
     fp.write('                return false;\n')
     fp.write('            } else {\n')
@@ -3087,11 +3088,11 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('        public HadoopCLDataInput getBulkReader() {\n')
     fp.write('            return new HadoopCLBulkMapperReader() {\n')
     fp.write('                @Override\n')
-    fp.write('                public boolean hasMore() {\n')
+    fp.write('                public final boolean hasMore() {\n')
     fp.write('                    return !sortedIndices.isEmpty();\n')
     fp.write('                }\n')
     fp.write('                @Override\n')
-    fp.write('                public void nextKey() throws IOException {\n')
+    fp.write('                public final void nextKey() throws IOException {\n')
     fp.write('                    if (this.current != -1) {\n')
     fp.write('                        processed.push(this.current);\n')
     fp.write('                    }\n')
@@ -3100,29 +3101,29 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('                    this.currentBufferPosition = 0;\n')
     fp.write('                }\n')
     fp.write('                @Override\n')
-    fp.write('                public void nextValue() throws IOException {\n')
+    fp.write('                public final void nextValue() throws IOException {\n')
     fp.write('                    this.currentBuffer = getValueFor(this.current);\n')
     fp.write('                    this.currentBufferPosition = 0;\n')
     fp.write('                }\n')
     fp.write('                @Override\n')
-    fp.write('                public void prev() {\n')
+    fp.write('                public final void prev() {\n')
     fp.write('                    sortedIndices.add(this.current);\n')
     fp.write('                    this.current = processed.pop();\n')
     fp.write('                }\n')
     fp.write('                @Override\n')
-    fp.write('                public void readFully(int[] b, int off, int len) {\n')
+    fp.write('                public final void readFully(int[] b, int off, int len) {\n')
     fp.write('                    this.currentBuffer.position(this.currentBufferPosition);\n')
     fp.write('                    this.currentBufferPosition += (len * 4);\n')
     fp.write('                    this.currentBuffer.asIntBuffer().get(b, off, len);\n')
     fp.write('                }\n')
     fp.write('                @Override\n')
-    fp.write('                public void readFully(double[] b, int off, int len) {\n')
+    fp.write('                public final void readFully(double[] b, int off, int len) {\n')
     fp.write('                    this.currentBuffer.position(this.currentBufferPosition);\n')
     fp.write('                    this.currentBufferPosition += (len * 8);\n')
     fp.write('                    this.currentBuffer.asDoubleBuffer().get(b, off, len);\n')
     fp.write('                }\n')
     fp.write('                @Override\n')
-    fp.write('                public int readInt() {\n')
+    fp.write('                public final int readInt() {\n')
     fp.write('                    this.currentBuffer.position(this.currentBufferPosition);\n')
     fp.write('                    this.currentBufferPosition += 4;\n')
     fp.write('                    return this.currentBuffer.getInt();\n')
@@ -3173,10 +3174,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     writeHeader(output_fp, isMapper);
     writeHeader(kernelfp, isMapper);
 
-    input_fp.write('public class '+
+    input_fp.write('public final class '+
             inputBufferClassName(isMapper, inputKeyType, inputValueType)+' extends HadoopCLInput'+
             capitalizedKernelString(isMapper)+'Buffer {\n')
-    output_fp.write('public class '+
+    output_fp.write('public final class '+
             outputBufferClassName(isMapper, outputKeyType, outputValueType)+' extends HadoopCLOutput'+
             capitalizedKernelString(isMapper)+'Buffer implements KVCollection<'+hadoopOutputKeyType+'Writable, '+hadoopOutputValueType+'Writable> {\n')
     # bufferfp.write('public class '+
@@ -3187,10 +3188,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType)+' extends HadoopCL'+
         capitalizedKernelString(isMapper)+'Kernel {\n')
 
-    writeln(visitor(nativeInputKeyType).getKeyValDecl('inputKey', isMapper, True, False, True), 1, input_fp)
-    writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, False, True), 1, input_fp)
-    writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, False, True), 1, output_fp)
-    writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, False, True), 1, output_fp)
+    writeln(visitor(nativeInputKeyType).getKeyValDecl('inputKey', isMapper, True, False, False), 1, input_fp)
+    writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, False, False), 1, input_fp)
+    writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, False, False), 1, output_fp)
+    writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, False, False), 1, output_fp)
 
     kernelfp.write('    public int outputLength;\n')
 
@@ -3215,8 +3216,8 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         input_fp.write('    public int nVectorsToBuffer;\n')
 
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
-        output_fp.write('    public final int[] memAuxIntIncr;\n')
-        output_fp.write('    public final int[] memAuxDoubleIncr;\n')
+        output_fp.write('    public int[] memAuxIntIncr;\n')
+        output_fp.write('    public int[] memAuxDoubleIncr;\n')
         kernelfp.write('    public int[] memAuxIntIncr;\n')
         kernelfp.write('    public int[] memAuxDoubleIncr;\n')
         kernelfp.write('    public int outputAuxIntLength;\n')
@@ -3226,8 +3227,8 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('    public int[] memAuxIncr;\n')
         kernelfp.write('    public int outputAuxIntLength;\n')
     elif nativeOutputValueType == 'fsvec':
-        output_fp.write('    public final int[] memAuxIntIncr;\n')
-        output_fp.write('    public final int[] memAuxFloatIncr;\n')
+        output_fp.write('    public int[] memAuxIntIncr;\n')
+        output_fp.write('    public int[] memAuxFloatIncr;\n')
         kernelfp.write('    public int[] memAuxIntIncr;\n')
         kernelfp.write('    public int[] memAuxFloatIncr;\n')
         kernelfp.write('    public int outputAuxIntLength;\n')
@@ -3238,32 +3239,32 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     input_fp.write('\n')
     output_fp.write('\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public int start() { return this.start; }\n')
+    output_fp.write('    public final int start() { return this.start; }\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public int end() { return this.end; }\n')
+    output_fp.write('    public final int end() { return this.end; }\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public boolean isValid(int index) {\n')
+    output_fp.write('    public final boolean isValid(int index) {\n')
     output_fp.write('        return this.itersFinished.contains(this.outputIterMarkers[index]);\n')
     output_fp.write('    }\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public Iterator<Integer> iterator() {\n')
+    output_fp.write('    public final Iterator<Integer> iterator() {\n')
     output_fp.write('        return new OutputIterator(this.start, this.end, this.itersFinished, this.outputIterMarkers);\n')
     output_fp.write('    }\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public '+hadoopOutputKeyType+'Writable getKeyFor(int index) {\n')
+    output_fp.write('    public final '+hadoopOutputKeyType+'Writable getKeyFor(int index) {\n')
     writeln(visitor(nativeOutputKeyType).getKeyFor(), 2, output_fp);
     output_fp.write('    }\n')
     output_fp.write('\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public '+hadoopOutputValueType+'Writable getValueFor(int index) {\n')
+    output_fp.write('    public final '+hadoopOutputValueType+'Writable getValueFor(int index) {\n')
     writeln(visitor(nativeOutputValueType).getValueFor(), 2, output_fp);
     output_fp.write('    }\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public void serializeKey(int index, DataOutputStream out) throws IOException {\n')
+    output_fp.write('    public final void serializeKey(int index, DataOutputStream out) throws IOException {\n')
     writeln(visitor(nativeOutputKeyType).getSerializeKey(), 2, output_fp)
     output_fp.write('    }\n')
     output_fp.write('    @Override\n')
-    output_fp.write('    public void serializeValue(int index, DataOutputStream out) throws IOException {\n')
+    output_fp.write('    public final void serializeValue(int index, DataOutputStream out) throws IOException {\n')
     writeln(visitor(nativeOutputValueType).getSerializeValue(), 2, output_fp)
     output_fp.write('    }\n')
     output_fp.write('\n')
@@ -3309,7 +3310,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('       return 0;\n')
             kernelfp.write('    }\n')
 
-    writeInputMapBufferConstructor(input_fp, nativeInputKeyType, nativeInputValueType, isMapper)
+    writeInputBufferConstructor(input_fp, nativeInputKeyType, nativeInputValueType, isMapper)
     writeBulkFillMethod(input_fp, nativeInputKeyType, nativeInputValueType, isMapper)
 
     generateFill(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)

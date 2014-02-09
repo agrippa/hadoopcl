@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -10,11 +11,12 @@ public abstract class AllocManager<Type> {
     protected final int maxAllocated;
     protected int nAllocated;
     protected final LinkedList<Type> free;
-    protected final Class<? extends Type> toInstantiate;
+    // protected final Class<? extends Type> toInstantiate;
     protected final String name;
     protected int idIncr = 0;
     protected final HadoopOpenCLContext clContext;
     private final boolean enableLogs;
+    protected final Constructor<? extends Type> constructor;
 
     protected void log(String s) {
         if (enableLogs) {
@@ -23,14 +25,16 @@ public abstract class AllocManager<Type> {
     }
 
     public AllocManager(String name, int setMax,
-            Class<? extends Type> toInstantiate, HadoopOpenCLContext clContext) {
+            /* Class<? extends Type> toInstantiate, */ HadoopOpenCLContext clContext,
+            Constructor<? extends Type> constructor) {
         this.nAllocated = 0;
         this.maxAllocated = setMax;
         this.free = new LinkedList<Type>();
-        this.toInstantiate = toInstantiate;
+        // this.toInstantiate = toInstantiate;
         this.name = name;
         this.enableLogs = clContext.enableBufferRunnerDiagnostics();
         this.clContext = clContext;
+        this.constructor = constructor;
     }
 
     public abstract TypeAlloc<Type> alloc();
@@ -53,7 +57,8 @@ public abstract class AllocManager<Type> {
       } else if (this.nAllocated < this.maxAllocated) {
         Type nb;
         try {
-            nb = toInstantiate.newInstance();
+            nb = constructor.newInstance(this.clContext, this.idIncr++);
+            // nb = toInstantiate.newInstance();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
