@@ -7,12 +7,17 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.io.ReadArrayUtils;
 
 public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
-    public int[] memIncr;
-    protected int[] outputIterMarkers;
+    public final int[] memIncr;
+    protected final int[] outputIterMarkers;
     public HashSet<Integer> itersFinished;
     protected final ReadArrayUtils readUtils = new ReadArrayUtils();
 
-    public abstract void initBeforeKernel(int outputsPerInput, HadoopOpenCLContext clContext);
+    public HadoopCLOutputBuffer(HadoopOpenCLContext clContext, Integer id) {
+        super(clContext, id);
+        this.memIncr = new int[1];
+        this.outputIterMarks = new int[this.clContext.getOutputBufferSize()];
+    }
+
     public abstract int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar)
         throws IOException, InterruptedException;
 

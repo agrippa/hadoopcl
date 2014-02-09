@@ -13,17 +13,15 @@ import java.util.List;
 import java.util.ArrayList;
 
 public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
-    public int[] keyIndex;
+    public final int[] keyIndex;
     public int nKeys;
     public int nVals;
 
-    public void baseInit(HadoopOpenCLContext clContext) {
-        this.clContext = clContext;
+    public HadoopCLInputReducerBuffer(HadoopOpenCLContext clContext, Integer id) {
+        supre(clContext, id);
         this.keyIndex = new int[this.clContext.getInputBufferSize()];
-        this.nWrites = new int[this.clContext.getInputBufferSize()];
         this.nKeys = 0;
         this.nVals = 0;
-        this.isGPU = this.clContext.isGPU();
     }
 
     public boolean hasWork() {

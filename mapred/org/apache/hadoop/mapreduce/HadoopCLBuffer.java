@@ -10,15 +10,21 @@ import java.lang.InterruptedException;
 import org.apache.hadoop.io.SparseVectorWritable;
 
 public abstract class HadoopCLBuffer {
-    public HadoopOpenCLContext clContext;
+    public final HadoopOpenCLContext clContext;
     protected HadoopCLProfile prof;
-    protected int isGPU;
-    public int[] nWrites;
-    protected boolean initialized = false;
+    protected final int isGPU;
+    public final int[] nWrites;
     public HadoopCLGlobalId tracker;
 
     protected final static AtomicInteger idIncr = new AtomicInteger(0);
-    public int id = -1;
+    public final int id;
+
+    public HadoopCLBuffer(HadoopOpenCLContext clContext, Integer id) {
+        this.clContext = clContext;
+        this.isGPU = this.clContext.isGPU();
+        this.id = id.intValue();
+        this.nWrites = new int[this.clContext.getInputBufferSize()];
+    }
 
     public abstract boolean completedAll();
 
@@ -46,8 +52,6 @@ public abstract class HadoopCLBuffer {
         }
         return this.prof;
     }
-
-    public boolean initialized() { return this.initialized; }
 
     protected int requiredCapacity(int[] lookAside, int numAccumValues,
             int numAccumElements, int newLength) {

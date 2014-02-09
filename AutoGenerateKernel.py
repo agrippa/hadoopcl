@@ -55,7 +55,7 @@ def tostr_without_last_ln(arr, indent):
 ########################## Empty Visitor ########################################
 #################################################################################
 class NativeTypeVisitor:
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
         raise NotImplementedError('Missing getKeyValDecl')
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
         raise NotImplementedError('Missing getKeyValInit')
@@ -167,8 +167,8 @@ class PrimitiveVisitor(NativeTypeVisitor):
     def __init__(self, typ):
         self.typ = typ
 
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
-        return [ 'public '+self.typ+'[] '+basename+'s;' ]
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
+        return [ 'public '+('final' if isFinal else '')+'+self.typ+'[] '+basename+'s;' ]
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
         if forceNull:
             initializer = 'null'
@@ -390,9 +390,9 @@ class PrimitiveVisitor(NativeTypeVisitor):
 ########################## Visitor for Pair type ################################
 #################################################################################
 class PairVisitor(NativeTypeVisitor):
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
-        return [ 'public double[] '+basename+'s1;',
-                 'public double[] '+basename+'s2;' ]
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
+        return [ 'public '+('final' if isFinal else '')+' double[] '+basename+'s1;',
+                 'public '+('final' if isFinal else '')+' double[] '+basename+'s2;' ]
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
         if forceNull:
             initializer = 'null'
@@ -595,10 +595,10 @@ class PairVisitor(NativeTypeVisitor):
 ########################## Visitor for Ipair type ###############################
 #################################################################################
 class IpairVisitor(NativeTypeVisitor):
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
-        return [ 'public int[] '+basename+'Ids;',
-                 'public double[] '+basename+'s1;',
-                 'public double[] '+basename+'s2;' ]
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
+        return [ 'public '+('final' if isFinal else '')+' int[] '+basename+'Ids;',
+                 'public '+('final' if isFinal else '')+' double[] '+basename+'s1;',
+                 'public '+('final' if isFinal else '')+' double[] '+basename+'s2;' ]
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
         if forceNull:
             initializer1 = initializer2 = 'null';
@@ -841,22 +841,20 @@ class IpairVisitor(NativeTypeVisitor):
 ########################## Visitor for Svec type ################################
 #################################################################################
 class SvecVisitor(NativeTypeVisitor):
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
         buf = [ ]
         if isInput:
-            buf.append('public int[] '+basename+'LookAsideBuffer;')
-            buf.append('public int[] '+basename+'Indices;')
-            buf.append('public double[] '+basename+'Vals;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'LookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'Indices;')
+            buf.append('public '+('final' if isFinal else '')+' double[] '+basename+'Vals;')
         else:
-            buf.append('public int[] '+basename+'IntLookAsideBuffer;')
-            buf.append('public int[] '+basename+'DoubleLookAsideBuffer;')
-            buf.append('public int[] '+basename+'Indices;')
-            buf.append('public double[] '+basename+'Vals;')
+            buf.append('public '+('final' if isFinal else '')+'int[] '+basename+'IntLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+'int[] '+basename+'DoubleLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+'int[] '+basename+'Indices;')
+            buf.append('public '+('final' if isFinal else '')+'double[] '+basename+'Vals;')
 
         if not isInput:
-            buf.append('private int[] bufferOutputIndices = null;')
-            buf.append('private double[] bufferOutputVals = null;')
-            buf.append('public int[] outputValLengthBuffer;')
+            buf.append('public '+('final' if isFinal else '')+'int[] outputValLengthBuffer;')
         return buf
 
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
@@ -889,7 +887,7 @@ class SvecVisitor(NativeTypeVisitor):
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
         # if isMapper and not isInput and not isKey:
         if not isInput and not isKey:
-            buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize() * outputsPerInput];')
+            buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize()];')
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxDoubleIncr = new int[1];')
         return buf
@@ -1101,8 +1099,6 @@ class SvecVisitor(NativeTypeVisitor):
                      '(outputValIndices.length * 4) +',
                      '(outputValVals.length * 8) +',
                      '(outputValLengthBuffer.length * 4) +',
-                     '(bufferOutputIndices == null ? 0 : bufferOutputIndices.length * 4) +',
-                     '(bufferOutputVals == null ? 0 : bufferOutputVals.length * 8) +',
                      '(memAuxIntIncr.length * 4) +',
                      '(memAuxDoubleIncr.length * 4);' ]
     def getOutputLength(self, core, count):
@@ -1175,18 +1171,18 @@ class SvecVisitor(NativeTypeVisitor):
 ########################## Visitor for Ivec type ################################
 #################################################################################
 class IvecVisitor(NativeTypeVisitor):
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
         buf = [ ]
         if isInput:
-            buf.append('public int[] '+basename+'LookAsideBuffer;')
-            buf.append('public int[] '+basename+';')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'LookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+';')
         else:
-            buf.append('public int[] '+basename+'LookAsideBuffer;')
-            buf.append('public int[] '+basename+';')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'LookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+';')
 
         if not isInput:
-            buf.append('private int[] bufferOutput = null;')
-            buf.append('public int[] outputLengthBuffer;')
+            buf.append('private '+('final' if isFinal else '')+' int[] bufferOutput = null;')
+            buf.append('public '+('final' if isFinal else '')+' int[] outputLengthBuffer;')
         return buf
 
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
@@ -1446,22 +1442,20 @@ class IvecVisitor(NativeTypeVisitor):
 ########################## Visitor for Fsvec type ###############################
 #################################################################################
 class FsvecVisitor(NativeTypeVisitor):
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
         buf = [ ]
         if isInput:
-            buf.append('public int[] '+basename+'LookAsideBuffer;')
-            buf.append('public int[] '+basename+'Indices;')
-            buf.append('public float[] '+basename+'Vals;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'LookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'Indices;')
+            buf.append('public '+('final' if isFinal else '')+' float[] '+basename+'Vals;')
         else:
-            buf.append('public int[] '+basename+'IntLookAsideBuffer;')
-            buf.append('public int[] '+basename+'FloatLookAsideBuffer;')
-            buf.append('public int[] '+basename+'Indices;')
-            buf.append('public float[] '+basename+'Vals;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'IntLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'FloatLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'Indices;')
+            buf.append('public '+('final' if isFinal else '')+' float[] '+basename+'Vals;')
 
         if not isInput:
-            buf.append('private int[] bufferOutputIndices = null;')
-            buf.append('private float[] bufferOutputVals = null;')
-            buf.append('public int[] outputValLengthBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] outputValLengthBuffer;')
         return buf
 
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
@@ -1494,7 +1488,7 @@ class FsvecVisitor(NativeTypeVisitor):
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
             buf.append('System.err.println("Setting nVectorsToBuffer to "+this.nVectorsToBuffer);')
         if isMapper and not isInput and not isKey:
-            buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize() * outputsPerInput];')
+            buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize()];')
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxFloatIncr = new int[1];')
         return buf
@@ -1719,8 +1713,6 @@ class FsvecVisitor(NativeTypeVisitor):
                      '(outputValIndices.length * 4) +',
                      '(outputValVals.length * 8) +',
                      '(outputValLengthBuffer.length * 4) +',
-                     '(bufferOutputIndices == null ? 0 : bufferOutputIndices.length * 4) +',
-                     '(bufferOutputVals == null ? 0 : bufferOutputVals.length * 8) +',
                      '(memAuxIntIncr.length * 4) +',
                      '(memAuxFloatIncr.length * 4);' ]
     def getOutputLength(self, core, count):
@@ -1793,22 +1785,20 @@ class FsvecVisitor(NativeTypeVisitor):
 ########################## Visitor for Bsvec type ###############################
 #################################################################################
 class BsvecVisitor(NativeTypeVisitor):
-    def getKeyValDecl(self, basename, isMapper, isInput, isKernel):
+    def getKeyValDecl(self, basename, isMapper, isInput, isKernel, isFinal):
         buf = [ ]
         if isInput:
-            buf.append('public int[] '+basename+'LookAsideBuffer;')
-            buf.append('public int[] '+basename+'Indices;')
-            buf.append('public double[] '+basename+'Vals;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'LookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'Indices;')
+            buf.append('public '+('final' if isFinal else '')+' double[] '+basename+'Vals;')
         else:
-            buf.append('public int[] '+basename+'IntLookAsideBuffer;')
-            buf.append('public int[] '+basename+'DoubleLookAsideBuffer;')
-            buf.append('public int[] '+basename+'Indices;')
-            buf.append('public double[] '+basename+'Vals;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'IntLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'DoubleLookAsideBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'Indices;')
+            buf.append('public '+('final' if isFinal else '')+' double[] '+basename+'Vals;')
 
         if not isInput:
-            buf.append('private int[] bufferOutputIndices = null;')
-            buf.append('private double[] bufferOutputVals = null;')
-            buf.append('public int[] outputValLengthBuffer;')
+            buf.append('public '+('final' if isFinal else '')+' int[] outputValLengthBuffer;')
         return buf
 
     def getKeyValInit(self, basename, size, forceNull, isInput, isMapper, isKey):
@@ -1840,7 +1830,7 @@ class BsvecVisitor(NativeTypeVisitor):
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
         if not isInput and not isKey:
-            buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize() * outputsPerInput];')
+            buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize()];')
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxDoubleIncr = new int[1];')
         return buf
@@ -2064,8 +2054,6 @@ class BsvecVisitor(NativeTypeVisitor):
                      '(outputValIndices.length * 4) +',
                      '(outputValVals.length * 8) +',
                      '(outputValLengthBuffer.length * 4) +',
-                     '(bufferOutputIndices == null ? 0 : bufferOutputIndices.length * 4) +',
-                     '(bufferOutputVals == null ? 0 : bufferOutputVals.length * 8) +',
                      '(memAuxIntIncr.length * 4) +',
                      '(memAuxDoubleIncr.length * 4);' ]
     def getOutputLength(self, core, count):
@@ -2398,37 +2386,28 @@ def writeHeader(fp, isMapper):
 
 def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType):
     writeln(visitor(nativeOutputKeyType).getMarkerInit(
-        'outputIterMarkers', 'this.clContext.getOutputBufferSize() * outputsPerInput',
+        'outputIterMarkers', 'this.clContext.getOutputBufferSize()',
             False), 3, fp)
     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
-        'this.clContext.getOutputBufferSize() * outputsPerInput', False, False,
+        'this.clContext.getOutputBufferSize()', False, False,
             isMapper, True), 3, fp)
     writeln(visitor(nativeOutputValueType).getKeyValInit('outputVal',
-        'this.clContext.getOutputBufferSize() * outputsPerInput', False, False,
+        'this.clContext.getOutputBufferSize()', False, False,
             isMapper, False), 3, fp)
 
-def writeOriginalInputInitMethod(fp, nativeInputKeyType, nativeInputValueType):
+def writeInputMapBufferConstructor(fp, nativeInputKeyType, nativeInputValueType, isMapper):
     fp.write('\n')
     fp.write('    @Override\n')
-    fp.write('    public void init(int outputsPerInput, HadoopOpenCLContext clContext) {\n')
-    fp.write('        baseInit(clContext);\n')
+    fp.write('    public '+inputBufferClassName(isMapper, nativeInputKeyType, nativeInputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')
+    fp.write('        super(clContext, id);\n')
     fp.write('\n')
-    # if not isMapper:
-    #     writeln(visitor(nativeInputValueType).getOriginalInitMethod(), 2, fp)
-    #     fp.write('\n')
 
     writeln(visitor(nativeInputKeyType).getKeyValInit('inputKey',
         'this.clContext.getInputBufferSize()', False, True, isMapper, True), 2, fp)
 
-    if isMapper:
-        writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
-            'this.clContext.getInputBufferSize()', False, True, isMapper, False), 2, fp)
-    else:
-        writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
-            'this.clContext.getInputBufferSize()',
-                False, True, isMapper, False), 2, fp)
+    writeln(visitor(nativeInputValueType).getKeyValInit('inputVal',
+        'this.clContext.getInputBufferSize()', False, True, isMapper, False), 2, fp)
 
-    fp.write('        this.initialized = true;\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -2458,12 +2437,10 @@ def writeBulkFillMethod(fp, nativeInputKeyType, nativeInputValueType, isMapper):
 def writeInitBeforeKernelMethod(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
     fp.write('    @Override\n')
-    fp.write('    public void initBeforeKernel(int outputsPerInput, HadoopOpenCLContext clContext) {\n')
-    fp.write('        baseInit(clContext);\n')
-    fp.write('        this.outputsPerInput = outputsPerInput;\n')
+    fp.write('    public '+outputBufferClassName(isMapper, nativeOutputKeyType, nativeOutputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')
+    fp.write('        super(clContext, id);\n')
     fp.write('\n')
     writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType)
-    fp.write('        this.initialized = true;\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -2480,7 +2457,7 @@ def writePostKernelSetupDeclaration(fp, isMapper, nativeOutputKeyType, nativeOut
     elif nativeOutputValueType == 'fsvec':
         fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxFloatIncr')
 
-    fp.write(', int[] setMemIncr, int[] setNWrites, int setOutputsPerInput, int[] outputIterMarkers) {\n')
+    fp.write(', int[] setMemIncr, int[] setNWrites, int[] outputIterMarkers) {\n')
 
 
 def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputValueType):
@@ -2544,7 +2521,7 @@ def writePreKernelSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInput
     #     fp.write(', int[] setMemAuxIntIncr, int[] setMemAuxFloatIncr')
 
     # fp.write(', int[] setMemIncr, int setOutputsPerInput, int[] outputIterMarkers) {\n')
-    fp.write(', int setOutputsPerInput) {\n')
+    fp.write(') {\n')
 
 def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType):
     fp.write('\n')
@@ -2566,7 +2543,6 @@ def writePreKernelSetupMethod(fp, isMapper, nativeInputKeyType, nativeInputValue
 
     fp.write('\n')
     fp.write('        this.memIncr = null;\n')
-    fp.write('        this.outputsPerInput = setOutputsPerInput;\n')
     fp.write('\n')
 
     writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
@@ -2763,7 +2739,7 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     fp.write('                       for(int j = 0; j < this.nWrites[i]; j++) {\n')
 
     for line in firstLoopLines:
-        fp.write(line.replace('DUMMY', 'i * this.outputsPerInput + j'))
+        fp.write(line.replace('DUMMY', 'i + j'))
 
     fp.write('                       }\n')
     fp.write('                   }\n')
@@ -2913,7 +2889,7 @@ def generatePrepareForRead(fp, isMapper, nativeInputKeyType, nativeInputValType,
     elif nativeOutputValType == 'fsvec':
         fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
 
-    fp.write(', outputBuffer.memIncr, outputBuffer.nWrites, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
+    fp.write(', outputBuffer.memIncr, outputBuffer.nWrites, outputBuffer.outputIterMarkers);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -2997,7 +2973,7 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     #     fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
 
     # fp.write(', outputBuffer.memIncr, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
-    fp.write(', this.outputsPerInput);\n')
+    fp.write(');\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -3211,13 +3187,11 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType)+' extends HadoopCL'+
         capitalizedKernelString(isMapper)+'Kernel {\n')
 
-    writeln(visitor(nativeInputKeyType).getKeyValDecl('inputKey', isMapper, True, False), 1, input_fp)
-    writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, False), 1, input_fp)
-    writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, False), 1, output_fp)
-    writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, False), 1, output_fp)
+    writeln(visitor(nativeInputKeyType).getKeyValDecl('inputKey', isMapper, True, False, True), 1, input_fp)
+    writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, False, True), 1, input_fp)
+    writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, False, True), 1, output_fp)
+    writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, False, True), 1, output_fp)
 
-    input_fp.write('    protected int outputsPerInput;\n')
-    output_fp.write('    protected int outputsPerInput;\n')
     kernelfp.write('    public int outputLength;\n')
 
     if not isMapper:
@@ -3241,19 +3215,19 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         input_fp.write('    public int nVectorsToBuffer;\n')
 
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
-        output_fp.write('    public int[] memAuxIntIncr;\n')
-        output_fp.write('    public int[] memAuxDoubleIncr;\n')
+        output_fp.write('    public final int[] memAuxIntIncr;\n')
+        output_fp.write('    public final int[] memAuxDoubleIncr;\n')
         kernelfp.write('    public int[] memAuxIntIncr;\n')
         kernelfp.write('    public int[] memAuxDoubleIncr;\n')
         kernelfp.write('    public int outputAuxIntLength;\n')
         kernelfp.write('    public int outputAuxDoubleLength;\n')
     elif nativeOutputValueType == 'ivec':
-        output_fp.write('    public int[] memAuxIncr;\n')
+        output_fp.write('    public final int[] memAuxIncr;\n')
         kernelfp.write('    public int[] memAuxIncr;\n')
         kernelfp.write('    public int outputAuxIntLength;\n')
     elif nativeOutputValueType == 'fsvec':
-        output_fp.write('    public int[] memAuxIntIncr;\n')
-        output_fp.write('    public int[] memAuxFloatIncr;\n')
+        output_fp.write('    public final int[] memAuxIntIncr;\n')
+        output_fp.write('    public final int[] memAuxFloatIncr;\n')
         kernelfp.write('    public int[] memAuxIntIncr;\n')
         kernelfp.write('    public int[] memAuxFloatIncr;\n')
         kernelfp.write('    public int outputAuxIntLength;\n')
@@ -3295,10 +3269,10 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     output_fp.write('\n')
 
 
-    writeln(visitor(nativeInputKeyType).getKeyValDecl('inputKey', isMapper, True, True), 1, kernelfp)
-    writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, True), 1, kernelfp)
-    writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, True), 1, kernelfp)
-    writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, True), 1, kernelfp)
+    writeln(visitor(nativeInputKeyType).getKeyValDecl('inputKey', isMapper, True, True, False), 1, kernelfp)
+    writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, True, False), 1, kernelfp)
+    writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, True, False), 1, kernelfp)
+    writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, True, False), 1, kernelfp)
     # kernelfp.write('    final private '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
     # kernelfp.write('    final private '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
     kernelfp.write('\n')
@@ -3335,7 +3309,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
             kernelfp.write('       return 0;\n')
             kernelfp.write('    }\n')
 
-    writeOriginalInputInitMethod(input_fp, nativeInputKeyType, nativeInputValueType)
+    writeInputMapBufferConstructor(input_fp, nativeInputKeyType, nativeInputValueType, isMapper)
     writeBulkFillMethod(input_fp, nativeInputKeyType, nativeInputValueType, isMapper)
 
     generateFill(kernelfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
@@ -3369,7 +3343,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     output_fp.write('    @Override\n')
     output_fp.write('    public Class<?> getOutputValClass() { return '+hadoopOutputValueType+'Writable.class; }\n')
 
-    writeInitBeforeKernelMethod(output_fp, isMapper, nativeOutputKeyType, nativeOutputValueType)
+    writeOutputBufferConstructor(output_fp, isMapper, nativeOutputKeyType, nativeOutputValueType)
 
     # writeResetForAnotherAttempt(input_fp, isMapper, nativeInputKeyType, nativeInputValueType)
 

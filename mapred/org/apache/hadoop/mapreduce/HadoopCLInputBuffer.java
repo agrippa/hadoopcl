@@ -4,14 +4,16 @@ import java.util.HashSet;
 import java.io.IOException;
 
 public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
-    protected boolean doingBulkRead = false;
+    protected final boolean doingBulkRead = false;
     protected boolean isFull = false;
 
-    public abstract void init(int pairsPerInput, HadoopOpenCLContext clContext);
+    public HadoopCLInputBuffer(HadoopOpenCLContext clContext, Integer id) {
+        super(clContext, id);
+        this.doingBulkRead = clContext.getContext().supportsBulkReads();
+    }
+
     public abstract boolean isFull(TaskInputOutputContext context)
         throws IOException, InterruptedException;
-    // public abstract void transferBufferedValues(HadoopCLBuffer buffer);
-    // public abstract void resetForAnotherAttempt();
     public abstract void reset();
     public abstract void addKeyAndValue(TaskInputOutputContext context) throws IOException, InterruptedException;
     public abstract boolean hasWork();
@@ -22,9 +24,5 @@ public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
     @Override
     public long space() {
         return super.space();
-    }
-
-    public void setDoingBulkRead(boolean val) {
-        this.doingBulkRead = valw;
     }
 }

@@ -13,11 +13,8 @@ import java.util.HashMap;
 public abstract class HadoopCLOutputMapperBuffer extends HadoopCLOutputBuffer {
     public int nPairs;
 
-    public void baseInit(HadoopOpenCLContext clContext) {
-        this.clContext = clContext;
-        this.isGPU = this.clContext.isGPU();
-        this.memIncr = new int[1];
-        this.nWrites = new int[this.clContext.getInputBufferSize()];
+    public HadoopCLOutputMapperBuffer(HadoopOpenCLContext clContext, Integer id) {
+        super(clContext, id);
     }
 
     @Override

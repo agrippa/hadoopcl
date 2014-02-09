@@ -212,7 +212,6 @@ public class OpenCLDriver {
 
       newBuffer.tracker = new HadoopCLGlobalId(bufferCounter++);
       newBuffer.resetProfile();
-      newBuffer.setDoingBulkRead(true);
       newBuffer.getProfile().startRead(newBuffer);
   }
 
@@ -305,7 +304,6 @@ public class OpenCLDriver {
     int itemCount = 0;
     if (this.context.supportsBulkReads()) {
         HadoopCLDataInput stream = this.context.getBulkReader();
-        buffer.setDoingBulkRead();
         while (stream.hasMore()) {
             itemCount += buffer.bulkFill(stream);
 

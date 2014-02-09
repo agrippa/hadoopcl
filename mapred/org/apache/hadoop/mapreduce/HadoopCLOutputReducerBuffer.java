@@ -15,13 +15,10 @@ import java.util.ArrayList;
 public abstract class HadoopCLOutputReducerBuffer extends HadoopCLOutputBuffer {
     public int nKeys;
 
-    public void baseInit(HadoopOpenCLContext clContext) {
-        this.clContext = clContext;
-        this.isGPU = this.clContext.isGPU();
-        this.memIncr = new int[1];
-        this.nWrites = new int[this.clContext.getInputBufferSize()];
+    public HadoopCLOutputReducerBuffer(HadoopOpenCLContext clContext, Integer id) {
+        super(clContext, id);
     }
-
+    
     @Override
     public boolean completedAll() {
         // int count = 0;

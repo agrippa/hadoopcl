@@ -12,21 +12,14 @@ import java.util.HashMap;
 
 public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
     public int nPairs;
-    private int capacity;
-    public boolean enableStriding;
+    public final int capacity;
+    public final boolean enableStriding;
 
-    public void baseInit(HadoopOpenCLContext clContext) {
-        this.clContext = clContext;
-        this.nWrites = new int[this.clContext.getInputBufferSize()];
+    public HadoopCLInputMapperBuffer(HadoopOpenCLContext clContext, Integer id) {
+        super(clContext, id);
         this.nPairs = 0;
         this.capacity = this.clContext.getInputBufferSize();
-        this.isGPU = this.clContext.isGPU();
         this.enableStriding = this.clContext.runningOnGPU();
-        // this.enableStriding  =false;
-    }
-
-    public int capacity() {
-        return capacity;
     }
 
     public boolean hasWork() {
@@ -48,7 +41,8 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
         return true;
     }
 
-    public void addKeyAndValue(TaskInputOutputContext context) throws IOException, InterruptedException {
+    public void addKeyAndValue(TaskInputOutputContext context)
+            throws IOException, InterruptedException {
         addTypedKey(((Context)context).getCurrentKey());
         addTypedValue(((Context)context).getCurrentValue());
         this.nPairs++;
