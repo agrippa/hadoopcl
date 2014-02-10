@@ -111,22 +111,22 @@ public class BufferRunner implements Runnable {
         // possible if getting DONE signal from main
         if (!(input instanceof MainDoneMarker)) {
             input.clearNWrites();
-        }
 
-        HadoopCLKernel k = newKernelInstance();
-        if (k != null) {
-            // LOG:DIAGNOSTIC
-            // log("    Allocated kernel "+k.id+" for processing of input buffer "+input.id);
-            if (startKernel(k, input)) {
+            HadoopCLKernel k = newKernelInstance();
+            if (k != null) {
                 // LOG:DIAGNOSTIC
-                // log("    Successfully started kernel "+k.id+" on "+input.id);
-                profiles.add(input.getProfile());
-                freeInputBuffers.add(input);
-                return;
-            } else {
-                // LOG:DIAGNOSTIC
-                // log("    Failed to start kernel, marking input "+input.id+" to retry and freeing kernel "+k.id);
-                freeKernels.add(k);
+                // log("    Allocated kernel "+k.id+" for processing of input buffer "+input.id);
+                if (startKernel(k, input)) {
+                    // LOG:DIAGNOSTIC
+                    // log("    Successfully started kernel "+k.id+" on "+input.id);
+                    profiles.add(input.getProfile());
+                    freeInputBuffers.add(input);
+                    return;
+                } else {
+                    // LOG:DIAGNOSTIC
+                    // log("    Failed to start kernel, marking input "+input.id+" to retry and freeing kernel "+k.id);
+                    freeKernels.add(k);
+                }
             }
         }
 
@@ -261,7 +261,6 @@ public class BufferRunner implements Runnable {
 
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
-
         boolean completedAll = output.completedAll();
         toWrite.addLast(new OutputBufferSoFar(output, 0));
 
@@ -329,7 +328,6 @@ public class BufferRunner implements Runnable {
 
     private boolean doKernelCopyBack() {
         boolean forwardProgress = false;
-
         do {
             HadoopCLKernel kernel = toCopyFromOpenCL.poll();
             if (kernel == null) break;
@@ -488,6 +486,130 @@ public class BufferRunner implements Runnable {
         }
     }
 
+    private void spillAll() {
+        if (this.clContext.isMapper()) {
+            FSDataOutputStream out = null;
+            try {
+                final Counter combineInputCounter = 
+                  this.clContext.getContext().getCounter(COMBINE_INPUT_RECORDS);
+                final Counter spilledRecordsCounter =
+                  this.clContext.getContext().getCounter(SPILLED_RECORDS);
+                final Counter combineOutputCounter =
+                  this.clContext.getContext().getCounter(COMBINE_OUTPUT_RECORDS);
+
+                final int partitions = this.clContext.getContext().getNumReduceTasks();
+                final FileSystem rfs = ((LocalFileSystem)FileSystem.getLocal(
+                      this.clContext.getContext().getConfiguration())).getRaw();
+                final LocalDirAllocator lDirAlloc = 
+                    new LocalDirAllocator("mapred.local.dir");
+
+                final int mySpillNo = MapTask.numSpills.getAndIncrement();
+                final SpillRecord spillRec = new SpillRecord(partitions, mySpillNo);
+                final Path filename = lDirAlloc.getLocalPathForWrite(
+                    TaskTracker.OUTPUT + "/spill"+mySpillNo+".out",
+                    this.clContext.getContext().getConfiguration());
+                out = rfs.create(filename);
+
+                final CombineOutputCollector combineCollector;
+                final CombinerRunner combinerRunner = CombinerRunner.create(
+                    ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()),
+                    (org.apache.hadoop.mapred.TaskAttemptID)this.clContext.getContext().getTaskAttemptID(),
+                    (org.apache.hadoop.mapred.Counters.Counter)combineInputCounter, null, null, null);
+                if (combinerRunner != null) {
+                    combineCollector = new CombineOutputCollector(
+                        (org.apache.hadoop.mapred.Counters.Counter)combineOutputCounter,
+                        new Progressable() {
+                            @Override
+                            public void progress() {
+                                clContext.getContext().getReporter().progress();
+                            }
+                        },
+                        this.clContext.getContext().getConfiguration());
+                } else {
+                    combineCollector = null;
+                }
+
+                final SortedWriter writer = new SortedWriter(
+                        this.clContext.getContext().getConfiguration(), out,
+                        toWrite.peekFirst().buffer().getOutputKeyClass(),
+                        toWrite.peekFirst().buffer().getOutputValClass(), null,
+                        (org.apache.hadoop.mapred.Counters.Counter)spilledRecordsCounter,
+                        ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()).getOutputKeyComparator(),
+                        true, mySpillNo, true);
+
+                // LOG:DIAGNOSTIC
+                // log("    At end, "+toWrite.size()+" output buffers remaining to write");
+                if (!toWrite.isEmpty()) {
+                    // Just try and fill the spill buffer a little more
+                    // doSingleOutputBuffer(toWrite.removeFirst());
+
+                    final OutputBufferSoFar soFar = toWrite.getFirst();
+                    final HadoopCLOutputBuffer buffer = soFar.buffer();
+                    HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toWrite, partitions);
+
+                    if (this.clContext.getCombinerKernel() == null) {
+                        while (iter.next()) {
+                            writer.append(iter.getKey(), iter.getValue());
+                        }
+                    } else {
+                        combineCollector.setWriter(writer);
+                        combinerRunner.combine(iter, combineCollector);
+                    }
+                    // LOG:DIAGNOSTIC
+                    // log("      Finished combine from mapper on "+soFar.buffer().id);
+                }
+
+                writer.close();
+
+                HashMap<Integer, Long> partitionSegmentStarts =
+                    writer.getPartitionSegmentStarts();
+                HashMap<Integer, Long> partitionRawLengths =
+                    writer.getPartitionRawLengths();
+                HashMap<Integer, Long> partitionCompressedLengths =
+                    writer.getPartitionCompressedLengths();
+
+                for (int part = 0; part < partitions; part++) {
+                    final IndexRecord rec = new IndexRecord();
+
+                    rec.startOffset = partitionSegmentStarts.get(part);
+                    rec.rawLength = partitionRawLengths.get(part);
+                    rec.partLength = partitionCompressedLengths.get(part);
+                    spillRec.putIndex(rec, part);
+                }
+
+                synchronized (MapTask.indexCacheList) {
+                    MapTask.indexCacheList.put(spillRec.getSpillNo(), spillRec);
+                    MapTask.totalIndexCacheMemory +=
+                        spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
+                }
+
+                for (OutputBufferSoFar soFar : toWrite) {
+                    freeOutputBuffers.free(soFar.buffer());
+                }
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } finally {
+                try {
+                    if (out != null) out.close();
+                } catch (IOException io) {
+                    throw new RuntimeException(io);
+                }
+            }
+        } else {
+            // LOG:DIAGNOSTIC
+            // log("    At end, "+toWrite.size()+" output buffers remaining to write");
+            while (!toWrite.isEmpty()) {
+                boolean forwardProgress =
+                    doSingleOutputBuffer(toWrite.removeFirst());
+
+                if (!forwardProgress) {
+                    waitForMoreWork();
+                }
+            }
+        }
+    }
+
     @Override
     public void run() {
         // LOG:PROFILE
@@ -539,8 +661,8 @@ public class BufferRunner implements Runnable {
          * usingOpencl to false (this should be more efficient so we're
          * not just constantly throwing exceptions
          */
-        while (!mainDone || !toRunPrivate.isEmpty() ||
-                !toCopyFromOpenCL.isEmpty() || kernelsActive.get() > 0 ) {
+        while (!mainDone || !toRunPrivate.isEmpty() /* ||
+                !toCopyFromOpenCL.isEmpty() || kernelsActive.get() > 0 */ ) {
 
             boolean forwardProgress = false;
             /*
@@ -568,131 +690,33 @@ public class BufferRunner implements Runnable {
             }
         }
 
-        // LOG:DIAGNOSTIC
-        // log("    Exiting main BufferRunner loop with "+toWrite.size()+" output buffers remaining");
+        while (kernelsActive.get() > 0 || !toCopyFromOpenCL.isEmpty()) {
+            if (this.freeOutputBuffers.nAvailable() == 0) {
+                spillAll();
+            }
+
+            HadoopCLKernel kernel;
+            synchronized (somethingHappenedLocal) {
+                while (toCopyFromOpenCL.isEmpty()) {
+                    try {
+                        somethingHappenedLocal.wait();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                kernel = toCopyFromOpenCL.poll();
+            }
+            // must succeed due to spillAll above
+            HadoopCLOutputBuffer output = freeOutputBuffers.alloc().obj();
+            handleOpenCLCopy(kernel, output);
+        }
 
         if (!toWrite.isEmpty()) {
-            if (this.clContext.isMapper()) {
-                FSDataOutputStream out = null;
-                try {
-                    final Counter combineInputCounter = 
-                      this.clContext.getContext().getCounter(COMBINE_INPUT_RECORDS);
-                    final Counter spilledRecordsCounter =
-                      this.clContext.getContext().getCounter(SPILLED_RECORDS);
-                    final Counter combineOutputCounter =
-                      this.clContext.getContext().getCounter(COMBINE_OUTPUT_RECORDS);
-
-                    final int partitions = this.clContext.getContext().getNumReduceTasks();
-                    final FileSystem rfs = ((LocalFileSystem)FileSystem.getLocal(
-                          this.clContext.getContext().getConfiguration())).getRaw();
-                    final LocalDirAllocator lDirAlloc = 
-                        new LocalDirAllocator("mapred.local.dir");
-
-                    final int mySpillNo = MapTask.numSpills.getAndIncrement();
-                    final SpillRecord spillRec = new SpillRecord(partitions, mySpillNo);
-                    final Path filename = lDirAlloc.getLocalPathForWrite(
-                        TaskTracker.OUTPUT + "/spill"+mySpillNo+".out",
-                        this.clContext.getContext().getConfiguration());
-                    out = rfs.create(filename);
-
-                    final CombineOutputCollector combineCollector;
-                    final CombinerRunner combinerRunner = CombinerRunner.create(
-                        ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()),
-                        (org.apache.hadoop.mapred.TaskAttemptID)this.clContext.getContext().getTaskAttemptID(),
-                        (org.apache.hadoop.mapred.Counters.Counter)combineInputCounter, null, null, null);
-                    if (combinerRunner != null) {
-                        combineCollector = new CombineOutputCollector(
-                            (org.apache.hadoop.mapred.Counters.Counter)combineOutputCounter,
-                            new Progressable() {
-                                @Override
-                                public void progress() {
-                                    clContext.getContext().getReporter().progress();
-                                }
-                            },
-                            this.clContext.getContext().getConfiguration());
-                    } else {
-                        combineCollector = null;
-                    }
-
-                    final SortedWriter writer = new SortedWriter(
-                            this.clContext.getContext().getConfiguration(), out,
-                            toWrite.peekFirst().buffer().getOutputKeyClass(),
-                            toWrite.peekFirst().buffer().getOutputValClass(), null,
-                            (org.apache.hadoop.mapred.Counters.Counter)spilledRecordsCounter,
-                            ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()).getOutputKeyComparator(),
-                            true, mySpillNo, true);
-
-                    // LOG:DIAGNOSTIC
-                    // log("    At end, "+toWrite.size()+" output buffers remaining to write");
-
-                    if (!toWrite.isEmpty()) {
-                        // Just try and fill the spill buffer a little more
-                        // doSingleOutputBuffer(toWrite.removeFirst());
-
-                        final OutputBufferSoFar soFar = toWrite.getFirst();
-                        final HadoopCLOutputBuffer buffer = soFar.buffer();
-                        HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toWrite, partitions);
-
-                        if (this.clContext.getCombinerKernel() == null) {
-                            while (iter.next()) {
-                                writer.append(iter.getKey(), iter.getValue());
-                            }
-                        } else {
-                            combineCollector.setWriter(writer);
-                            combinerRunner.combine(iter, combineCollector);
-                        }
-                        // LOG:DIAGNOSTIC
-                        // log("      Finished combine from mapper on "+soFar.buffer().id);
-                    }
-
-                    writer.close();
-
-                    HashMap<Integer, Long> partitionSegmentStarts =
-                        writer.getPartitionSegmentStarts();
-                    HashMap<Integer, Long> partitionRawLengths =
-                        writer.getPartitionRawLengths();
-                    HashMap<Integer, Long> partitionCompressedLengths =
-                        writer.getPartitionCompressedLengths();
-
-                    for (int part = 0; part < partitions; part++) {
-                        final IndexRecord rec = new IndexRecord();
-
-                        rec.startOffset = partitionSegmentStarts.get(part);
-                        rec.rawLength = partitionRawLengths.get(part);
-                        rec.partLength = partitionCompressedLengths.get(part);
-                        spillRec.putIndex(rec, part);
-                    }
-
-                    synchronized (MapTask.indexCacheList) {
-                        MapTask.indexCacheList.put(spillRec.getSpillNo(), spillRec);
-                        MapTask.totalIndexCacheMemory +=
-                            spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
-                    }
-
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    try {
-                        if (out != null) out.close();
-                    } catch (IOException io) {
-                        throw new RuntimeException(io);
-                    }
-                }
-            } else {
-                // LOG:DIAGNOSTIC
-                // log("    At end, "+toWrite.size()+" output buffers remaining to write");
-                while (!toWrite.isEmpty()) {
-                    boolean forwardProgress =
-                        doSingleOutputBuffer(toWrite.removeFirst());
-
-                    if (!forwardProgress) {
-                        waitForMoreWork();
-                    }
-                }
-            }
-            // LOG:DIAGNOSTIC
-            // log("BufferRunner exiting");
+            spillAll();
         }
+
+        // LOG:DIAGNOSTIC
+        // log("BufferRunner exiting");
     }
 
     @Override
