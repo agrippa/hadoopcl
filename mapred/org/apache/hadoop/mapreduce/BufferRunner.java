@@ -429,7 +429,7 @@ public class BufferRunner implements Runnable {
         boolean forwardProgress = false;
 
         HadoopCLInputBuffer inputBuffer;
-        if ((inputBuffer = getInputBuffer()) != null) {
+        while ((inputBuffer = getInputBuffer()) != null) {
             HadoopCLKernel k = newKernelInstance();
             if (k != null) {
                 // LOG:DIAGNOSTIC
@@ -440,6 +440,7 @@ public class BufferRunner implements Runnable {
                     // log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing kernel "+k.id);
                     toRunPrivate.add(inputBuffer);
                     freeKernels.add(k);
+                    break;
                 } else {
                     // LOG:DIAGNOSTIC
                     // log("    Successfully started kernel "+k.id+" on "+inputBuffer.id);
@@ -454,6 +455,7 @@ public class BufferRunner implements Runnable {
                 // LOG:DIAGNOSTIC
                 // log("    Failed to allocate kernel, marking "+inputBuffer.id+" for retry");
                 toRunPrivate.add(inputBuffer);
+                break;
             }
         }
         return forwardProgress;
@@ -641,20 +643,6 @@ public class BufferRunner implements Runnable {
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Done reallocating kernels", this.clContext);
 
-        // LOG:PROFILE
-        // OpenCLDriver.logger.log("Waiting for first input", this.clContext);
-        synchronized (this.somethingHappenedLocal) {
-            while (toRun.isEmpty()) {
-                try {
-                    this.somethingHappenedLocal.wait();
-                } catch (InterruptedException ie) {
-                    throw new RuntimeException(ie);
-                }
-            }
-        }
-        // LOG:PROFILE
-        // OpenCLDriver.logger.log("Done waiting for first input", this.clContext);
-
         /*
          * I removed the condition !toWrite.isEmpty() because I'd rather
          * exit the loop and then just loop on toWrite after setting
@@ -665,6 +653,12 @@ public class BufferRunner implements Runnable {
                 !toCopyFromOpenCL.isEmpty() || kernelsActive.get() > 0 */ ) {
 
             boolean forwardProgress = false;
+
+            /*
+             * Input Buffer Handling
+             */
+            forwardProgress |= doInputBuffers();
+
             /*
              * Copy back kernels
              */
@@ -679,11 +673,6 @@ public class BufferRunner implements Runnable {
              * Kernel Completion Handling
              */
             // forwardProgress |= doKernelCompletion();
-
-            /*
-             * Input Buffer Handling
-             */
-            forwardProgress |= doInputBuffers();
 
             if (!forwardProgress) {
                 waitForMoreWork();
