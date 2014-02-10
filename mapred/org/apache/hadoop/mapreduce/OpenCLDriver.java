@@ -108,7 +108,7 @@ public class OpenCLDriver {
           long startupTime, long totalTime) {
       StringBuilder sb = new StringBuilder();
       sb.append("DIAGNOSTICS: ");
-      sb.append(this.clContext.typeName());
+      sb.append(this.clContext.verboseTypeName());
       sb.append("(");
       sb.append(this.clContext.getDeviceString());
       sb.append("), runTime = ");
@@ -126,7 +126,7 @@ public class OpenCLDriver {
           List<HadoopCLProfile> profiles) {
       StringBuilder sb = new StringBuilder();
       sb.append("DIAGNOSTICS: ");
-      sb.append(this.clContext.typeName());
+      sb.append(this.clContext.verboseTypeName());
       sb.append("(");
       sb.append(this.clContext.getDeviceString());
       sb.append("), runTime = ");

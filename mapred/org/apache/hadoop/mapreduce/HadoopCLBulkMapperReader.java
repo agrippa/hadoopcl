@@ -4,11 +4,12 @@ import java.io.IOException;
 import java.util.TreeSet;
 import java.util.Stack;
 import java.nio.ByteBuffer;
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator.IntegerPair;
 
 public abstract class HadoopCLBulkMapperReader implements HadoopCLDataInput {
     // private final HadoopCLKeyValueIterator iter;
-    protected int current = -1;
-    protected final Stack<Integer> processed = new Stack<Integer>();
+    protected IntegerPair current = null;
+    protected final Stack<IntegerPair> processed = new Stack<IntegerPair>();
     protected ByteBuffer currentBuffer;
     protected int currentBufferPosition;
     // private final TreeSet<Integer> sortedIndices;

@@ -1,5 +1,7 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.Deque;
+import org.apache.hadoop.mapreduce.BufferRunner.OutputBufferSoFar;
 import java.util.HashSet;
 import java.io.IOException;
 
@@ -30,7 +32,7 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
         throw new UnsupportedOperationException();
     }
     @Override
-    public HadoopCLKeyValueIterator getKeyValueIterator(int soFar, int numReduceTasks) {
+    public HadoopCLKeyValueIterator getKeyValueIterator(Deque<OutputBufferSoFar> toWrite, int numReduceTasks) {
         throw new UnsupportedOperationException();
     }
 }
