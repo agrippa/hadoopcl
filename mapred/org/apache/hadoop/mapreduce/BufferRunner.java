@@ -51,7 +51,7 @@ public class BufferRunner implements Runnable {
     private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
     private final Deque<OutputBufferSoFar> toWrite;
     // private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
-    private final ConcurrentLinkedQueue<HadoopCLKernel> toCopyFromOpenCL;
+    private final LinkedList<HadoopCLKernel> toCopyFromOpenCL;
 
     public static final AtomicBoolean somethingHappened = new AtomicBoolean(false);
     public static final AtomicBoolean somethingHappenedCombiner = new AtomicBoolean(false);
@@ -77,7 +77,7 @@ public class BufferRunner implements Runnable {
         this.toRun = new ConcurrentLinkedQueue<HadoopCLInputBuffer>();
         this.toRunPrivate = new LinkedList<HadoopCLInputBuffer>();
         this.toWrite = new LinkedList<OutputBufferSoFar>();
-        this.toCopyFromOpenCL = new ConcurrentLinkedQueue<HadoopCLKernel>();
+        this.toCopyFromOpenCL = new LinkedList<HadoopCLKernel>();
 
         kernelsActive = new AtomicInteger();
 
@@ -175,10 +175,10 @@ public class BufferRunner implements Runnable {
                     // LOG:PROFILE
                     // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
                 }
-                toCopyFromOpenCL.add(kernel);
-                kernelsActive.getAndDecrement();
                 kernel.openclProfile.stopKernel();
                 synchronized (somethingHappenedLocal) {
+                    toCopyFromOpenCL.add(kernel);
+                    kernelsActive.getAndDecrement();
                     somethingHappenedLocal.set(true);
                     somethingHappenedLocal.notify();
                 }
