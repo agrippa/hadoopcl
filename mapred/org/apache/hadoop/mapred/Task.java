@@ -1160,7 +1160,7 @@ abstract public class Task implements Writable, Configurable {
   /**
    * OutputCollector for the combiner.
    */
-  public static class CombineOutputCollector<K extends Object, V extends Object> 
+  public static class CombineOutputCollector<K extends Writable, V extends Writable> 
   implements OutputCollector<K, V> {
     private Writer<K, V> writer;
     private Counters.Counter outCounter;
@@ -1188,11 +1188,14 @@ abstract public class Task implements Writable, Configurable {
 
     @Override
     public int collectCollection(KVCollection<K, V> coll) throws IOException {
+        Writable key = null;
+        Writable value = null;
         for (int i = coll.start(); i < coll.end(); i++) {
             if (!coll.isValid(i)) continue;
             outCounter.increment(1);
-            writer.append(coll.getKeyFor(i),
-                coll.getValueFor(i));
+            key = coll.getKeyFor(i, key);
+            value = coll.getValueFor(i, value);
+            writer.append((K)key, (V)value);
             if ((outCounter.getValue() % progressBar) == 0) {
               progressable.progress();
             }

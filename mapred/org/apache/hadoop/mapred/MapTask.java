@@ -1203,7 +1203,7 @@ public class MapTask extends Task {
               kvindex = kvnext;
         } catch (MapBufferTooSmallException e) {
           LOG.info("Record too large for in-memory buffer: " + e.getMessage());
-          spillSingleRecord(coll.getKeyFor(index), coll.getValueFor(index), partition);
+          spillSingleRecord((K)coll.getKeyFor(index, null), (V)coll.getValueFor(index, null), partition);
           mapOutputRecordCounter.increment(1);
         } catch (DontBlockOnSpillDoneException db) {
           return index;

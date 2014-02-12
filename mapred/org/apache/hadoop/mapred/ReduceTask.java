@@ -601,8 +601,8 @@ class ReduceTask extends Task {
     }
 
     @Override
-    public int writeCollection(KVCollection coll) {
-        throw new UnsupportedOperationException();
+    public int writeCollection(KVCollection coll) throws IOException, InterruptedException {
+        return real.writeCollection(coll);
     }
 
     @Override
