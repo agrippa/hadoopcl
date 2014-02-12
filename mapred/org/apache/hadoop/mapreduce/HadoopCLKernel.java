@@ -146,7 +146,10 @@ public abstract class HadoopCLKernel extends Kernel {
 
     /**
      * Utilities for HadoopCL Kernels.
+     *
+     * quiskSort is commented because it won't be properly strided when running on GPUs.
      */
+    /*
     protected void quickSort(int[] arr, double[] coarr, int elements, int[] beg, int[] end) {
       int piv, L, R, swap;
       double dpiv;
@@ -224,6 +227,7 @@ public abstract class HadoopCLKernel extends Kernel {
         }
       }
     }
+    */
 
     protected void stupidSort(int[] arr, double[] coarr, int len) {
         for (int i = 0; i < len; i++) {

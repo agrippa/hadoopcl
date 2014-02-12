@@ -155,6 +155,8 @@ class NativeTypeVisitor:
         raise NotImplementedError()
     def getReadValueFromStream(self):
         raise NotImplementedError()
+    def getStridedReadValueFromStream(self):
+        raise NotImplementedError()
     def bulkAddKey(self, isMapper):
         raise NotImplementedError()
     def bulkAddValue(self, isMapper):
@@ -364,6 +366,8 @@ class PrimitiveVisitor(NativeTypeVisitor):
         return [ 'final '+self.typ+' tmpKey = stream.read'+self.typ.capitalize()+'();' ]
     def getReadValueFromStream(self):
         return [ 'final '+self.typ+' tmpVal = stream.read'+self.typ.capitalize()+'();' ]
+    def getStridedReadValueFromStream(self):
+        raise NotImplementedError()
     def bulkAddKey(self, isMapper):
         if isMapper:
             return [ 'this.inputKeys[this.nPairs] = tmpKey;' ]
@@ -565,6 +569,8 @@ class PairVisitor(NativeTypeVisitor):
     def getReadValueFromStream(self):
         return [ 'final double tmpVal1 = stream.readDouble();',
                  'final double tmpVal2 = stream.readDouble();' ]
+    def getStridedReadValueFromStream(self):
+        raise NotImplementedError()
     def bulkAddKey(self, isMapper):
         if isMapper:
             return [ 'this.inputKeys1[this.nPairs] = tmpKey1;',
@@ -807,6 +813,8 @@ class IpairVisitor(NativeTypeVisitor):
         return [ 'final int tmpValId = stream.readInt();',
                  'final double tmpVal1 = stream.readDouble();',
                  'final double tmpVal2 = stream.readDouble();' ]
+    def getStridedReadValueFromStream(self):
+        raise NotImplementedError()
     def bulkAddKey(self, isMapper):
         if isMapper:
             return [ 'this.inputKeyIds[this.nPairs] = tmpKeyId;',
@@ -1155,6 +1163,12 @@ class SvecVisitor(NativeTypeVisitor):
                  '    this.isFull = true;',
                  '    return nread;',
                  '}' ]
+    def getStridedReadValueFromStream(self):
+        return [ 'final int[] indices = new int[vectorLength];',
+                 'final double[] vals = new double[vectorLength];',
+                 'stream.readFully(indices, 0, vectorLength);',
+                 'stream.readFully(vals, 0, vectorLength);',
+                 'IndValWrapper wrapper = new IndValWrapper(indices, vals, vectorLength);' ]
     def bulkAddKey(self, isMapper):
         raise NotImplementedError()
     def bulkAddValue(self, isMapper):
@@ -1427,6 +1441,10 @@ class IvecVisitor(NativeTypeVisitor):
                  '    this.isFull = true;',
                  '    return nread;',
                  '}' ]
+    def getStridedReadValueFromStream(self):
+        return [ 'final int[] indices = new int[vectorLength];',
+                 'stream.readFully(indices, 0, vectorLength);',
+                 'IndValWrapper wrapper = new IndValWrapper(indices, vectorLength);' ]
     def bulkAddKey(self, isMapper):
         raise NotImplementedError()
     def bulkAddValue(self, isMapper):
@@ -1769,6 +1787,12 @@ class FsvecVisitor(NativeTypeVisitor):
                  '    this.isFull = true;',
                  '    return nread;',
                  '}' ]
+    def getStridedReadValueFromStream(self):
+        return [ 'final int[] indices = new int[vectorLength];',
+                 'final float[] vals = new float[vectorLength];',
+                 'stream.readFully(indices, 0, vectorLength);',
+                 'stream.readFully(vals, 0, vectorLength);',
+                 'IndValWrapper wrapper = new IndValWrapper(indices, vals, vectorLength);' ]
     def bulkAddKey(self, isMapper):
         raise NotImplementedError()
     def bulkAddValue(self, isMapper):
@@ -2110,6 +2134,12 @@ class BsvecVisitor(NativeTypeVisitor):
                  '    this.isFull = true;',
                  '    return nread;',
                  '}' ]
+    def getStridedReadValueFromStream(self):
+        return [ 'final int[] indices = new int[vectorLength];',
+                 'final double[] vals = new double[vectorLength];',
+                 'stream.readFully(indices, 0, vectorLength);',
+                 'stream.readFully(vals, 0, vectorLength);',
+                 'IndValWrapper wrapper = new IndValWrapper(indices, vals, vectorLength);' ]
     def bulkAddKey(self, isMapper):
         raise NotImplementedError()
     def bulkAddValue(self, isMapper):
@@ -2412,26 +2442,60 @@ def writeInputBufferConstructor(fp, nativeInputKeyType, nativeInputValueType, is
     fp.write('    }\n')
     fp.write('\n')
 
+def write_with_indent(fp, indent, s):
+    fp.write(('    ' * indent)+s)
+
 def writeBulkFillMethod(fp, nativeInputKeyType, nativeInputValueType, isMapper):
+    base_indent = 2
     fp.write('\n')
     fp.write('    @Override\n')
     fp.write('    public final int bulkFill(HadoopCLDataInput stream) throws IOException {\n')
     fp.write('        int nread = 0;\n')
-    fp.write('        while (stream.hasMore() &&\n')
-    fp.write('                '+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+' &&\n')
-    fp.write('                '+tostr_without_last_ln(visitor(nativeInputValueType).getPreliminaryValueFullCheck(isMapper), 0)+') {\n')
-    fp.write('            stream.nextKey();\n')
-    writeln(visitor(nativeInputKeyType).getReadKeyFromStream(), 3, fp)
-    fp.write('            stream.nextValue();\n')
-    writeln(visitor(nativeInputValueType).getReadValueFromStream(), 3, fp)
-    writeln(visitor(nativeInputKeyType).bulkAddKey(isMapper), 3, fp)
-    writeln(visitor(nativeInputValueType).bulkAddValue(isMapper), 3, fp)
-    fp.write('            nread++;\n')
-    fp.write('        }\n')
-    fp.write('        if (!('+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+') ||\n')
-    fp.write('            !('+tostr_without_last_ln(visitor(nativeInputValueType).getPreliminaryValueFullCheck(isMapper), 0)+')) {\n')
-    fp.write('            this.isFull = true;\n')
-    fp.write('        }\n')
+
+    if isMapper and isVariableLength(nativeInputValueType):
+        base_indent = base_indent + 1
+        fp.write('        if (this.enableStriding) {\n')
+        fp.write('            while (stream.hasMore() &&\n')
+        fp.write('                    '+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+' &&\n')
+        fp.write('                    this.nPairs < nVectorsToBuffer) {\n')
+        fp.write('                stream.nextKey();\n')
+        writeln(visitor(nativeInputKeyType).getReadKeyFromStream(), base_indent + 1, fp)
+        fp.write('                stream.nextValue();\n')
+        fp.write('                final int vectorLength = stream.readInt();\n')
+        writeln(visitor(nativeInputValueType).getStridedReadValueFromStream(), base_indent + 1, fp)
+        fp.write('                if (this.sortedVals.containsKey(vectorLength)) {\n')
+        fp.write('                    this.sortedVals.get(vectorLength).add(wrapper);\n')
+        fp.write('                } else {\n')
+        fp.write('                    LinkedList<IndValWrapper> newList = new LinkedList<IndValWrapper>();\n')
+        fp.write('                    newList.add(wrapper);\n')
+        fp.write('                    this.sortedVals.put(vectorLength, newList);\n')
+        fp.write('                }\n')
+        fp.write('                this.individualInputValsCount += vectorLength;\n')
+        fp.write('                nread++;\n')
+        fp.write('            }\n')
+        fp.write('            if (!('+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+') ||\n')
+        fp.write('                    !(this.nPairs < nVectorsToBuffer)) {\n')
+        fp.write('                this.isFull = true;\n')
+        fp.write('            }\n')
+        fp.write('        } else {\n')
+
+    write_with_indent(fp, base_indent, 'while (stream.hasMore() &&\n')
+    write_with_indent(fp, base_indent, '        '+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+' &&\n')
+    write_with_indent(fp, base_indent, '        '+tostr_without_last_ln(visitor(nativeInputValueType).getPreliminaryValueFullCheck(isMapper), 0)+') {\n')
+    write_with_indent(fp, base_indent, '    stream.nextKey();\n')
+    writeln(visitor(nativeInputKeyType).getReadKeyFromStream(), base_indent + 1, fp)
+    write_with_indent(fp, base_indent, '    stream.nextValue();\n')
+    writeln(visitor(nativeInputValueType).getReadValueFromStream(), base_indent + 1, fp)
+    writeln(visitor(nativeInputKeyType).bulkAddKey(isMapper), base_indent + 1, fp)
+    writeln(visitor(nativeInputValueType).bulkAddValue(isMapper), base_indent + 1, fp)
+    write_with_indent(fp, base_indent, '    nread++;\n')
+    write_with_indent(fp, base_indent, '}\n')
+    write_with_indent(fp, base_indent, 'if (!('+tostr_without_last_ln(visitor(nativeInputKeyType).getPreliminaryKeyFullCheck(isMapper), 0)+') ||\n')
+    write_with_indent(fp, base_indent, '    !('+tostr_without_last_ln(visitor(nativeInputValueType).getPreliminaryValueFullCheck(isMapper), 0)+')) {\n')
+    write_with_indent(fp, base_indent, '    this.isFull = true;\n')
+    write_with_indent(fp, base_indent, '}\n')
+    if isMapper and isVariableLength(nativeInputValueType):
+        fp.write('        }\n')
     fp.write('        return nread;\n')
     fp.write('    }\n')
 
