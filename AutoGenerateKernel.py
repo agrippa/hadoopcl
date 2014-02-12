@@ -161,6 +161,12 @@ class NativeTypeVisitor:
         raise NotImplementedError()
     def bulkAddValue(self, isMapper):
         raise NotImplementedError()
+    def getSameAsLastKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferValueMethod(self):
+        raise NotImplementedError()
 
 #################################################################################
 ########################## Visitor for Primitive type ###########################
@@ -389,6 +395,12 @@ class PrimitiveVisitor(NativeTypeVisitor):
         else:
             return [ 'this.inputVals[this.nVals] = tmpVal;',
                      'this.nVals++;' ]
+    def getSameAsLastKeyMethod(self):
+        return [ 'return (('+self.typ.capitalize()+'Writable)obj).get() == this.inputKeys[this.nKeys-1];' ]
+    def getTransferKeyMethod(self):
+        return [ 'this.inputKeys[0] = other.inputKeys[other.lastNKeys - 1];' ]
+    def getTransferValueMethod(self):
+        return [ 'safeTransfer(other.inputVals, this.inputVals, other.nVals, this.nVals);' ]
 
 #################################################################################
 ########################## Visitor for Pair type ################################
@@ -596,6 +608,15 @@ class PairVisitor(NativeTypeVisitor):
             return [ 'this.inputVals1[this.nVals] = tmpVal1;',
                      'this.inputVals2[this.nVals] = tmpVal2;',
                      'this.nVals++;' ]
+    def getSameAsLastKeyMethod(self):
+        return [ 'PairWritable writable = (PairWritable)obj;',
+                 'return writable.getVal1() == this.inputKeys1[this.nKeys-1] && writable.getVal2() == this.inputKeys2[this.nKeys-1];' ]
+    def getTransferKeyMethod(self):
+        return [ 'this.inputKeys1[0] = other.inputKeys1[other.lastNKeys - 1];',
+                 'this.inputKeys2[0] = other.inputKeys2[other.lastNKeys - 1];' ]
+    def getTransferValueMethod(self):
+        return [ 'safeTransfer(other.inputVals1, this.inputVals1, other.nVals, this.nVals);',
+                 'safeTransfer(other.inputVals2, this.inputVals2, other.nVals, this.nVals);' ]
 
 #################################################################################
 ########################## Visitor for Ipair type ###############################
@@ -844,6 +865,17 @@ class IpairVisitor(NativeTypeVisitor):
                      'this.inputVals1[this.nVals] = tmpVal1;',
                      'this.inputVals2[this.nVals] = tmpVal2;',
                      'this.nVals++;' ]
+    def getSameAsLastKeyMethod(self):
+        return [ 'UniquePairWritable writable = (UniquePairWritable)obj;',
+                 'return writable.getVal1() == this.inputKeys1[this.nKeys-1] && writable.getVal2() == this.inputKeys2[this.nKeys-1] && writable.getIVal() == this.inputKeyIds[this.nKeys-1];' ]
+    def getTransferKeyMethod(self):
+        return [ 'this.inputKeyIds[0] = other.inputKeyIds[other.lastNKeys - 1];',
+                 'this.inputKeys1[0] = other.inputKeys1[other.lastNKeys - 1];',
+                 'this.inputKeys2[0] = other.inputKeys2[other.lastNKeys - 1];' ]
+    def getTransferValueMethod(self):
+        return [ 'safeTransfer(other.inputValIds, this.inputValIds, other.nVals, this.nVals);',
+                 'safeTransfer(other.inputVals1,  this.inputVals1,  other.nVals, this.nVals);',
+                 'safeTransfer(other.inputVals2,  this.inputVals2,  other.nVals, this.nVals);' ]
 
 #################################################################################
 ########################## Visitor for Svec type ################################
@@ -1180,6 +1212,16 @@ class SvecVisitor(NativeTypeVisitor):
                  'stream.readFully(this.inputValIndices, this.individualInputValsCount, vectorLength);',
                  'stream.readFully(this.inputValVals, this.individualInputValsCount, vectorLength);',
                  'this.individualInputValsCount += vectorLength;' ]
+    def getSameAsLastKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferValueMethod(self):
+        return [ 'safeTransfer(other.inputValIndices, this.inputValIndices, other.individualInputValsCount, this.individualInputValsCount);',
+                 'safeTransfer(other.inputValVals,    this.inputValVals,    other.individualInputValsCount, this.individualInputValsCount);',
+                 'for (int i = 0; i < this.nVals; i++) {',
+                 '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
+                 '}' ]
 
 #################################################################################
 ########################## Visitor for Ivec type ################################
@@ -1455,6 +1497,15 @@ class IvecVisitor(NativeTypeVisitor):
         return [ 'this.inputValLookAsideBuffer['+incrStr+'++] = this.individualInputValsCount;',
                  'stream.readFully(this.inputVal, this.individualInputValsCount, vectorLength);',
                  'this.individualInputValsCount += vectorLength;' ]
+    def getSameAsLastKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferValueMethod(self):
+        return [ 'safeTransfer(other.inputVal, this.inputVal, other.individualInputValsCount, this.individualInputValsCount);',
+                 'for (int i = 0; i < this.nVals; i++) {',
+                 '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
+                 '}' ]
 
 #################################################################################
 ########################## Visitor for Fsvec type ###############################
@@ -1804,6 +1855,16 @@ class FsvecVisitor(NativeTypeVisitor):
                  'stream.readFully(this.inputValIndices, this.individualInputValsCount, vectorLength);',
                  'stream.readFully(this.inputValVals, this.individualInputValsCount, vectorLength);',
                  'this.individualInputValsCount += vectorLength;' ]
+    def getSameAsLastKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferValueMethod(self):
+        return [ 'safeTransfer(other.inputValIndices, this.inputValIndices, other.individualInputValsCount, this.individualInputValsCount);',
+                 'safeTransfer(other.inputValVals,    this.inputValVals,    other.individualInputValsCount, this.individualInputValsCount);',
+                 'for (int i = 0; i < this.nVals; i++) {',
+                 '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
+                 '}' ]
 
 #################################################################################
 ########################## Visitor for Bsvec type ###############################
@@ -2151,6 +2212,16 @@ class BsvecVisitor(NativeTypeVisitor):
                  'stream.readFully(this.inputValIndices, this.individualInputValsCount, vectorLength);',
                  'stream.readFully(this.inputValVals, this.individualInputValsCount, vectorLength);',
                  'this.individualInputValsCount += vectorLength;' ]
+    def getSameAsLastKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferKeyMethod(self):
+        raise NotImplementedError()
+    def getTransferValueMethod(self):
+        return [ 'safeTransfer(other.inputValIndices, this.inputValIndices, other.individualInputValsCount, this.individualInputValsCount);',
+                 'safeTransfer(other.inputValVals,    this.inputValVals,    other.individualInputValsCount, this.individualInputValsCount);',
+                 'for (int i = 0; i < this.nVals; i++) {',
+                 '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
+                 '}' ]
 
 #################################################################################
 ########################## End of visitors ######################################
@@ -2698,6 +2769,40 @@ def writeAddKeyMethod(fp, hadoopInputKeyType, nativeInputKeyType):
 #         fp.write('        if(this.tempBuffer3 != null) this.tempBuffer3.copyTo(((HadoopCLInputReducerBuffer)buffer).tempBuffer3);\n')
 #     fp.write('    }\n')
 
+
+def writeSameAsLastKeyMethod(fp, nativeInputKeyType):
+    fp.write('    @Override\n')
+    fp.write('    public boolean sameAsLastKey(Object obj) {\n')
+    writeln(visitor(nativeInputKeyType).getSameAsLastKeyMethod(), 2, fp)
+    fp.write('    }\n')
+
+def writeRemoveLastKeyMethod(fp, nativeInputValueType):
+    fp.write('    @Override\n')
+    fp.write('    public void removeLastKey() {\n')
+    fp.write('        this.lastNKeys = this.nKeys;\n')
+    fp.write('        this.lastNVals = this.nVals;\n')
+    if isVariableLength(nativeInputValueType):
+        fp.write('        this.lastIndividualInputValsCount = this.individualInputValsCount;\n')
+
+    fp.write('        this.nKeys = this.nKeys - 1;\n')
+    fp.write('        this.nVals = this.keyIndex[this.nKeys];\n')
+    if isVariableLength(nativeInputValueType):
+        fp.write('        this.individualInputValsCount = this.inputValLookAsideBuffer[this.keyIndex[this.nKeys]];\n')
+    fp.write('    }\n')
+
+def writeTransferLastKeyMethod(fp, nativeInputKeyType, nativeInputValueType):
+    bufferName = inputBufferClassName(False, nativeInputKeyType, nativeInputValueType)
+    fp.write('    @Override\n')
+    fp.write('    public void transferLastKey(HadoopCLInputReducerBuffer otherBuffer) {\n')
+    fp.write('        final '+bufferName+' other = ('+bufferName+')otherBuffer;\n')
+    fp.write('        this.nKeys = 1;\n')
+    fp.write('        this.nVals = other.lastNVals - other.nVals;\n')
+    if isVariableLength(nativeInputValueType):
+        fp.write('        this.individualInputValsCount = other.lastIndividualInputValsCount - other.individualInputValsCount;\n')
+    writeln(visitor(nativeInputKeyType).getTransferKeyMethod(), 2, fp)
+    writeln(visitor(nativeInputValueType).getTransferValueMethod(), 2, fp)
+    fp.write('    }\n')
+
 def writeResetMethod(fp, isMapper, nativeInputValueType):
     fp.write('    @Override\n')
     fp.write('    public void reset() {\n')
@@ -2715,8 +2820,11 @@ def writeResetMethod(fp, isMapper, nativeInputValueType):
     else:
         fp.write('        this.nKeys = 0;\n')
         fp.write('        this.nVals = 0;\n')
+        fp.write('        this.lastNKeys = -1;\n')
+        fp.write('        this.lastNVals = -1;\n')
         if isVariableLength(nativeInputValueType):
             fp.write('        this.individualInputValsCount = 0;\n')
+            fp.write('        this.lastIndividualInputValsCount = -1;\n')
         fp.write('        this.currentKey = null;\n')
 
     fp.write('        this.isFull = false;\n')
@@ -3248,6 +3356,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     kernelfp.write('\n')
     if nativeInputValueType == 'svec' or nativeInputValueType == 'fsvec' or nativeInputValueType == 'bsvec':
         input_fp.write('    public int individualInputValsCount;\n')
+        input_fp.write('    public int lastIndividualInputValsCount;\n')
         kernelfp.write('    public int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    public int currentInputVectorLength = -1;\n')
@@ -3255,6 +3364,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         input_fp.write('    public int nVectorsToBuffer;\n')
     elif nativeInputValueType == 'ivec':
         input_fp.write('    public int individualInputValsCount;\n')
+        input_fp.write('    public int lastIndividualInputValsCount;\n')
         kernelfp.write('    public int individualInputValsCount;\n')
         if isMapper:
             kernelfp.write('    protected int currentInputVectorLength = -1;\n')
@@ -3381,6 +3491,11 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     writeIsFullMethod(input_fp, isMapper, nativeInputKeyType, nativeInputValueType, hadoopInputValueType)
     writeResetMethod(input_fp, isMapper, nativeInputValueType)
+
+    if not isMapper:
+        writeSameAsLastKeyMethod(input_fp, nativeInputKeyType)
+        writeRemoveLastKeyMethod(input_fp, nativeInputValueType)
+        writeTransferLastKeyMethod(input_fp, nativeInputKeyType, nativeInputValueType)
 
     # writeTransferBufferedValues(input_fp, isMapper)
 

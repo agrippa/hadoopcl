@@ -177,12 +177,26 @@ public class OpenCLDriver {
   private int bufferCounter = 0;
   private HadoopCLInputBuffer handleFullBuffer(HadoopCLInputBuffer buffer,
           int itemCount, BufferRunner bufferRunner,
-          final ConcurrentLinkedQueue<HadoopCLInputBuffer> inputManager)
-              throws InterruptedException {
+          final ConcurrentLinkedQueue<HadoopCLInputBuffer> inputManager,
+          TaskInputOutputContext ctx)
+              throws InterruptedException, IOException {
       HadoopCLInputBuffer newBuffer;
       System.gc();
       buffer.getProfile().stopRead(buffer);
       buffer.getProfile().addItemsProcessed(itemCount);
+
+      if (this.clContext.isReducer()) {
+          HadoopCLInputReducerBuffer reducerBuffer = (HadoopCLInputReducerBuffer)buffer;
+          /*
+           * If the next key is the same as the last and we're in a reducer, we
+           * must wait to process the buffered values for the current key so
+           * that they can all be run together.
+           */
+          if (reducerBuffer.sameAsLastKey(ctx.getCurrentKey())) {
+              reducerBuffer.removeLastKey();
+          }
+      }
+
       bufferRunner.addWork(buffer);
 
        // LOG:PROFILE
@@ -207,6 +221,10 @@ public class OpenCLDriver {
       newBuffer.tracker = new HadoopCLGlobalId(bufferCounter++);
       newBuffer.resetProfile();
       newBuffer.getProfile().startRead(newBuffer);
+
+      if (this.clContext.isReducer() && ((HadoopCLInputReducerBuffer)buffer).hasKeyLeftover()) {
+          ((HadoopCLInputReducerBuffer)newBuffer).transferLastKey((HadoopCLInputReducerBuffer)buffer);
+      }
 
       return newBuffer;
   }
@@ -297,7 +315,7 @@ public class OpenCLDriver {
             }
 
             if (buffer.isFull(this.context)) {
-                buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager);
+                buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager, this.context);
                 itemCount = 0;
             }
         }
@@ -305,7 +323,7 @@ public class OpenCLDriver {
         final boolean isMapper = this.clContext.isMapper();
         while (this.context.nextKeyValue()) {
             if (buffer.isFull(this.context)) {
-                buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager);
+                buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager, this.context);
                 itemCount = 0;
             }
 
