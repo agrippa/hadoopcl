@@ -51,23 +51,6 @@
   <name>mapred.tasktracker.reduce.tasks.maximum</name><value>2</value>
 </property>
 
-
-<property>
-  <name>opencl.mapper.gpumult</name><value>0</value>
-</property>
-
-<property>
-  <name>opencl.mapper.cpumult</name><value>0</value>
-</property>
-
-<property>
-  <name>opencl.reducer.gpumult</name><value>0</value>
-</property>
-
-<property>
-  <name>opencl.reducer.cpumult</name><value>0</value>
-</property>
-
 <property>
   <name>mapred.map.tasks.speculative.execution</name>
   <value>true</value>
