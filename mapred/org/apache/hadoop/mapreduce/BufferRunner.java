@@ -54,12 +54,11 @@ public class BufferRunner implements Runnable {
     private final LinkedList<HadoopCLKernel> toCopyFromOpenCL;
 
     public static final AtomicBoolean somethingHappened = new AtomicBoolean(false);
-    public static final AtomicBoolean somethingHappenedCombiner = new AtomicBoolean(false);
+    // public static final AtomicBoolean somethingHappenedCombiner = new AtomicBoolean(false);
     private final AtomicBoolean somethingHappenedLocal;
     private boolean mainDone;
 
     // exclusive
-    // private final HashMap<HadoopCLKernel, HadoopCLInputOutputBufferPair> running;
     // private final List<HadoopCLKernel> running;
     private final AtomicInteger kernelsActive;
 
@@ -88,7 +87,8 @@ public class BufferRunner implements Runnable {
         this.mainDone = false;
 
         if (this.clContext.isCombiner()) {
-            this.somethingHappenedLocal = somethingHappenedCombiner;
+            // this.somethingHappenedLocal = somethingHappenedCombiner;
+            this.somethingHappenedLocal = new AtomicBoolean(false);
         } else {
             this.somethingHappenedLocal = somethingHappened;
         }
@@ -212,8 +212,6 @@ public class BufferRunner implements Runnable {
             kernel.openclProfile = inputBuffer.getProfile();
             kernel.openclProfile.startKernel();
             spawnKernelTrackingThread(kernel, false);
-            // running.put(kernel, new HadoopCLInputOutputBufferPair(kernel));
-            // running.add(kernel);
         }
         return success;
     }
@@ -285,8 +283,6 @@ public class BufferRunner implements Runnable {
             complete.openclProfile.startKernel();
             kernelsActive.getAndIncrement();
             spawnKernelTrackingThread(complete, true);
-            // running.put(complete, new HadoopCLInputOutputBufferPair(complete));
-            // running.add(complete);
         } else {
             // LOG:DIAGNOSTIC
             // log("      Releasing kernel "+complete.id+" due to completedAll="+completedAll);
@@ -348,42 +344,6 @@ public class BufferRunner implements Runnable {
 
         return forwardProgress;
     }
-
-    // private boolean doKernelCompletion() {
-    //     boolean forwardProgress = false;
-
-    //     List<HadoopCLKernel> completed = getCompleteKernels();
-
-    //     for (HadoopCLKernel complete : completed) {
-    //         // Try to either re-run incomplete kernels, or just
-    //         // set the output buffers up for dumping
-    //         // final HadoopCLInputOutputBufferPair pair = running.remove(complete);
-    //         running.remove(complete);
-    //         forwardProgress = true;
-
-    //         log("  Detected completed kernel "+complete.id);
-    //         OpenCLDriver.logger.log("recovering completed kernel "+
-    //             complete.tracker.toString(), this.clContext);
-
-    //         complete.openclProfile.stopKernel();
-    //         // try {
-    //         //   pair.wrapperThread().join();
-    //         // } catch(InterruptedException ie) {
-    //         //   throw new RuntimeException(ie);
-    //         // }
-
-    //         HadoopCLOutputBuffer output =
-    //             allocOutputBufferWithInit(complete.getOutputPairsPerInput());
-
-    //         if (output == null) {
-    //             toCopyFromOpenCL.add(complete);
-    //         } else {
-    //             handleOpenCLCopy(complete, output);
-    //         }
-    //     }
-
-    //     return forwardProgress;
-    // }
 
     private HadoopCLInputBuffer getInputBuffer() {
 
@@ -737,15 +697,6 @@ public class BufferRunner implements Runnable {
         // sb.append("]\n");
         sb.append("  freeKernels: ");
         sb.append(this.freeKernels.toString());
-        // sb.append("\n");
-        // sb.append("  running: [ ");
-        // for (Map.Entry<HadoopCLKernel, HadoopCLInputOutputBufferPair> entry : running.entrySet()) {
-        //     sb.append(entry.getValue().inputBuffer().id);
-        //     sb.append("->");
-        //     sb.append(entry.getKey().id);
-        //     sb.append(" ");
-        // }
-        // sb.append("]");
         return sb.toString();
     }
 

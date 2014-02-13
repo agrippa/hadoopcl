@@ -1617,7 +1617,6 @@ public class MapTask extends Task {
 
     protected class SpillThread extends Thread {
 
-
       @Override
       public void run() {
         spillLock.lock();
