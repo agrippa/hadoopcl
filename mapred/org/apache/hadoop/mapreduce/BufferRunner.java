@@ -109,10 +109,11 @@ public class BufferRunner implements Runnable {
         // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
 
         // possible if getting DONE signal from main
+        HadoopCLKernel k = null;
         if (!(input instanceof MainDoneMarker)) {
             input.clearNWrites();
 
-            HadoopCLKernel k = newKernelInstance();
+            k = newKernelInstance();
             if (k != null) {
                 // LOG:DIAGNOSTIC
                 // log("    Allocated kernel "+k.id+" for processing of input buffer "+input.id);
@@ -125,12 +126,14 @@ public class BufferRunner implements Runnable {
                 } else {
                     // LOG:DIAGNOSTIC
                     // log("    Failed to start kernel, marking input "+input.id+" to retry and freeing kernel "+k.id);
-                    freeKernels.add(k);
                 }
             }
         }
 
         synchronized (this.somethingHappenedLocal) {
+            if (k != null) {
+                freeKernels.add(k);
+            }
             this.toRun.add(input);
             this.somethingHappenedLocal.set(true);
             this.somethingHappenedLocal.notify();
@@ -474,7 +477,6 @@ public class BufferRunner implements Runnable {
                 while (this.somethingHappenedLocal.get() == false /* && getFirstCompleteKernel() == null */ ) {
                     try {
                         this.somethingHappenedLocal.wait();
-                        // this.somethingHappenedLocal.wait();
                     } catch (InterruptedException ie) {
                         throw new RuntimeException(ie);
                     }
