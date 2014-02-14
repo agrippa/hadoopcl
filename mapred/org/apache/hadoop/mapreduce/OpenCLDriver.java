@@ -213,8 +213,8 @@ public class OpenCLDriver {
               }
               newBuffer = inputManager.poll();
           }
-          newBuffer.reset();
       }
+      newBuffer.reset();
       // LOG:PROFILE
       // logger.log("done allocating input", this.clContext);
 
