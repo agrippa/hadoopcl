@@ -9,7 +9,8 @@ public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
 
     public HadoopCLInputBuffer(HadoopOpenCLContext clContext, Integer id) {
         super(clContext, id);
-        this.doingBulkRead = clContext.getContext().supportsBulkReads();
+        // this.doingBulkRead = clContext.getContext().supportsBulkReads();
+        this.doingBulkRead = false;
     }
 
     public abstract boolean isFull(TaskInputOutputContext context)

@@ -22,6 +22,7 @@ import java.io.DataInput;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import org.apache.hadoop.io.IntWritable;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.BytesWritable;
@@ -73,6 +74,7 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                        ) throws InterruptedException, IOException{
     super(conf, taskid, output, committer, reporter, setType, label);
     this.input = input;
+    System.err.println("input="+input.getClass().getName());
     this.inputKeyCounter = inputKeyCounter;
     this.inputValueCounter = inputValueCounter;
     this.comparator = comparator;
@@ -141,6 +143,11 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                                          next.getPosition(),
                                          next.getLength() - next.getPosition()
                                          ) == 0;
+      buffer.reset(next.getData(), next.getPosition(),
+          next.getLength() - next.getPosition());
+      System.err.println("nextKeyIsSame="+nextKeyIsSame+" current="+
+          ((IntWritable)key).get()+" next="+
+          ((IntWritable)keyDeserializer.deserialize(null)).get());
     } else {
       nextKeyIsSame = false;
     }

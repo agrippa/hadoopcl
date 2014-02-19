@@ -611,8 +611,7 @@ public class BufferRunner implements Runnable {
          * usingOpencl to false (this should be more efficient so we're
          * not just constantly throwing exceptions
          */
-        while (!mainDone || !toRunPrivate.isEmpty() /* ||
-                !toCopyFromOpenCL.isEmpty() || kernelsActive.get() > 0 */ ) {
+        while (!mainDone || !toRunPrivate.isEmpty()) {
 
             boolean forwardProgress = false;
 
@@ -643,6 +642,7 @@ public class BufferRunner implements Runnable {
 
         while (kernelsActive.get() > 0 || !toCopyFromOpenCL.isEmpty()) {
             if (this.freeOutputBuffers.nAvailable() == 0) {
+                // waitForMoreWork();
                 spillAll();
             }
 

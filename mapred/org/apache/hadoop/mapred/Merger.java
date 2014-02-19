@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -156,6 +157,10 @@ public class Merger {
         10000);
     long recordCtr = 0;
     while(records.next()) {
+      DataInputBuffer key = records.getKey();
+      IntWritable tmp = new IntWritable();
+      tmp.readFields(key);
+      System.err.println("  Writing "+tmp.get());
       writer.append(records.getKey(), records.getValue());
       
       if (((recordCtr++) % progressBar) == 0) {
@@ -283,8 +288,10 @@ public class Merger {
       this.codec = codec;
       this.comparator = comparator;
       this.reporter = reporter;
-      
+     
+      System.err.println("Creating MergeQueue from files:"); 
       for (Path file : inputs) {
+        System.err.println("  "+file.toString());
         segments.add(new Segment<K, V>(conf, fs, file, codec, !deleteInputs));
       }
       
@@ -301,6 +308,11 @@ public class Merger {
     public MergeQueue(Configuration conf, FileSystem fs, 
         List<Segment<K, V>> segments, RawComparator<K> comparator,
         Progressable reporter, boolean sortSegments) {
+      System.err.println("Creating MergeQueue from "+segments.size()+
+          " segments, sortSegments="+sortSegments);
+      for (Segment<K, V> s : segments) {
+        System.err.println("  "+s.toString());
+      }
       this.conf = conf;
       this.fs = fs;
       this.comparator = comparator;
@@ -362,6 +374,8 @@ public class Merger {
         }
       }
       minSegment = top();
+
+      System.err.println("At "+minSegment.getPosition()+" in segment "+minSegment.toString());
       
       key = minSegment.getKey();
       value = minSegment.getValue();

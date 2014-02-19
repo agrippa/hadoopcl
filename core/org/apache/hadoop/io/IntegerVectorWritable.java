@@ -46,6 +46,10 @@ public class IntegerVectorWritable implements WritableComparable<IntegerVectorWr
     public int[] vals() {
         return this.vals == null ? (int[])this.valsRes.getArray() : this.vals;
     }
+
+    public int valsOffset() {
+        return 0;
+    }
     
     public int size() {
         if(this.overrideLength != -1) {

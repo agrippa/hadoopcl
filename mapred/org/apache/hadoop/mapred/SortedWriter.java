@@ -344,6 +344,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
           
           //Flush the stream
           out.flush();
+          System.err.println("For partition "+this.keyPartitions.get(0)+", doing sorted write from "+localStart+" -> "+rawOut.getPos());
 
           compressedBytesWritten = rawOut.getPos() - localStart;
 
@@ -374,6 +375,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
           if(writtenRecordsCounter != null) {
             writtenRecordsCounter.increment(numRecordsWritten);
           }
+          System.err.println("compressedBytesWritten="+compressedBytesWritten+" decompressedBytesWritten="+decompressedBytesWritten);
       }
     }
 
