@@ -20,7 +20,7 @@ public abstract class AllocManager<Type> {
 
     protected void log(String s) {
         if (enableLogs) {
-            System.err.println(System.currentTimeMillis()+"|"+this.clContext.typeName()+" "+s);
+            System.err.println(System.currentTimeMillis()+"|"+this.clContext.verboseTypeName()+" "+s);
         }
     }
 

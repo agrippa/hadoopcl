@@ -304,22 +304,22 @@ public class OpenCLDriver {
     buffer.getProfile().startRead(buffer);
 
     int itemCount = 0;
-    // if (this.context.supportsBulkReads()) {
-    //     HadoopCLDataInput stream = this.context.getBulkReader();
-    //     while (stream.hasMore()) {
-    //         itemCount += buffer.bulkFill(stream);
+    if (this.context.supportsBulkReads()) {
+        HadoopCLDataInput stream = this.context.getBulkReader();
+        while (stream.hasMore()) {
+            itemCount += buffer.bulkFill(stream);
 
-    //         buffer.getProfile().addItemsProcessed(itemCount);
-    //         if (this.clContext.isMapper()) {
-    //             OpenCLDriver.inputsRead += itemCount;
-    //         }
+            buffer.getProfile().addItemsProcessed(itemCount);
+            if (this.clContext.isMapper()) {
+                OpenCLDriver.inputsRead += itemCount;
+            }
 
-    //         if (buffer.isFull(this.context)) {
-    //             buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager, this.context);
-    //             itemCount = 0;
-    //         }
-    //     }
-    // } else {
+            if (buffer.isFull(this.context)) {
+                buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager, this.context);
+                itemCount = 0;
+            }
+        }
+    } else {
         final boolean isMapper = this.clContext.isMapper();
         while (this.context.nextKeyValue()) {
             if (buffer.isFull(this.context)) {
@@ -333,7 +333,7 @@ public class OpenCLDriver {
             }
             itemCount++;
         }
-    // }
+    }
     buffer.getProfile().stopRead(buffer);
     buffer.getProfile().addItemsProcessed(itemCount);
 
