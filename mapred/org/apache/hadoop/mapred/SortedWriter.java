@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.BSparseVectorWritable;
 import java.util.HashMap;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -21,6 +22,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.io.DataInputBuffer;
+import java.io.DataInput;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.io.compress.CodecPool;
 import org.apache.hadoop.io.Writable;
@@ -69,8 +71,6 @@ import java.io.DataOutput;
 public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparable<V> & Writable> extends
         IFile.Writer<K, V> implements IndexedSortable {
 
-    private final int spillNo;
-    private final boolean isHacky;
     private final OutputBuffer outputBuffer;
     private final RawComparator<K> keyComparator;
     private final List<Integer> recordMarks;
@@ -91,8 +91,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
                   Class<K> keyClass, Class<V> valueClass,
                   CompressionCodec codec,
                   Counters.Counter writesCounter,
-                  RawComparator<K> keyComparator, boolean isHacky,
-                  int spillNo, boolean multiPartition) throws IOException {
+                  RawComparator<K> keyComparator, boolean multiPartition) throws IOException {
       super(conf, fs, file, keyClass, valueClass, codec, writesCounter);
       this.outputBuffer = new OutputBuffer();
       this.keyComparator = keyComparator;
@@ -101,8 +100,6 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       this.endOfRecords = new ArrayList<Integer>();
       this.keyPartitions = new ArrayList<Integer>();
       this.partitions = conf.getInt("mapred.reduce.tasks", 1);
-      this.isHacky = isHacky;
-      this.spillNo = spillNo;
       this.startPos = this.rawOut.getPos();
       this.multiPartition = multiPartition;
 
@@ -124,8 +121,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
     public SortedWriter(Configuration conf, FSDataOutputStream out, 
         Class<K> keyClass, Class<V> valueClass,
         CompressionCodec codec, Counters.Counter writesCounter,
-        RawComparator<K> keyComparator, boolean isHacky,
-        int spillNo, boolean multiPartition) throws IOException {
+        RawComparator<K> keyComparator, boolean multiPartition) throws IOException {
       super(conf, out, keyClass, valueClass, codec, writesCounter);
       this.outputBuffer = new OutputBuffer();
       this.keyComparator = keyComparator;
@@ -134,8 +130,6 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       this.endOfRecords = new ArrayList<Integer>();
       this.keyPartitions = new ArrayList<Integer>();
       this.partitions = conf.getInt("mapred.reduce.tasks", 1);
-      this.isHacky = isHacky;
-      this.spillNo = spillNo;
       this.startPos = this.rawOut.getPos();
       this.multiPartition = multiPartition;
 
@@ -325,8 +319,10 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
               int startVal = this.valueMarks.get(i);
               int endRecord = this.endOfRecords.get(i);
 
+
               WritableUtils.writeVInt(out, startVal - startRecord); // keyLength
               WritableUtils.writeVInt(out, endRecord - startVal); // valueLength
+
               this.outputBuffer.dump(out, startRecord, endRecord);
               decompressedBytesWritten += (endRecord - startRecord) + 
                      WritableUtils.getVIntSize(startVal - startRecord) + 
@@ -344,7 +340,6 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
           
           //Flush the stream
           out.flush();
-          System.err.println("For partition "+this.keyPartitions.get(0)+", doing sorted write from "+localStart+" -> "+rawOut.getPos());
 
           compressedBytesWritten = rawOut.getPos() - localStart;
 
@@ -375,7 +370,6 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
           if(writtenRecordsCounter != null) {
             writtenRecordsCounter.increment(numRecordsWritten);
           }
-          System.err.println("compressedBytesWritten="+compressedBytesWritten+" decompressedBytesWritten="+decompressedBytesWritten);
       }
     }
 
@@ -451,11 +445,12 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
         }
     }
 
-    private static class OutputBuffer implements DataOutput {
+    private static class OutputBuffer implements DataOutput, DataInput {
         private final List<Buffer> buffers;
         private static final int bufferSize = 5242880;
         private int soFar;
         private Buffer currentBuffer;
+        private int readPos = -1;
 
         private byte[] iArr = new byte[4];
         private byte[] jArr = new byte[4];
@@ -482,6 +477,10 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
         public int currentOffset() {
             return currentBuffer.offset() + currentBuffer.filled();
+        }
+
+        public void setReadPos(int s) {
+            this.readPos = s;
         }
 
         private Buffer findBufferContainingOffset(int offset) {
@@ -645,6 +644,71 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
         public void writeUTF(String s) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public boolean readBoolean() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public byte readByte() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public char readChar() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public double readDouble() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public float readFloat() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public void readFully(byte[] b) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public void readFully(byte[] b, int off, int len) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public int readInt() {
+            final Buffer buf = findBufferContainingOffset(this.readPos);
+            final int oldPosition = buf.buffer.position();
+            int result;
+            final int inBuf = buf.offset() + buf.filled() - this.readPos;
+            if (inBuf >= 4) {
+                buf.buffer.position(this.readPos - buf.offset());
+                result = buf.buffer.getInt();
+            } else {
+                byte[] b = new byte[4];
+                buf.buffer.position(this.readPos - buf.offset());
+                buf.buffer.get(b, 0, inBuf);
+                final Buffer next = buf.getNextBuffer();
+                next.buffer.position(0);
+                next.buffer.get(b, inBuf, 4 - inBuf);
+                result = ByteBuffer.wrap(b).asIntBuffer().get();
+            }
+            readPos += 4;
+            buf.buffer.position(oldPosition);
+            return result;
+        }
+
+        @Override
+        public String readLine() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public long readLong() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public short readShort() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public int readUnsignedByte() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public int readUnsignedShort() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public String readUTF() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public int skipBytes(int n) { throw new UnsupportedOperationException(); }
     }
 
 

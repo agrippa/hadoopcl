@@ -1421,6 +1421,7 @@ class ReduceTask extends Task {
         // Copy the map output
         MapOutput mapOutput = getMapOutput(loc, tmpMapOutput,
                                            reduceId.getTaskID().getId());
+
         if (mapOutput == null) {
           throw new IOException("Failed to fetch map-output for " + 
                                 loc.getTaskAttemptId() + " from " + 

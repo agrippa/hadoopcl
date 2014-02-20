@@ -74,7 +74,6 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                        ) throws InterruptedException, IOException{
     super(conf, taskid, output, committer, reporter, setType, label);
     this.input = input;
-    System.err.println("input="+input.getClass().getName());
     this.inputKeyCounter = inputKeyCounter;
     this.inputValueCounter = inputValueCounter;
     this.comparator = comparator;
@@ -145,9 +144,6 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                                          ) == 0;
       buffer.reset(next.getData(), next.getPosition(),
           next.getLength() - next.getPosition());
-      System.err.println("nextKeyIsSame="+nextKeyIsSame+" current="+
-          ((IntWritable)key).get()+" next="+
-          ((IntWritable)keyDeserializer.deserialize(null)).get());
     } else {
       nextKeyIsSame = false;
     }

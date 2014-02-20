@@ -1724,7 +1724,7 @@ public class MapTask extends Task {
               }
             } else {
               writer = new SortedWriter<K, V>(job, out, keyClass, valClass, codec,
-                                        spilledRecordsCounter, comparator, false, spillNo, false);
+                                        spilledRecordsCounter, comparator, false);
               int spstart = spindex;
               while (spindex < endPosition &&
                   kvindices[kvoffsets[spindex % kvoffsets.length]
@@ -2023,12 +2023,15 @@ public class MapTask extends Task {
 
           //write merged output to disk
           long segmentStart = finalOut.getPos();
-          Writer<K, V> writer =
-              new Writer<K, V>(job, finalOut, keyClass, valClass, codec,
-                               spilledRecordsCounter);
+          final Writer<K, V> writer;
           if (combinerRunner == null || totalSpills < minSpillsForCombine) {
+            writer =
+                new Writer<K, V>(job, finalOut, keyClass, valClass, codec,
+                                 spilledRecordsCounter);
             Merger.writeFile(kvIter, writer, reporter, job);
           } else {
+            writer = new SortedWriter(job, finalOut, keyClass, valClass, codec,
+                spilledRecordsCounter, comparator, false);
             combineCollector.setWriter(writer);
             combinerRunner.combine(kvIter, combineCollector);
           }

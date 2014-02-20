@@ -499,7 +499,7 @@ public class BufferRunner implements Runnable {
                         toWrite.peekFirst().buffer().getOutputValClass(), null,
                         (org.apache.hadoop.mapred.Counters.Counter)spilledRecordsCounter,
                         ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()).getOutputKeyComparator(),
-                        true, mySpillNo, true);
+                        true);
 
                 // LOG:DIAGNOSTIC
                 // log("    At end, "+toWrite.size()+" output buffers remaining to write");
