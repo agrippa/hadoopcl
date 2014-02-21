@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.List;
 import java.util.Deque;
 import org.apache.hadoop.mapreduce.BufferRunner.OutputBufferSoFar;
 import java.util.Iterator;
@@ -27,7 +28,7 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public abstract Class<?> getOutputValClass();
     public abstract void copyOverFromKernel(HadoopCLKernel kernel);
     public abstract HashSet<Integer> constructIterSet();
-    public abstract HadoopCLKeyValueIterator getKeyValueIterator(Deque<OutputBufferSoFar> toWrite, int numReduceTasks);
+    public abstract HadoopCLKeyValueIterator getKeyValueIterator(List<OutputBufferSoFar> toWrite, int numReduceTasks);
     public abstract int getPartitionFor(int index, int numReduceTasks);
     public abstract int getCount();
 

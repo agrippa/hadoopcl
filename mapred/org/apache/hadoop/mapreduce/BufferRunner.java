@@ -22,6 +22,7 @@ import org.apache.hadoop.mapred.SpillRecord;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskTracker;
 
+import java.util.ArrayList;
 import java.util.Deque;
 import java.io.IOException;
 import java.util.LinkedList;
@@ -452,6 +453,10 @@ public class BufferRunner implements Runnable {
     }
 
     private void spillAll() {
+      spillN(toWrite.size());
+    }
+
+    private void spillN(int N) {
         if (this.clContext.isMapper()) {
             FSDataOutputStream out = null;
             try {
@@ -508,9 +513,14 @@ public class BufferRunner implements Runnable {
                     // Just try and fill the spill buffer a little more
                     // doSingleOutputBuffer(toWrite.removeFirst());
 
-                    final OutputBufferSoFar soFar = toWrite.getFirst();
+                    List<OutputBufferSoFar> toSpill =
+                        new ArrayList<OutputBufferSoFar>(N);
+                    for (int i = 0; i < N; i++) {
+                        toSpill.add(toWrite.removeFirst());
+                    }
+                    final OutputBufferSoFar soFar = toSpill.get(0);
                     final HadoopCLOutputBuffer buffer = soFar.buffer();
-                    HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toWrite, partitions);
+                    HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill, partitions);
 
                     if (this.clContext.getCombinerKernel() == null) {
                         while (iter.next()) {
@@ -522,6 +532,9 @@ public class BufferRunner implements Runnable {
                     }
                     // LOG:DIAGNOSTIC
                     // log("      Finished combine from mapper on "+toWrite.size()+" output buffers");
+                    for (OutputBufferSoFar s : toSpill) {
+                        freeOutputBuffers.free(s.buffer());
+                    }
                 }
 
                 writer.close();
@@ -550,10 +563,6 @@ public class BufferRunner implements Runnable {
                         spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
                 }
 
-                while (!toWrite.isEmpty()) {
-                    OutputBufferSoFar soFar = toWrite.removeFirst();
-                    freeOutputBuffers.free(soFar.buffer());
-                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             } finally {
@@ -645,7 +654,7 @@ public class BufferRunner implements Runnable {
 
         while (kernelsActive.get() > 0 || !toCopyFromOpenCL.isEmpty()) {
             if (this.freeOutputBuffers.nAvailable() == 0) {
-                spillAll();
+                spillN(2);
             }
 
             HadoopCLKernel kernel;
