@@ -49,6 +49,7 @@ public class HadoopOpenCLContext {
     private final int preallocIntLength;
     private final int preallocFloatLength;
     private final int preallocDoubleLength;
+    private final int outputBufferSpillChunk;
     private String deviceString;
     private int nVectorsToBuffer;
 
@@ -89,6 +90,7 @@ public class HadoopOpenCLContext {
         preallocIntLength = 0;
         preallocFloatLength = 0;
         preallocDoubleLength = 0;
+        outputBufferSpillChunk = 0;
         jobHasCombiner = false;
         nCombinerKernels = 0;
         inputBufferConstructor = null;
@@ -128,6 +130,7 @@ public class HadoopOpenCLContext {
       this.preallocIntLength = conf.getInt("opencl."+type+".prealloc.length.int", 5242880);
       this.preallocFloatLength = conf.getInt("opencl."+type+".prealloc.length.float", 5242880);
       this.preallocDoubleLength = conf.getInt("opencl."+type+".prealloc.length.double", 5242880);
+      this.outputBufferSpillChunk = conf.getInt("opencl.spill.chunk", 2);
       this.enableBufferRunnerDiagnostics = conf.getBoolean("opencl.buffer.diagnostics", false);
       this.enableProfilingPrints = conf.getBoolean("opencl.profiling", false);
       this.doHighLevelProfiling = conf.getBoolean("opencl.highlevel", false);
@@ -346,6 +349,7 @@ public class HadoopOpenCLContext {
     public int getPreallocIntLength() { return this.preallocIntLength; }
     public int getPreallocDoubleLength() { return this.preallocDoubleLength; }
     public int getPreallocFloatLength() { return this.preallocFloatLength; }
+    public int getOutputBufferSpillChunk() { return this.outputBufferSpillChunk; }
 
     public String getDeviceString() {
         return this.deviceString;

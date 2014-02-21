@@ -182,7 +182,7 @@ public class BufferRunner implements Runnable {
                 kernel.openclProfile.stopKernel();
                 synchronized (somethingHappenedLocal) {
                     toCopyFromOpenCL.add(kernel);
-                    kernelsActive.getAndDecrement();
+                    // kernelsActive.getAndDecrement();
                     somethingHappenedLocal.set(true);
                     somethingHappenedLocal.notify();
                 }
@@ -283,11 +283,12 @@ public class BufferRunner implements Runnable {
                 throw new RuntimeException(ie);
             }
             complete.openclProfile.startKernel();
-            kernelsActive.getAndIncrement();
+            // kernelsActive.getAndIncrement();
             spawnKernelTrackingThread(complete, true);
         } else {
             // LOG:DIAGNOSTIC
             // log("      Releasing kernel "+complete.id+" due to completedAll="+completedAll);
+            kernelsActive.getAndDecrement();
             freeKernels.add(complete);
         }
     }
@@ -623,7 +624,7 @@ public class BufferRunner implements Runnable {
          * usingOpencl to false (this should be more efficient so we're
          * not just constantly throwing exceptions
          */
-        while (!mainDone || !toRunPrivate.isEmpty()) {
+        while (!mainDone || !toRunPrivate.isEmpty() || kernelsActive.get() > 0) {
 
             boolean forwardProgress = false;
 
@@ -652,30 +653,51 @@ public class BufferRunner implements Runnable {
             }
         }
 
-        while (kernelsActive.get() > 0 || !toCopyFromOpenCL.isEmpty()) {
-            if (this.freeOutputBuffers.nAvailable() == 0) {
-                spillN(2);
-            }
-
-            HadoopCLKernel kernel;
-            synchronized (somethingHappenedLocal) {
-                while (toCopyFromOpenCL.isEmpty()) {
-                    try {
-                        somethingHappenedLocal.wait();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+        while (!toCopyFromOpenCL.isEmpty() || !toWrite.isEmpty()) {
+            // Try to get as many output buffers in the JVM as possible
+            while (!toCopyFromOpenCL.isEmpty()) {
+                HadoopCLKernel kernel = toCopyFromOpenCL.poll();
+                HadoopCLOutputBuffer output = freeOutputBuffers.alloc();
+                if (output == null) {
+                    toCopyFromOpenCL.add(kernel);
+                    break;
                 }
-                kernel = toCopyFromOpenCL.poll();
+                handleOpenCLCopy(kernel, output.obj());
             }
-            // must succeed due to spillAll above
-            HadoopCLOutputBuffer output = freeOutputBuffers.alloc().obj();
-            handleOpenCLCopy(kernel, output);
+
+            // Try to get as many output buffers passed to the spill thread as possible
+            doOutputBuffers();
+
+            if (!toWrite.isEmpty()) {
+                spillN(toWrite.size() < clContext.getOutputBufferSpillChunk() ?
+                        toWrite.size() : clContext.getOutputBufferSpillChunk());
+            }
         }
 
-        if (!toWrite.isEmpty()) {
-            spillAll();
-        }
+        // while (kernelsActive.get() > 0 || !toCopyFromOpenCL.isEmpty()) {
+        //     if (this.freeOutputBuffers.nAvailable() == 0) {
+        //         spillN(2);
+        //     }
+
+        //     HadoopCLKernel kernel;
+        //     synchronized (somethingHappenedLocal) {
+        //         while (toCopyFromOpenCL.isEmpty()) {
+        //             try {
+        //                 somethingHappenedLocal.wait();
+        //             } catch (InterruptedException e) {
+        //                 throw new RuntimeException(e);
+        //             }
+        //         }
+        //         kernel = toCopyFromOpenCL.poll();
+        //     }
+        //     // must succeed due to spillAll above
+        //     HadoopCLOutputBuffer output = freeOutputBuffers.alloc().obj();
+        //     handleOpenCLCopy(kernel, output);
+        // }
+
+        // if (!toWrite.isEmpty()) {
+        //     spillAll();
+        // }
 
         // LOG:DIAGNOSTIC
         // log("BufferRunner exiting");
