@@ -295,10 +295,10 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
             checksumOut.finish();
           }
 
-          this.partitionRawLengths.put(partitions - 1,
-              decompressedBytesWritten);
-          this.partitionCompressedLengths.put(partitions - 1,
-              compressedBytesWritten);
+          // this.partitionRawLengths.put(partitions - 1,
+          //     decompressedBytesWritten);
+          // this.partitionCompressedLengths.put(partitions - 1,
+          //     compressedBytesWritten);
 
           if (compressOutput) {
             // Return back the compressor

@@ -689,7 +689,6 @@ abstract public class Task implements Writable, Configurable {
                                     taskProgress.toString(), 
                                     counters);
             taskFound = umbilical.statusUpdate(taskId, taskStatus, jvmContext);
-            //System.out.println("DIAGNOSTICS: Got "+taskFound+" back from TT for task update from "+taskId.toString()+" with progress "+taskStatus.getProgress());
             taskStatus.clearStatus();
           }
           else {

@@ -35,4 +35,8 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
     public HadoopCLKeyValueIterator getKeyValueIterator(Deque<OutputBufferSoFar> toWrite, int numReduceTasks) {
         throw new UnsupportedOperationException();
     }
+    @Override
+    public int getCount() {
+        return 0;
+    }
 }

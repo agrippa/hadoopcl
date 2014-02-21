@@ -29,6 +29,7 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public abstract HashSet<Integer> constructIterSet();
     public abstract HadoopCLKeyValueIterator getKeyValueIterator(Deque<OutputBufferSoFar> toWrite, int numReduceTasks);
     public abstract int getPartitionFor(int index, int numReduceTasks);
+    public abstract int getCount();
 
     @Override
     public long space() {

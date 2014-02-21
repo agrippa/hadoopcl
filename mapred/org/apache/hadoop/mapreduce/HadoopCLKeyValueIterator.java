@@ -15,15 +15,6 @@ public abstract class HadoopCLKeyValueIterator implements RawKeyValueIterator {
     protected final DataInputBuffer key = new DataInputBuffer();
     protected final DataInputBuffer value = new DataInputBuffer();
 
-    public static class IntegerPair {
-        public final int buffer;
-        public final int index;
-        public IntegerPair(int buffer, int index) {
-            this.buffer = buffer;
-            this.index = index;
-        }
-    }
-
     protected ByteBuffer resizeByteBuffer(ByteBuffer buf, int len) {
         if (buf == null || buf.capacity() < len) {
             return ByteBuffer.allocate(len);
@@ -54,5 +45,14 @@ public abstract class HadoopCLKeyValueIterator implements RawKeyValueIterator {
     @Override
     public final boolean supportsBulkReads() {
         return true;
+    }
+
+    public static class IntegerPair {
+        public final int buffer;
+        public final int index;
+        public IntegerPair(int buffer, int index) {
+            this.buffer = buffer;
+            this.index = index;
+        }
     }
 }
