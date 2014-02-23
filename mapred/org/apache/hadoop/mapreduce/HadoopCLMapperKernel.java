@@ -44,6 +44,7 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
     @Override
     public void run() {
 
+        int anyRestartRequired = 0;
         int start = -1;
         int end = -1;
         int increment = -1;
@@ -64,9 +65,13 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
                 nWrites[iter] = 0;
                 callMap();
                 if (nWrites[iter] < 0) {
+                    anyRestartRequired = 1;
                     iter = end;
                 }
             }
+        }
+        if (anyRestartRequired == 1) {
+            memWillRequireRestart[0] = 1;
         }
     }
 }

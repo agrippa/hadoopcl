@@ -35,6 +35,7 @@ public abstract class HadoopCLKernel extends Kernel {
 
     public int[] outputIterMarkers;
     public int[] memIncr;
+    public int[] memWillRequireRestart;
     public int outputsPerInput;
     private final HadoopCLResizableIntArray copyIndices = new HadoopCLResizableIntArray();
     private final HadoopCLResizableDoubleArray copyVals = new HadoopCLResizableDoubleArray();

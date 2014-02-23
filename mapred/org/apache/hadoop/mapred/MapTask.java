@@ -610,7 +610,7 @@ public class MapTask extends Task {
     }
 
     public boolean supportsBulkReads() {
-        return false;
+        return real.supportsBulkReads();
     }
   }
 

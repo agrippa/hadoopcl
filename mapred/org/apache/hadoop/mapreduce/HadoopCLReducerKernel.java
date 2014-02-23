@@ -53,6 +53,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
     @Override
     public void run() {
 
+        int anyRestartRequired = 0;
         int start = -1;
         int increment = -1;
         int end = -1;
@@ -79,10 +80,13 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
                 }
                 callReduce(startOffset, stopOffset);
                 if (nWrites[iter] < 0) {
+                    anyRestartRequired = 1;
                     iter = end;
                 }
             }
         }
-
+        if (anyRestartRequired == 1) {
+            memWillRequireRestart[0] = 1;
+        }
     }
 }

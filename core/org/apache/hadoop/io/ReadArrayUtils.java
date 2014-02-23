@@ -9,14 +9,8 @@ import java.nio.DoubleBuffer;
 import java.nio.ByteBuffer;
 
 public class ReadArrayUtils {
-    // public static final ReadArrayUtils util = new ReadArrayUtils();
-    // public static final ReadArrayUtils forCombiners = new ReadArrayUtils();
-
     private ByteBuffer dumpBuffer = null;
     private int dumpLength = -1;
-
-    // private byte[] readBuffer = null;
-    // private int readLength = -1;
 
     private void ensureDumpCapacity(int len) {
         if (this.dumpLength < len) {
@@ -24,13 +18,6 @@ public class ReadArrayUtils {
             dumpLength = len;
         }
     }
-
-    // private void ensureReadCapacity(int len) {
-    //     if (this.readLength < len) {
-    //         readBuffer = new byte[len];
-    //         readLength = len;
-    //     }
-    // }
 
     private static byte[] readBytes(DataInput input, final int total) throws IOException {
       byte[] readBuffer = new byte[total];

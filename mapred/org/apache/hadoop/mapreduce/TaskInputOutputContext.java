@@ -65,8 +65,7 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
    * Advance to the next key, value pair, returning null if at end.
    * @return the key object that was read into, or null if no more
    */
-  public abstract 
-  boolean nextKeyValue() throws IOException, InterruptedException;
+  public abstract boolean nextKeyValue() throws IOException, InterruptedException;
  
   /**
    * Get the current key.

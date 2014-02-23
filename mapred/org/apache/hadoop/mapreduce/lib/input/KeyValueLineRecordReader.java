@@ -85,6 +85,7 @@ public class KeyValueLineRecordReader extends RecordReader<Text, Text> {
       value.set(line, pos + 1, lineLen - pos - 1);
     }
   }
+
   /** Read key/value pair in a line. */
   public synchronized boolean nextKeyValue()
     throws IOException {

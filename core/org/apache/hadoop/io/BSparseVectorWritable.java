@@ -16,6 +16,16 @@ public class BSparseVectorWritable implements WritableComparable {
     private HadoopCLResizableIntArray indicesRes;
     private HadoopCLResizableDoubleArray valsRes;
 
+    public BSparseVectorWritable() {
+        this.indices = null;
+        this.vals = null;
+        this.indicesRes = null;
+        this.valsRes = null;
+        this.overrideLength = -1;
+        this.overrideIndicesOffset = -1;
+        this.overrideValsOffset = -1;
+    }
+
     public BSparseVectorWritable(SparseVectorWritable other) {
       this.indices = new int[other.size()];
       this.vals = new double[other.size()];
@@ -27,16 +37,6 @@ public class BSparseVectorWritable implements WritableComparable {
       this.overrideLength = -1;
       this.overrideIndicesOffset = -1;
       this.overrideValsOffset = -1;
-    }
-
-    public BSparseVectorWritable() {
-        this.indices = null;
-        this.vals = null;
-        this.indicesRes = null;
-        this.valsRes = null;
-        this.overrideLength = -1;
-        this.overrideIndicesOffset = -1;
-        this.overrideValsOffset = -1;
     }
 
     public BSparseVectorWritable(int[] indices, double[] vals) {
@@ -133,6 +133,7 @@ public class BSparseVectorWritable implements WritableComparable {
 
     public void readFields(DataInput in) throws IOException {
         int len = in.readInt();
+
         this.indices = ReadArrayUtils.readIntArray(in, len);
         this.vals = ReadArrayUtils.readDoubleArray(in, len);
 

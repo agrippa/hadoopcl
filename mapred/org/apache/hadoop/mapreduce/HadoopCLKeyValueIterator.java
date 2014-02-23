@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.ArrayList;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.util.Progress;
 import java.io.IOException;
@@ -8,7 +9,8 @@ import java.util.TreeSet;
 import org.apache.hadoop.mapred.RawKeyValueIterator;
 
 public abstract class HadoopCLKeyValueIterator implements RawKeyValueIterator {
-    public TreeSet<IntegerPair> sortedIndices;
+    public ArrayList<IntegerPair> sortedIndices;
+    int sortedIndicesIter = 0;
     protected IntegerPair current = null;
     protected ByteBuffer keyBytes = null;
     protected ByteBuffer valueBytes = null;
@@ -25,10 +27,11 @@ public abstract class HadoopCLKeyValueIterator implements RawKeyValueIterator {
 
     @Override
     public final boolean next() throws IOException {
-        if (sortedIndices.isEmpty()) {
+        if (sortedIndicesIter == sortedIndices.size()) {
             return false;
         } else {
-            this.current = sortedIndices.pollFirst();
+            this.current = sortedIndices.get(sortedIndicesIter);
+            sortedIndicesIter++;
             return true;
         }
     }

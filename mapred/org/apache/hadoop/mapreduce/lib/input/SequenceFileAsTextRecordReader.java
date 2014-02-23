@@ -67,7 +67,7 @@ public class SequenceFileAsTextRecordReader
       throws IOException, InterruptedException {
     return value;
   }
-  
+
   /** Read key/value pair in a line. */
   public synchronized boolean nextKeyValue() 
       throws IOException, InterruptedException {

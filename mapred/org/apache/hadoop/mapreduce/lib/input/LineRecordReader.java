@@ -83,7 +83,7 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
     }
     this.pos = start;
   }
-  
+
   public boolean nextKeyValue() throws IOException {
     if (key == null) {
       key = new LongWritable();

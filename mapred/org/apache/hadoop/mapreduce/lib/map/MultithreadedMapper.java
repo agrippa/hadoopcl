@@ -175,7 +175,6 @@ public class MultithreadedMapper<K1, V1, K2, V2>
       conf = context.getConfiguration();
     }
 
-
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
       synchronized (outer) {

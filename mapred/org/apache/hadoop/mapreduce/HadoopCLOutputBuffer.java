@@ -11,6 +11,7 @@ import org.apache.hadoop.io.ReadArrayUtils;
 
 public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public final int[] memIncr;
+    public final int[] memWillRequireRestart;
     protected final int[] outputIterMarkers;
     public HashSet<Integer> itersFinished;
     protected final ReadArrayUtils readUtils = new ReadArrayUtils();
@@ -18,6 +19,7 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
     public HadoopCLOutputBuffer(HadoopOpenCLContext clContext, Integer id) {
         super(clContext, id);
         this.memIncr = new int[1];
+        this.memWillRequireRestart = new int[1];
         this.outputIterMarkers = new int[this.clContext.getOutputBufferSize()];
     }
 
@@ -34,7 +36,8 @@ public abstract class HadoopCLOutputBuffer extends HadoopCLBuffer {
 
     @Override
     public long space() {
-        return super.space() + (4 * memIncr.length);
+        return super.space() + (4 * memIncr.length) +
+            (4 * memWillRequireRestart.length);
     }
 
     class OutputIterator implements Iterator<Integer> {
