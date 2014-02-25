@@ -30,7 +30,8 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
         int globalSize = (this.nPairs + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
         globalSize *= clContext.getThreadsPerGroup();
 
-        return this.execute(this.clContext.getDevice().createRange(globalSize, clContext.getThreadsPerGroup())) != null;
+        return this.execute(this.clContext.getDevice().createRange(globalSize, clContext.getThreadsPerGroup()),
+            this.clContext.verboseTypeName()+"::"+this.tracker.toString()) != null;
     }
 
     @Override
@@ -38,7 +39,8 @@ public abstract class HadoopCLMapperKernel extends HadoopCLKernel {
         int globalSize = (this.nPairs + clContext.getThreadsPerGroup() - 1) / clContext.getThreadsPerGroup();
         globalSize *= clContext.getThreadsPerGroup();
 
-        return this.reExecute(this.clContext.getDevice().createRange(globalSize, clContext.getThreadsPerGroup())) != null;
+        return this.reExecute(this.clContext.getDevice().createRange(globalSize, clContext.getThreadsPerGroup()),
+            this.clContext.verboseTypeName()+"::"+this.tracker.toString()) != null;
     }
 
     @Override
