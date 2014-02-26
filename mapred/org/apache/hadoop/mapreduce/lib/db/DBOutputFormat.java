@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.db;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import java.io.IOException;
 import java.sql.Connection;
@@ -113,6 +114,11 @@ extends OutputFormat<K,V> {
           throw new IOException(ex.getMessage());
         }
       }
+    }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */

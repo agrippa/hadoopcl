@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapred.lib;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Writable;
@@ -517,6 +518,11 @@ public class MultipleOutputs {
       @SuppressWarnings({"unchecked"})
       public void collect(Object key, Object value) throws IOException {
         writer.write(key, value);
+      }
+
+      @Override
+      public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+          throw new UnsupportedOperationException();
       }
 
       @Override

@@ -222,7 +222,7 @@ public class BSparseVectorWritable implements WritableComparable {
     }
 
     public String toString(int n) {
-        StringBuffer str = new StringBuffer();
+        StringBuilder str = new StringBuilder();
         str.append("{ ");
         int length = (this.size() < n ? this.size() : n);
         int indicesOffset = indicesOffset();
@@ -242,10 +242,10 @@ public class BSparseVectorWritable implements WritableComparable {
     }
 
     public String toString() {
-        StringBuffer str = new StringBuffer();
-        str.append("{ ");
-        int indicesOffset = indicesOffset();
-        int valsOffset = valsOffset();
+        StringBuilder str = new StringBuilder();
+        str.append("len="+this.size()+" val={ ");
+        final int indicesOffset = indicesOffset();
+        final int valsOffset = valsOffset();
 
         for(int i = 0; i < this.size(); i++) {
             str.append(this.indices()[indicesOffset + i]);

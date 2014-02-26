@@ -25,6 +25,7 @@ import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -70,6 +71,11 @@ public class SequenceFileOutputFormat <K,V> extends FileOutputFormat<K, V> {
 
     return new RecordWriter<K, V>() {
         public void setUsingOpenCL(boolean val) { }
+
+        @Override
+        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
         public void write(K key, V value)
           throws IOException {

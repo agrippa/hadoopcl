@@ -12,6 +12,11 @@ public abstract class HadoopCLBulkMapperReader implements HadoopCLDataInput {
     protected int currentBufferPosition;
 
     @Override
+    public void reset() {
+        this.currentBufferPosition = 0;
+    }
+
+    @Override
     public boolean readBoolean() {
         throw new UnsupportedOperationException();
     }

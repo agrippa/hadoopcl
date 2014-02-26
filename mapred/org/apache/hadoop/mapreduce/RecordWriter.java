@@ -43,6 +43,8 @@ public abstract class RecordWriter<K, V> {
   public abstract void write(K key, V value
                              ) throws IOException, InterruptedException;
 
+  public abstract void spillIter(HadoopCLKeyValueIterator iter) throws IOException;
+
   public abstract void writeChunk(byte[] buffer, int length) 
     throws IOException, InterruptedException;
 

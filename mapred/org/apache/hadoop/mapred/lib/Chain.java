@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapred.lib;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Stringifier;
@@ -514,6 +515,11 @@ class Chain {
         // end of chain, user real output collector
         output.collect(key, value);
       }
+    }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override

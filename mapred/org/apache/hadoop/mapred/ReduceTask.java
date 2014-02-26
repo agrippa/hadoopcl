@@ -50,6 +50,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.SecretKey;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -505,6 +506,10 @@ class ReduceTask extends Task {
           reporter.progress();
         }
         @Override
+        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+            throw new UnsupportedOperationException();
+        }
+        @Override
         public int collectCollection(KVCollection<OUTKEY, OUTVALUE> coll) {
             throw new UnsupportedOperationException();
         }
@@ -592,6 +597,11 @@ class ReduceTask extends Task {
     }
 
     @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        real.spillIter(iter);
+    }
+
+    @Override
     public void write(K key, V value) throws IOException, InterruptedException {
       long bytesOutPrev = getOutputBytes(fsStats);
       real.write(key,value);
@@ -672,7 +682,7 @@ class ReduceTask extends Task {
                                                trackedRW, committer,
                                                reporter, comparator, keyClass,
                                                valueClass, ContextType.Reducer,
-                                               null);
+                                               null, false);
     reducer.run(reducerContext);
     trackedRW.close(reducerContext);
   }

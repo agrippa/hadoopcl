@@ -28,5 +28,4 @@ public class HashPartitioner<K, V> extends Partitioner<K, V> {
                           int numReduceTasks) {
     return (key.hashCode() & Integer.MAX_VALUE) % numReduceTasks;
   }
-
 }

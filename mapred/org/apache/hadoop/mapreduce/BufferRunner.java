@@ -268,6 +268,10 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
         boolean completedAll = output.completedAll();
+
+        // if (this.clContext.isMapper()) {
+        //     output.printContents();
+        // }
         toWrite.addLast(new OutputBufferSoFar(output, 0));
 
         if (!completedAll) {
@@ -301,6 +305,7 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("    Got output buffer "+soFar.buffer().id+" to write");
 
+        int count = soFar.buffer().getCount();
         int previously = soFar.soFar();
         OutputBufferSoFar cont = handleOutputBuffer(soFar);
         if (cont != null) {
@@ -441,17 +446,45 @@ public class BufferRunner implements Runnable {
         return forwardProgress;
     }
 
-    private void waitForMoreWork() {
+    private boolean anyComplete(List<IterAndBuffers> spilling) {
+        if (spilling != null && !spilling.isEmpty()) {
+            for (IterAndBuffers ib : spilling) {
+                if (ib.iter.getComplete()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private List<IterAndBuffers> collectCompleted(List<IterAndBuffers> spilling) {
+        List<IterAndBuffers> complete =
+            new ArrayList<IterAndBuffers>(spilling.size());
+        for (IterAndBuffers ib : spilling) {
+            if (ib.iter.getComplete()) {
+                complete.add(ib);
+            }
+        }
+        spilling.removeAll(complete);
+        return complete;
+    }
+
+    private List<IterAndBuffers> waitForMoreWork(List<IterAndBuffers> spilling) {
+        List<IterAndBuffers> complete = null;
         boolean local = this.somethingHappenedLocal.getAndSet(false);
         if (local) {
-            return;
+            if (spilling != null) {
+                return collectCompleted(spilling);
+            } else {
+                return null;
+            }
         } else {
             // LOG:DIAGNOSTIC
             // log("Waiting for more work");
             synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
-                while (this.somethingHappenedLocal.get() == false /* && getFirstCompleteKernel() == null */ ) {
+                while (this.somethingHappenedLocal.get() == false && !anyComplete(spilling)) {
                     try {
                         this.somethingHappenedLocal.wait();
                     } catch (InterruptedException ie) {
@@ -460,13 +493,19 @@ public class BufferRunner implements Runnable {
                 }
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                if (spilling != null) {
+                    complete = collectCompleted(spilling);
+                }
+
                 this.somethingHappenedLocal.set(false);
             }
             // LOG:DIAGNOSTIC
             // log("Done waiting for more work");
         }
+        return complete;
     }
 
+    /*
     private void spillAll() {
       spillN(toWrite.size());
     }
@@ -595,13 +634,14 @@ public class BufferRunner implements Runnable {
                         doSingleOutputBuffer(toWrite.removeFirst());
 
                     if (!forwardProgress) {
-                        waitForMoreWork();
+                        waitForMoreWork(null);
                     }
                     nSoFar++;
                 }
             }
         }
     }
+*/
 
     @Override
     public void run() {
@@ -643,7 +683,7 @@ public class BufferRunner implements Runnable {
         boolean forwardProgress = false;
         while (!mainDone || !toRunPrivate.isEmpty() || kernelsActive.get() > 0) {
             if (!forwardProgress) {
-                waitForMoreWork();
+                waitForMoreWork(null);
             }
             forwardProgress = false;
 
@@ -670,46 +710,73 @@ public class BufferRunner implements Runnable {
 
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Started cooperating", this.clContext);
+        List<IterAndBuffers> spilling =
+            new LinkedList<IterAndBuffers>();
         while (!toCopyFromOpenCL.isEmpty() || !toWrite.isEmpty()) {
             forwardProgress = false;
+
             // Try to get as many output buffers in the JVM as possible
             forwardProgress |= doKernelCopyBack();
-            // Try to get as many output buffers passed to the spill thread as possible
-            forwardProgress |= doAllOutputBuffers();
-            // if (!forwardProgress) {
-            //   waitForMoreWork();
-            // }
 
-            spillN(toWrite.size() < clContext.getOutputBufferSpillChunk() ?
-                toWrite.size() : clContext.getOutputBufferSpillChunk());
+            if (!this.clContext.isCombiner()) {
+                // Try to get as many output buffers passed to the spill thread as possible
+                if (!toWrite.isEmpty()) {
+                    final int partitions = this.clContext.getContext().getNumReduceTasks();
+                    final List<OutputBufferSoFar> toSpill =
+                        new ArrayList<OutputBufferSoFar>(toWrite.size());
+                    while (!toWrite.isEmpty()) {
+                        OutputBufferSoFar sofar = toWrite.removeFirst();
+                        toSpill.add(sofar);
+                    }
+                    final HadoopCLOutputBuffer buffer = toSpill.get(0).buffer();
+                    HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill,
+                        partitions);
+
+                    spilling.add(new IterAndBuffers(iter, toSpill));
+                    try {
+                        this.clContext.getContext().spillIter(iter);
+                    } catch (IOException io) {
+                        throw new RuntimeException(io);
+                    }
+
+                    forwardProgress = true;
+                }
+
+                // forwardProgress |= doAllOutputBuffers();
+                if (!forwardProgress) {
+                    List<IterAndBuffers> complete = waitForMoreWork(spilling);
+                    if (complete != null) {
+                        for (IterAndBuffers ib : complete) {
+                            for (OutputBufferSoFar soFar : ib.buffers) {
+                                freeOutputBuffers.free(soFar.buffer());
+                            }
+                        }
+                    }
+                }
+            } else {
+                forwardProgress |= doAllOutputBuffers();
+                if (!forwardProgress) {
+                    waitForMoreWork(null);
+                }
+            }
+
+            // spillN(toWrite.size() < clContext.getOutputBufferSpillChunk() ?
+            //     toWrite.size() : clContext.getOutputBufferSpillChunk());
         }
+
+        while (!spilling.isEmpty()) {
+            List<IterAndBuffers> complete = waitForMoreWork(spilling);
+            if (complete != null) {
+                for (IterAndBuffers ib : complete) {
+                    for (OutputBufferSoFar soFar : ib.buffers) {
+                        freeOutputBuffers.free(soFar.buffer());
+                    }
+                }
+            }
+        }
+
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Finished cooperating", this.clContext);
-
-        // while (kernelsActive.get() > 0 || !toCopyFromOpenCL.isEmpty()) {
-        //     if (this.freeOutputBuffers.nAvailable() == 0) {
-        //         spillN(2);
-        //     }
-
-        //     HadoopCLKernel kernel;
-        //     synchronized (somethingHappenedLocal) {
-        //         while (toCopyFromOpenCL.isEmpty()) {
-        //             try {
-        //                 somethingHappenedLocal.wait();
-        //             } catch (InterruptedException e) {
-        //                 throw new RuntimeException(e);
-        //             }
-        //         }
-        //         kernel = toCopyFromOpenCL.poll();
-        //     }
-        //     // must succeed due to spillAll above
-        //     HadoopCLOutputBuffer output = freeOutputBuffers.alloc().obj();
-        //     handleOpenCLCopy(kernel, output);
-        // }
-
-        // if (!toWrite.isEmpty()) {
-        //     spillAll();
-        // }
 
         // LOG:DIAGNOSTIC
         // log("BufferRunner exiting");
@@ -756,5 +823,16 @@ public class BufferRunner implements Runnable {
         public HadoopCLOutputBuffer buffer() { return this.buffer; }
         public int soFar() { return this.soFar; }
         public void setSoFar(int set) { this.soFar = set; }
+    }
+
+    private static class IterAndBuffers {
+        public final HadoopCLKeyValueIterator iter;
+        public final List<OutputBufferSoFar> buffers;
+
+        public IterAndBuffers(HadoopCLKeyValueIterator iter,
+                List<OutputBufferSoFar> buffers) {
+            this.iter = iter;
+            this.buffers = buffers;
+        }
     }
 }

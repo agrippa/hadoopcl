@@ -8,7 +8,7 @@ public class HadoopCLLogger {
   }
 
   public void log(String msg, HadoopOpenCLContext ctx) {
-    this.log(msg, ctx.typeName());
+    this.log(msg, ctx.verboseTypeName());
   }
 
   public void log(String msg, String ctxType) {

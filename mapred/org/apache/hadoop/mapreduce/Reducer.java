@@ -129,12 +129,13 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
                    RawComparator<KEYIN> comparator,
                    Class<KEYIN> keyClass,
                    Class<VALUEIN> valueClass, ContextType setType,
-                   MapOutputBuffer caller, String label
+                   MapOutputBuffer caller, String label,
+                   Boolean shouldPrint
                    ) throws IOException, InterruptedException {
       super(conf, taskid, input, inputKeyCounter, inputValueCounter,
             output, committer, reporter, 
             comparator, keyClass, valueClass, setType, caller,
-            label);
+            label, shouldPrint);
     }
   }
 

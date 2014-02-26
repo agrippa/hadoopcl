@@ -18,6 +18,9 @@
 
 package org.apache.hadoop.mapred;
 
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,6 +30,11 @@ import org.apache.hadoop.mapreduce.OpenCLDriver;
 import org.apache.hadoop.mapreduce.HadoopCLBulkCombinerReader;
 import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 
+import org.apache.hadoop.mapreduce.HadoopCLBulkMapperReader;
+import org.apache.hadoop.mapreduce.IterateAndPartition;
+import org.apache.hadoop.mapreduce.HadoopCLPartitioner;
+import org.apache.hadoop.io.WritableComparator;
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.mapreduce.DontBlockOnSpillDoneException;
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_INPUT_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_OUTPUT_RECORDS;
@@ -102,7 +110,7 @@ public class MapTask extends Task {
   public static int totalIndexCacheMemory = 0;
   public static final HashMap<Integer, SpillRecord> indexCacheList = new HashMap<Integer, SpillRecord>();
   // public static final ArrayList<SpillRecord> indexCacheList = new ArrayList<SpillRecord>();
-  public static final AtomicInteger numSpills = new AtomicInteger(0);
+  private static final AtomicInteger numSpills = new AtomicInteger(0);
   public static final int MAP_OUTPUT_INDEX_RECORD_LENGTH = 24;
   private Boolean isOpenCL = null;
 
@@ -657,6 +665,11 @@ public class MapTask extends Task {
     }
 
     @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public int collectCollection(KVCollection<K, V> coll) {
         throw new UnsupportedOperationException();
     }
@@ -692,6 +705,11 @@ public class MapTask extends Task {
       out = outputFormat.getRecordWriter(taskContext);
       long bytesOutCurr = getOutputBytes(fsStats);
       fileOutputByteCounter.increment(bytesOutCurr - bytesOutPrev);
+    }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -758,6 +776,11 @@ public class MapTask extends Task {
           }
         };
       }
+    }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        collector.collectIter(iter, partitioner);
     }
 
     @Override
@@ -866,6 +889,8 @@ public class MapTask extends Task {
     public int collectCollection(KVCollection<K,V> kv,
         org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
           throws IOException, InterruptedException;
+    public void collectIter(HadoopCLKeyValueIterator iter,
+        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner);
     public void close() throws IOException, InterruptedException;
     
     public void flush() throws IOException, InterruptedException, 
@@ -923,6 +948,11 @@ public class MapTask extends Task {
                                ClassNotFoundException {
     }
 
+    public void collectIter(HadoopCLKeyValueIterator iter, 
+        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner) {
+      throw new UnsupportedOperationException();
+    }
+
     public int collectCollection(KVCollection<K,V> coll,
         org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
           throws IOException, InterruptedException {
@@ -964,6 +994,10 @@ public class MapTask extends Task {
     // k/v accounting
     private volatile int kvstart = 0;  // marks beginning of spill
     private volatile int kvend = 0;    // marks beginning of collectable
+    private List<HadoopCLKeyValueIterator> itersToSpill =
+        new LinkedList<HadoopCLKeyValueIterator>();
+    private List<HadoopCLKeyValueIterator> spilling =
+        new LinkedList<HadoopCLKeyValueIterator>();
     private int kvindex = 0;           // marks end of collected
     private final int[] kvoffsets;     // indices into kvindices
     private final int[] kvindices;     // partition, k/v offsets into kvbuffer
@@ -1115,6 +1149,16 @@ public class MapTask extends Task {
       }
     }
 
+    public void collectIter(HadoopCLKeyValueIterator iter,
+        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner) {
+      try {
+          spillLock.lock();
+          startSpillIter(iter);
+      } finally {
+          spillLock.unlock();
+      }
+    }
+
     public synchronized int collectCollection(KVCollection<K,V> coll,
         org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
           throws IOException, InterruptedException {
@@ -1134,7 +1178,7 @@ public class MapTask extends Task {
           final boolean kvsoftlimit = ((kvnext > kvend)
               ? kvnext - kvend > softRecordLimit
               : kvend - kvnext <= kvoffsets.length - softRecordLimit);
-          if (kvstart == kvend && kvsoftlimit) {
+          if (kvstart == kvend && kvsoftlimit && spilling.isEmpty()) {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
@@ -1240,7 +1284,7 @@ public class MapTask extends Task {
           final boolean kvsoftlimit = ((kvnext > kvend)
               ? kvnext - kvend > softRecordLimit
               : kvend - kvnext <= kvoffsets.length - softRecordLimit);
-          if (kvstart == kvend && kvsoftlimit) {
+          if (kvstart == kvend && kvsoftlimit && spilling.isEmpty()) {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
@@ -1445,14 +1489,14 @@ public class MapTask extends Task {
               buffull = bufindex + len > bufstart;
             }
 
-            if (kvstart == kvend) {
+            if (kvstart == kvend && spilling.isEmpty()) {
               // spill thread not running
-              if (kvend != kvindex) {
+              if (kvend != kvindex || !itersToSpill.isEmpty()) {
                 // we have records we can spill
                 final boolean bufsoftlimit = (bufindex > bufend)
                   ? bufindex - bufend > softBufferLimit
                   : bufend - bufindex < bufvoid - softBufferLimit;
-                if (bufsoftlimit || (buffull && !wrap)) {
+                if (bufsoftlimit || (buffull && !wrap) || !itersToSpill.isEmpty()) {
                   LOG.info("Spilling map output: buffer full= " + bufsoftlimit);
                   startSpill();
                 }
@@ -1520,7 +1564,7 @@ public class MapTask extends Task {
             // LOG:PROFILE
             // OpenCLDriver.logger.log("Blocking in flush", "mapper");
         }
-        while (kvstart != kvend) {
+        while (kvstart != kvend || !spilling.isEmpty()) {
           reporter.progress();
           spillDone.await();
         }
@@ -1534,9 +1578,11 @@ public class MapTask extends Task {
         }
         noMoreSpilling = true;
 
-        if (kvend != kvindex) {
+        if (kvend != kvindex || !itersToSpill.isEmpty()) {
           kvend = kvindex;
           bufend = bufmark;
+          spilling.addAll(itersToSpill);
+          itersToSpill.clear();
           sortAndSpill();
         }
         spillReady.signal();
@@ -1595,6 +1641,11 @@ public class MapTask extends Task {
         kvstart = kvend;
         bufstart = bufend;
 
+        for (HadoopCLKeyValueIterator i : spilling) {
+            i.setComplete();
+        }
+        spilling.clear();
+
         int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
         double newKvRatio = (double)newDiff / (double)kvoffsets.length;
         double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
@@ -1631,16 +1682,24 @@ public class MapTask extends Task {
 
             spillDone.signalAll();
 
-            while (kvstart == kvend && !noMoreSpilling) {
+            while (kvstart == kvend && !noMoreSpilling &&
+                  itersToSpill.isEmpty()) {
               spillReady.await();
             }
             if (noMoreSpilling) break;
+
             try {
               if (!alreadyReleased) {
                   throw new RuntimeException(
                       "Seems like we missed the last release?");
               }
               alreadyReleased = false;
+              if (!spilling.isEmpty()) {
+                  throw new RuntimeException("Buffers left over in spilling");
+              }
+              spilling.addAll(itersToSpill);
+              itersToSpill.clear();
+
               spillLock.unlock();
 
               sortAndSpill();
@@ -1664,6 +1723,12 @@ public class MapTask extends Task {
       }
     }
 
+    private synchronized void startSpillIter(HadoopCLKeyValueIterator iter) {
+        LOG.info("Spilling map output: itersToSpill.size() = "+(itersToSpill.size()+1));
+        itersToSpill.add(iter);
+        spillReady.signal();
+    }
+
     private synchronized void startSpill() {
       LOG.info("bufstart = " + bufstart + "; bufend = " + bufmark +
                "; bufvoid = " + bufvoid);
@@ -1676,32 +1741,431 @@ public class MapTask extends Task {
       spillReady.signal();
     }
 
-    private void sortAndSpill() throws IOException, ClassNotFoundException,
-                                       InterruptedException {
+    class MergedIterator implements IterateAndPartition {
+        private IteratorWrapper least = null;
+        private final List<IteratorWrapper> iters = new LinkedList<IteratorWrapper>();
+        private final RawComparator writeableComp;
+        private final Comparator<IteratorWrapper> comp = new Comparator<IteratorWrapper>() {
+            @Override
+            public int compare(IteratorWrapper iter1, IteratorWrapper iter2) {
+                final DataInputBuffer key1;
+                final DataInputBuffer key2;
+                try {
+                    key1 = iter1.iter.getKey();
+                    key2 = iter2.iter.getKey();
+                } catch (IOException io) {
+                    throw new RuntimeException(io);
+                }
+                return writeableComp.compare(key1.getData(), key1.getPosition(), key1.getLength(),
+                    key2.getData(), key2.getPosition(), key2.getLength());
+            }
+            @Override
+            public boolean equals(Object o) {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        public IterateAndPartition completePrep() {
+            if (iters.isEmpty()) {
+                throw new RuntimeException("Unexpected empty iters list");
+            }
+
+            if (iters.size() > 1) {
+                return this;
+            } else {
+                return new IterateAndPartition() {
+                    private boolean nexted = true;
+                    private final IterateAndPartition iter = iters.get(0).iter;
+
+                    @Override
+                    public DataInputBuffer getKey() throws IOException {
+                        return iter.getKey();
+                    }
+                    @Override
+                    public DataInputBuffer getValue() throws IOException {
+                        return iter.getValue();
+                    }
+                    @Override
+                    public boolean next() throws IOException {
+                        final boolean result;
+                        if (!nexted) {
+                            result = iter.next();
+                        } else {
+                            nexted = false;
+                            result = true;
+                        }
+                        return result;
+                    }
+                    @Override
+                    public void close() throws IOException {
+                        iter.close();
+                    }
+                    @Override
+                    public Progress getProgress() {
+                        return iter.getProgress();
+                    }
+                    @Override
+                    public boolean supportsBulkReads() {
+                        return iter.supportsBulkReads();
+                    }
+                    @Override
+                    public HadoopCLDataInput getBulkReader() {
+                        return iter.getBulkReader();
+                    }
+                    @Override
+                    public int getPartitionOfCurrent(int partitions) {
+                        return iter.getPartitionOfCurrent(partitions);
+                    }
+                };
+            }
+        }
+
+        public MergedIterator(RawComparator writeableComp) {
+            this.writeableComp = writeableComp;
+        }
+
+        public int size() {
+            return iters.size();
+        }
+
+        public void addIter(IterateAndPartition iter) {
+            this.iters.add(new IteratorWrapper(iter));
+            Collections.sort(this.iters, this.comp);
+            least = this.iters.get(0);
+        }
+        @Override
+        public int getPartitionOfCurrent(int partitions) {
+            return least.iter.getPartitionOfCurrent(partitions);
+        }
+        @Override
+        public DataInputBuffer getKey() throws IOException {
+            return least.iter.getKey();
+        }
+        @Override
+        public DataInputBuffer getValue() throws IOException {
+            return least.iter.getValue();
+        }
+        @Override
+        public boolean next() throws IOException {
+            if (least == null) return false;
+
+            final boolean more;
+            if (least.alreadyNexted) {
+                least.alreadyNexted = false;
+                more = true;
+            } else {
+                more = least.iter.next();
+            }
+
+            if (!more) {
+                this.iters.remove(least);
+            } else {
+                Collections.sort(this.iters, this.comp);
+            }
+
+            if (this.iters.isEmpty()) {
+                this.least = null;
+                return false;
+            } else {
+                this.least = this.iters.get(0);
+                return true;
+            }
+        }
+
+        @Override
+        public void close() throws IOException { }
+
+        @Override
+        public Progress getProgress() { return null; }
+
+        @Override
+        public boolean supportsBulkReads() {
+            // return false;
+            boolean allSupport = true;
+            for (IteratorWrapper iw : iters) {
+                if (!iw.iter.supportsBulkReads()) {
+                    allSupport = false;
+                    break;
+                }
+            }
+            return allSupport;
+        }
+
+        @Override
+        public HadoopCLDataInput getBulkReader() {
+            final List<ReaderWrapper> readers =
+                new LinkedList<ReaderWrapper>();
+            final Comparator<ReaderWrapper> comp = new Comparator<ReaderWrapper>() {
+                @Override
+                public int compare(ReaderWrapper iter1, ReaderWrapper iter2) {
+                    final int result;
+                    try {
+                        result = iter1.reader.compareKeys(iter2.reader);
+                    } catch (IOException io) {
+                        throw new RuntimeException(io);
+                    }
+                    iter1.reader.reset();
+                    iter2.reader.reset();
+                    return result;
+                }
+                @Override
+                public boolean equals(Object o) {
+                    throw new UnsupportedOperationException();
+                }
+            };
+
+            try {
+                for (IteratorWrapper iw : iters) {
+                    HadoopCLDataInput tmp = iw.iter.getBulkReader();
+                    if (tmp.hasMore()) {
+                        tmp.nextKey();
+                        readers.add(new ReaderWrapper(tmp));
+                    }
+                }
+            } catch (IOException io) {
+                throw new RuntimeException(io);
+            }
+
+            Collections.sort(readers, comp);
+
+            return new HadoopCLBulkMapperReader() {
+                private ReaderWrapper least = readers.get(0);
+                private ReaderWrapper previousLeast = null;
+
+                @Override
+                public final boolean hasMore() {
+                    return least != null && least.reader.hasMore();
+                }
+                @Override
+                public int compareKeys(HadoopCLDataInput other) throws IOException {
+                    return this.least.reader.compareKeys(other);
+                }
+                @Override
+                public final void nextKey() throws IOException {
+                    if (this.least.alreadyNexted) {
+                        this.least.alreadyNexted = false;
+                    } else {
+                        final boolean more = this.least.reader.hasMore();
+                        if (!more) {
+                            readers.remove(this.least);
+                        } else {
+                            this.least.reader.nextKey();
+                            Collections.sort(readers, comp);
+                        }
+                    }
+
+                    previousLeast = least;
+                    if (readers.isEmpty()) {
+                        this.least = null;
+                    } else {
+                        this.least = readers.get(0);
+                    }
+                }
+                @Override
+                public final void nextValue() throws IOException {
+                    this.least.reader.nextValue();
+                }
+                @Override
+                public final void prev() {
+                    if (this.previousLeast == null) {
+                        throw new RuntimeException("Gone back too far");
+                    }
+                    this.least.reader.reset();
+                    this.previousLeast.reader.prev();
+                    this.least = this.previousLeast;
+                    this.previousLeast = null;
+                }
+                @Override
+                public final void readFully(int[] b, int off, int len) {
+                    this.least.reader.readFully(b, off, len);
+                }
+                @Override
+                public final void readFully(double[] b, int off, int len) {
+                    this.least.reader.readFully(b, off, len);
+                }
+                @Override
+                public final int readInt() throws IOException {
+                    return this.least.reader.readInt();
+                }
+
+            };
+        }
+
+        class ReaderWrapper {
+            public final HadoopCLDataInput reader;
+            public boolean alreadyNexted;
+
+            public ReaderWrapper(HadoopCLDataInput reader) {
+                this.reader = reader;
+                this.alreadyNexted = true;
+            }
+        }
+
+        class IteratorWrapper {
+            public final IterateAndPartition iter;
+            public boolean alreadyNexted;
+
+            public IteratorWrapper(IterateAndPartition iter) {
+                this.iter = iter;
+                this.alreadyNexted = true;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getName()+",size="+this.size();
+        }
+    }
+
+    private void sortAndSpill()
+          throws IOException, ClassNotFoundException, InterruptedException {
       //approximate the length of the output file to be the length of the
       //buffer + header lengths for the partitions
+      LOG.info("Spilling! kvstart="+kvstart+" kvend="+kvend+" spilling.size() = "+spilling.size());
       long size = (bufend >= bufstart
           ? bufend - bufstart
           : (bufvoid - bufend) + bufstart) +
                   partitions * APPROX_HEADER_LENGTH;
+
+      final MergedIterator mergedPrep = new MergedIterator(comparator);
+      for (HadoopCLKeyValueIterator i : spilling) {
+          final boolean more = i.next();
+          if (more) {
+              mergedPrep.addIter(i);
+          }
+      }
+
+      final int spillNo = numSpills.getAndIncrement();
+      // create spill file
+      final SpillRecord spillRec = new SpillRecord(partitions, spillNo);
+      // final int spillNo = numSpills++;
+      final Path filename =
+          mapOutputFile.getSpillFileForWrite(spillNo, size);
+
+      if (kvstart != kvend) {
+          final int endPosition = (kvend > kvstart)
+            ? kvend
+            : kvoffsets.length + kvend;
+          sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
+
+          final IterateAndPartition iter;
+          if (combinerRunner == null) {
+              final int tmp_kvstart = kvstart;
+              iter = new IterateAndPartition() {
+                  private int pointer = tmp_kvstart - 1;
+                  private final int end = endPosition;
+                  private final DataInputBuffer key = new DataInputBuffer();
+                  private final InMemValBytes value = new InMemValBytes();
+                  public DataInputBuffer getKey() throws IOException {
+                      final int kvoff = kvoffsets[pointer % kvoffsets.length];
+                      key.reset(kvbuffer, kvindices[kvoff + KEYSTART],
+                                (kvindices[kvoff + VALSTART] - 
+                                 kvindices[kvoff + KEYSTART]));
+                      return key;
+                  }
+                  public DataInputBuffer getValue() throws IOException {
+                      final int kvoff = kvoffsets[pointer % kvoffsets.length];
+                      getVBytesForOffset(kvoff, value);
+                      return value;
+                  }
+                  public int getPartitionOfCurrent(int partitions) {
+                      final int kvoff = kvoffsets[pointer % kvoffsets.length];
+                      return kvindices[kvoff + PARTITION];
+                  }
+                  public boolean next() throws IOException {
+                      pointer++;
+                      return pointer < endPosition;
+                  }
+                  public void close() throws IOException {
+                  }
+                  public Progress getProgress() { return null; }
+                  public boolean supportsBulkReads() {
+                      return false;
+                  }
+                  public HadoopCLDataInput getBulkReader() {
+                      throw new UnsupportedOperationException();
+                  }
+              };
+          } else {
+              iter = new MRResultIterator(kvstart, endPosition);
+          }
+          final boolean more = iter.next();
+          if (more) {
+              mergedPrep.addIter(iter);
+          }
+      }
+
+      final IterateAndPartition merged = mergedPrep.completePrep();
+
       FSDataOutputStream out = null;
       try {
-        // create spill file
-        final int spillNo = numSpills.getAndIncrement();
-        final SpillRecord spillRec = new SpillRecord(partitions, spillNo);
-        // final int spillNo = numSpills++;
-        final Path filename =
-            mapOutputFile.getSpillFileForWrite(spillNo, size);
         out = rfs.create(filename);
 
-        final int endPosition = (kvend > kvstart)
-          ? kvend
-          : kvoffsets.length + kvend;
-        sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
+        if (combinerRunner == null) {
+            BulkWriter<K, V> writer = new BulkWriter<K, V>(job, out,
+                keyClass, valClass, codec, spilledRecordsCounter, merged);
+            while (merged.next()) {
+                writer.append(merged.getKey(), merged.getValue());
+            }
+            writer.close();
 
+            HashMap<Integer, Long> partitionSegmentStarts =
+                writer.getPartitionSegmentStarts();
+            HashMap<Integer, Long> partitionRawLengths =
+                writer.getPartitionRawLengths();
+            HashMap<Integer, Long> partitionCompressedLengths =
+                writer.getPartitionCompressedLengths();
+
+            for (int part = 0; part < partitions; part++) {
+                final IndexRecord rec = new IndexRecord();
+
+                rec.startOffset = partitionSegmentStarts.get(part);
+                rec.rawLength = partitionRawLengths.get(part);
+                rec.partLength = partitionCompressedLengths.get(part);
+                spillRec.putIndex(rec, part);
+            }
+
+            synchronized (MapTask.indexCacheList) {
+                MapTask.indexCacheList.put(spillRec.getSpillNo(), spillRec);
+                MapTask.totalIndexCacheMemory +=
+                    spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
+            }
+
+        } else {
+            SortedWriter<K, V> writer = new SortedWriter<K, V>(job, out,
+                keyClass, valClass, codec, spilledRecordsCounter, comparator,
+                true, null);
+            combineCollector.setWriter(writer);
+            combinerRunner.setDirectCombiner(true);
+            combinerRunner.combine(merged, combineCollector);
+
+            writer.close();
+
+            HashMap<Integer, Long> partitionSegmentStarts =
+                writer.getPartitionSegmentStarts();
+            HashMap<Integer, Long> partitionRawLengths =
+                writer.getPartitionRawLengths();
+            HashMap<Integer, Long> partitionCompressedLengths =
+                writer.getPartitionCompressedLengths();
+
+            for (int part = 0; part < partitions; part++) {
+                final IndexRecord rec = new IndexRecord();
+
+                rec.startOffset = partitionSegmentStarts.get(part);
+                rec.rawLength = partitionRawLengths.get(part);
+                rec.partLength = partitionCompressedLengths.get(part);
+                spillRec.putIndex(rec, part);
+            }
+
+            synchronized (MapTask.indexCacheList) {
+                MapTask.indexCacheList.put(spillRec.getSpillNo(), spillRec);
+                MapTask.totalIndexCacheMemory +=
+                    spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
+            }
+        }
+
+        /*
         int spindex = kvstart;
-        IndexRecord rec = new IndexRecord();
-        InMemValBytes value = new InMemValBytes();
         for (int part = 0; part < partitions; ++part) {
           IFile.Writer<K, V> writer = null;
           try {
@@ -1760,6 +2224,7 @@ public class MapTask extends Task {
             if (null != writer) writer.close();
           }
         }
+        */
 
         if (MapTask.totalIndexCacheMemory >= INDEX_CACHE_MEMORY_LIMIT) {
           // create spill index file
@@ -1887,7 +2352,7 @@ public class MapTask extends Task {
       }
     }
 
-    protected class MRResultIterator implements RawKeyValueIterator {
+    protected class MRResultIterator implements IterateAndPartition {
       private final DataInputBuffer keybuf = new DataInputBuffer();
       private final InMemValBytes vbytes = new InMemValBytes();
       private final int start;
@@ -1910,6 +2375,10 @@ public class MapTask extends Task {
       public DataInputBuffer getValue() throws IOException {
         getVBytesForOffset(kvoffsets[current % kvoffsets.length], vbytes);
         return vbytes;
+      }
+      public int getPartitionOfCurrent(int partitions) {
+          final int kvoff = kvoffsets[current % kvoffsets.length];
+          return kvindices[kvoff + PARTITION];
       }
       public Progress getProgress() {
         return null;
@@ -1994,6 +2463,7 @@ public class MapTask extends Task {
         IndexRecord rec = new IndexRecord();
         final SpillRecord spillRec = new SpillRecord(partitions, 0);
         for (int parts = 0; parts < partitions; parts++) {
+          final int tmp_parts = parts;
           //create the segments to be merged
           List<Segment<K,V>> segmentList =
             new ArrayList<Segment<K, V>>(totalSpills);
@@ -2031,8 +2501,15 @@ public class MapTask extends Task {
             Merger.writeFile(kvIter, writer, reporter, job);
           } else {
             writer = new SortedWriter(job, finalOut, keyClass, valClass, codec,
-                spilledRecordsCounter, comparator, false);
+                spilledRecordsCounter, comparator, false,
+                new HadoopCLPartitioner() {
+                    @Override
+                    public int getPartitionOfCurrent(int partitions) {
+                        return tmp_parts;
+                    }
+                });
             combineCollector.setWriter(writer);
+            combinerRunner.setDirectCombiner(false);
             combinerRunner.combine(kvIter, combineCollector);
           }
 

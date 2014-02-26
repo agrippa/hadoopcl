@@ -8,6 +8,8 @@ public interface HadoopCLDataInput extends DataInput {
     public void nextKey() throws IOException;
     public void nextValue() throws IOException;
     public void prev();
+    public void reset();
+    public int compareKeys(HadoopCLDataInput other) throws IOException;
 
     public void readFully(int[] b, int offset, int len);
     public void readFully(double[] b, int offset, int len);

@@ -129,6 +129,8 @@ class NativeTypeVisitor:
         raise NotImplementedError()
     def getIteratorComparison(self):
         raise NotImplementedError()
+    def getPartitionOfCurrent(self):
+        raise NotImplementedError()
     def getKeyFillForIterator(self):
         raise NotImplementedError()
     def getKeyLengthForIterator(self):
@@ -166,6 +168,10 @@ class NativeTypeVisitor:
     def getTransferKeyMethod(self):
         raise NotImplementedError()
     def getTransferValueMethod(self):
+        raise NotImplementedError()
+    def getCompareKeys(self):
+        raise NotImplementedError()
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
         raise NotImplementedError()
 
 #################################################################################
@@ -276,6 +282,15 @@ class PrimitiveVisitor(NativeTypeVisitor):
                  'if (aKey < bKey) return -1;',
                  'else if (aKey > bKey) return 1;',
                  'else return 0;' ]
+    def getPartitionOfCurrent(self):
+        if self.typ == 'int':
+            return [ 'return (buf.outputKeys[offset] & Integer.MAX_VALUE) % partitions;' ]
+        elif self.typ == 'float':
+            return [ 'return (Float.floatToIntBits(buf.outputKeys[offset]) & Integer.MAX_VALUE) % partitions;' ]
+        elif self.typ == 'double':
+            return [ 'return (((int)Double.doubleToLongBits(buf.outputKeys[offset])) & Integer.MAX_VALUE) % partitions;' ]
+        elif self.typ == 'long':
+            return [ 'return (((int)buf.outputKeys[offset]) & Integer.MAX_VALUE) % partitions;' ]
     def getKeyFillForIterator(self):
         if self.typ == 'int':
             return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 4);',
@@ -415,6 +430,26 @@ class PrimitiveVisitor(NativeTypeVisitor):
         return [ 'this.inputKeys[0] = other.inputKeys[other.lastNKeys - 1];' ]
     def getTransferValueMethod(self):
         return [ 'safeTransfer(other.inputVals, this.inputVals, other.nVals, this.nVals);' ]
+    def getCompareKeys(self):
+        if self.typ == 'int':
+            return [ 'return this.readInt() - other.readInt();' ]
+        elif self.typ == 'float':
+            return [ 'float thisVal = this.readFloat();',
+                     'float otherVal = other.readFloat();',
+                     'return (thisVal < otherVal ? -1 : (thisVal > otherVal ? 1 : 0));' ]
+        elif self.typ == 'double':
+            return [ 'double thisVal = this.readDouble();',
+                     'double otherVal = other.readDouble();',
+                     'return (thisVal < otherVal ? -1 : (thisVal > otherVal ? 1 : 0));' ]
+        elif self.typ == 'long':
+            return [ 'long thisVal = this.readLong();',
+                     'long otherVal = other.readLong();',
+                     'return (thisVal < otherVal ? -1 : (thisVal > otherVal ? 1 : 0));' ]
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
+        if self.typ == 'int':
+            return [ 'Integer.toString('+varName+'s['+index+'])' ]
+        else:
+            return [ self.typ.capitalize()+'.toString('+varName+'s['+index+'])' ]
 
 #################################################################################
 ########################## Visitor for Pair type ################################
@@ -554,6 +589,8 @@ class PairVisitor(NativeTypeVisitor):
                  '        return 0;',
                  '    }',
                  '}' ]
+    def getPartitionOfCurrent(self):
+        return [ 'return (((int)buf.outputKeys1[offset] + (int)buf.outputKeys2[offset]) & Integer.MAX_VALUE) % partitions;' ]
     def getKeyFillForIterator(self):
         return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 16);',
                  'this.keyBytes.position(0);',
@@ -641,6 +678,26 @@ class PairVisitor(NativeTypeVisitor):
     def getTransferValueMethod(self):
         return [ 'safeTransfer(other.inputVals1, this.inputVals1, other.nVals, this.nVals);',
                  'safeTransfer(other.inputVals2, this.inputVals2, other.nVals, this.nVals);' ]
+    def getCompareKeys(self):
+        return [ 'final double thisVal1 = this.readDouble();',
+                 'final double otherVal1 = other.readDouble();',
+                 'if (thisVal1 < otherVal1) {',
+                 '    return -1;',
+                 '} else if (thisVal1 > otherVal1) {',
+                 '    return 1;',
+                 '} else {',
+                 '    final double thisVal2 = this.readDouble();',
+                 '    final double otherVal2 = other.readDouble();',
+                 '    if (thisVal2 < otherVal2) {',
+                 '        return -1;',
+                 '    } else if (thisVal2 > otherVal2) {',
+                 '        return 1;',
+                 '    } else {',
+                 '        return 0;',
+                 '    }',
+                 '}' ]
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
+        return [ '"{ "+'+varName+'s1['+index+']+", "+'+varName+'s2['+index+']+" }"' ]
 
 #################################################################################
 ########################## Visitor for Ipair type ###############################
@@ -812,6 +869,8 @@ class IpairVisitor(NativeTypeVisitor):
                  '        }',
                  '    }',
                  '}' ]
+    def getPartitionOfCurrent(self):
+        return [ 'return (buf.outputValIds[offset] & Integer.MAX_VALUE) % partitions;' ]
     def getKeyFillForIterator(self):
         return [ 'this.keyBytes = resizeByteBuffer(this.keyBytes, 20);',
                  'this.keyBytes.position(0);',
@@ -910,6 +969,34 @@ class IpairVisitor(NativeTypeVisitor):
         return [ 'safeTransfer(other.inputValIds, this.inputValIds, other.nVals, this.nVals);',
                  'safeTransfer(other.inputVals1,  this.inputVals1,  other.nVals, this.nVals);',
                  'safeTransfer(other.inputVals2,  this.inputVals2,  other.nVals, this.nVals);' ]
+    def getCompareKeys(self):
+        return [ 'final int thisIval = this.readInt();',
+                 'final int otherIval = other.readInt();',
+                 'if (thisIval < otherIval) {',
+                 '    return -1;',
+                 '} else if (thisIval > otherIval) {',
+                 '    return 1;',
+                 '} else {',
+                 '    final double thisVal1 = this.readDouble();',
+                 '    final double otherVal1 = other.readDouble();',
+                 '    if (thisVal1 < otherVal1) {',
+                 '        return -1;',
+                 '    } else if (thisVal1 > otherVal1) {',
+                 '        return 1;',
+                 '    } else {',
+                 '        final double thisVal2 = this.readDouble();',
+                 '        final double otherVal2 = other.readDouble();',
+                 '        if (thisVal2 < otherVal2) {',
+                 '            return -1;',
+                 '        } else if (thisVal2 > otherVal2) {',
+                 '            return 1;',
+                 '        } else {',
+                 '            return 0;',
+                 '        }',
+                 '    }',
+                 '}' ]
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
+        return [ '"{ "+'+varName+'Ids['+index+']+", "+'+varName+'s1['+index+']+", "+'+varName+'s2['+index+']+" }"' ]
 
 #################################################################################
 ########################## Visitor for Svec type ################################
@@ -1186,6 +1273,8 @@ class SvecVisitor(NativeTypeVisitor):
         return [ 'this.individualInputValsCount+"/"+this.input'+core+'Indices.length+" '+core.lower()+'s elements"' ]
     def getIteratorComparison(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getPartitionOfCurrent(self):
+        raise NotImplementedError()
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyLengthForIterator(self):
@@ -1261,6 +1350,23 @@ class SvecVisitor(NativeTypeVisitor):
                  'for (int i = 0; i < this.nVals; i++) {',
                  '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
                  '}' ]
+    def getCompareKeys(self):
+        raise NotImplementedError()
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
+        if isMapper:
+            limitStr = 'this.nPairs'
+        else:
+            limitStr = 'this.nVals'
+
+        if isInput:
+            valOffsetStr = indexOffsetStr = (varName+'LookAsideBuffer')
+            lengthStr = ('('+index+' == '+limitStr+'-1 ? (individualInputValsCount - '+varName+'LookAsideBuffer['+index+']) : ('+varName+'LookAsideBuffer['+index+'+1] - '+varName+'LookAsideBuffer['+index+']))')
+        else:
+            indexOffsetStr = (varName+'IntLookAsideBuffer')
+            valOffsetStr = (varName+'DoubleLookAsideBuffer')
+            lengthStr = (varName+'LengthBuffer['+index+']')
+
+        return [ '"len="+'+lengthStr+'+" val={ "+sparseVecComponentsToString('+varName+'Indices, '+indexOffsetStr+'['+index+'], '+varName+'Vals, '+valOffsetStr+'['+index+'], '+lengthStr+')+"}"' ]
 
 #################################################################################
 ########################## Visitor for Ivec type ################################
@@ -1270,10 +1376,10 @@ class IvecVisitor(NativeTypeVisitor):
         buf = [ ]
         if isInput:
             buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'LookAsideBuffer;')
-            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+';')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'s;')
         else:
             buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'LookAsideBuffer;')
-            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+';')
+            buf.append('public '+('final' if isFinal else '')+' int[] '+basename+'s;')
 
         if not isInput:
             buf.append('private '+('final' if isFinal else '')+' int[] bufferOutput = null;')
@@ -1289,13 +1395,13 @@ class IvecVisitor(NativeTypeVisitor):
             if isInput:
                 if isMapper:
                     buf.append(basename+'LookAsideBuffer = new int[('+size+')];\n')
-                    buf.append(basename+' = new int[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'s = new int[('+size+') * this.clContext.getInputValEleMultiplier()];\n')
                 else:
                     buf.append(basename+'LookAsideBuffer = new int[('+size+') * this.clContext.getInputValMultiplier()];\n')
-                    buf.append(basename+' = new int[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
+                    buf.append(basename+'s = new int[('+size+') * this.clContext.getInputValMultiplier() * this.clContext.getInputValEleMultiplier()];\n')
             else:
                 buf.append(basename+'LookAsideBuffer = new int['+size+'];\n')
-                buf.append(basename+' = new int[this.clContext.getPreallocIntLength()];\n')
+                buf.append(basename+'s = new int[this.clContext.getPreallocIntLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
             buf.append('this.nVectorsToBuffer = clContext.getNVectorsToBuffer();')
@@ -1325,7 +1431,7 @@ class IvecVisitor(NativeTypeVisitor):
             buf.append('this.'+basename+' = null;')
         else:
             buf.append('this.'+basename+'LookAsideBuffer = set'+basename.capitalize()+'LookAsideBuffer;')
-            buf.append('this.'+basename+' = set'+basename.capitalize()+';')
+            buf.append('this.'+basename+'s = set'+basename.capitalize()+';')
 
         if not isKey and not isInput:
             if forceNull:
@@ -1355,7 +1461,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getKernelCall(self, basename, isKey):
         if isKey:
             raise RuntimeError('Unsupported key type svec')
-        return [ 'input'+basename+', input'+basename+'LookAsideBuffer[3] + this.nPairs + this.individualInputValsCount' ]
+        return [ 'input'+basename+'s, input'+basename+'LookAsideBuffer[3] + this.nPairs + this.individualInputValsCount' ]
     def getKernelCallIter(self):
         return [ 'null' ]
         # return [ 'new HadoopCLIvecValueIterator(null)' ]
@@ -1390,7 +1496,7 @@ class IvecVisitor(NativeTypeVisitor):
                  # '            actual.vals()[i]);',
                  # '    }',
                  '} else {',
-                 '    System.arraycopy(actual.vals(), actual.valsOffset(), this.inputVal, this.individualInputValsCount, actual.size());',
+                 '    System.arraycopy(actual.vals(), actual.valsOffset(), this.inputVals, this.individualInputValsCount, actual.size());',
                  # '    for (int i = 0; i < actual.size(); i++) {',
                  # '        this.inputVal.unsafeSet(this.individualInputValsCount + i,',
                  # '            actual.vals()[i]);',
@@ -1399,7 +1505,7 @@ class IvecVisitor(NativeTypeVisitor):
                  'this.individualInputValsCount += actual.size();' ]
     def getAddValueMethodReducer(self):
         return [ 'this.inputValLookAsideBuffer[this.nVals++] = this.individualInputValsCount;',
-                 'System.arraycopy(actual.vals(), actual.valsOffset(), this.inputVal, this.individualInputValsCount, actual.size());',
+                 'System.arraycopy(actual.vals(), actual.valsOffset(), this.inputVals, this.individualInputValsCount, actual.size());',
                  'this.individualInputValsCount += actual.size();' ]
 #    def getAddKeyMethod(self, index):
 #    def getLimitSetter():
@@ -1410,16 +1516,16 @@ class IvecVisitor(NativeTypeVisitor):
                  'if (this.enableStriding) {',
                  '    length = (i == this.nPairs-1 ? this.individualInputValsCount : this.inputValLookAsideBuffer[i+1]) - this.inputValLookAsideBuffer[i];',
                  '    for (int j = 0; j < length; j++) {',
-                 '        newBuffer.inputVal.unsafeSet(',
+                 '        newBuffer.inputVals.unsafeSet(',
                  '            newBuffer.nPairs + (j * nRestarts),',
-                 '            this.inputVal.get(i + (j * this.nPairs)));',
+                 '            this.inputVals.get(i + (j * this.nPairs)));',
                  '    }',
                  '} else {',
                  '    int baseOffset = this.inputValLookAsideBuffer[i];',
                  '    int topOffset = i == this.nPairs-1 ? this.individualInputValsCount : this.inputValLookAsideBuffer[i+1];',
                  '    length = topOffset - baseOffset;',
-                 '    System.arraycopy((int[])(this.inputVal.getArray()),',
-                 '        baseOffset, (int[])(newBuffer.inputVal.getArray()),',
+                 '    System.arraycopy((int[])(this.inputVals.getArray()),',
+                 '        baseOffset, (int[])(newBuffer.inputVals.getArray()),',
                  '        newBuffer.inputValLookAsideBuffer[newBuffer.nPairs], topOffset-baseOffset);',
                  '}',
                  'newBuffer.individualInputValsCount += length;' ]
@@ -1430,13 +1536,13 @@ class IvecVisitor(NativeTypeVisitor):
                  '    newBuffer.inputValLookAsideBuffer[offsetInNewBuffer] = newBuffer.individualInputValsCount;',
                  '    int baseOffset = this.inputValLookAsideBuffer[j];',
                  '    int topOffset = j == this.nVals-1 ? this.individualInputValsCount : this.inputValLookAsideBuffer[j+1];',
-                 '    System.arraycopy(this.inputVal, baseOffset, newBuffer.inputVal, newBuffer.inputValLookAsideBuffer[offsetInNewBuffer], topOffset-baseOffset);',
+                 '    System.arraycopy(this.inputVals, baseOffset, newBuffer.inputVals, newBuffer.inputValLookAsideBuffer[offsetInNewBuffer], topOffset-baseOffset);',
                  '    newBuffer.individualInputValsCount += (topOffset - baseOffset);',
                  '}' ]
     def getFillParameter(self, basename, isInput, isMapper):
         buf = [ ]
         if isInput:
-            buf.append(basename+'LookAsideBuffer, '+basename)
+            buf.append(basename+'LookAsideBuffer, '+basename+'s')
         else:
             buf.append(basename+'IntLookAsideBuffer, '+basename+'DoubleLookAsideBuffer, '+basename)
         return buf
@@ -1453,7 +1559,7 @@ class IvecVisitor(NativeTypeVisitor):
         return [ 'for(int i = 0; i < this.tempBuffer1.size(); i++) {',
                  '    this.inputValLookAsideBuffer[this.nVals + i] = this.individualInputValsCount + ((int[])this.tempBuffer1.getArray())[i];',
                  '}',
-                 'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputVal, this.individualInputValsCount, this.tempBuffer2.size());',
+                 'System.arraycopy(this.tempBuffer2.getArray(), 0, this.inputVals, this.individualInputValsCount, this.tempBuffer2.size());',
                  'this.individualInputValsCount += this.tempBuffer2.size();' ]
     def getBufferedInit(self):
         return [ ]
@@ -1466,7 +1572,7 @@ class IvecVisitor(NativeTypeVisitor):
     def getSpace(self, isMapper, isInput, isKey):
         if isInput:
             return [ '(inputValLookAsideBuffer.length * 4) +',
-                     '(inputVal.length * 4);' ]
+                     '(inputVals.length * 4);' ]
         else:
             return [ '(outputValIntLookAsideBuffer.length * 4) +',
                      '(outputVal.length * 4) +',
@@ -1482,6 +1588,8 @@ class IvecVisitor(NativeTypeVisitor):
         return [ 'this.individualInputValsCount+"/"+this.input'+core+'.length+" '+core.lower()+'s elements"' ]
     def getIteratorComparison(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getPartitionOfCurrent(self):
+        raise NotImplementedError()
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyLengthForIterator(self):
@@ -1522,7 +1630,7 @@ class IvecVisitor(NativeTypeVisitor):
         raise NotImplementedError()
     def getReadValueFromStream(self):
         return [ 'final int vectorLength = stream.readInt();',
-                 'if (this.individualInputValsCount + vectorLength > this.inputVal.length) {',
+                 'if (this.individualInputValsCount + vectorLength > this.inputVals.length) {',
                  '    stream.prev();',
                  '    this.isFull = true;',
                  '    return nread;',
@@ -1539,17 +1647,32 @@ class IvecVisitor(NativeTypeVisitor):
         else:
             incrStr = 'this.nVals'
         return [ 'this.inputValLookAsideBuffer['+incrStr+'++] = this.individualInputValsCount;',
-                 'stream.readFully(this.inputVal, this.individualInputValsCount, vectorLength);',
+                 'stream.readFully(this.inputVals, this.individualInputValsCount, vectorLength);',
                  'this.individualInputValsCount += vectorLength;' ]
     def getSameAsLastKeyMethod(self):
         raise NotImplementedError()
     def getTransferKeyMethod(self):
         raise NotImplementedError()
     def getTransferValueMethod(self):
-        return [ 'safeTransfer(other.inputVal, this.inputVal, other.individualInputValsCount, this.individualInputValsCount);',
+        return [ 'safeTransfer(other.inputVals, this.inputVals, other.individualInputValsCount, this.individualInputValsCount);',
                  'for (int i = 0; i < this.nVals; i++) {',
                  '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
                  '}' ]
+    def getCompareKeys(self):
+        raise NotImplementedError()
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
+        if isMapper:
+            limitStr = 'this.nPairs'
+        else:
+            limitStr = 'this.nVals'
+
+        if isInput:
+            indexOffsetStr = (varName+'LookAsideBuffer')
+            lengthStr = ('('+index+' == '+limitStr+'-1 ? (individualInputValsCount - '+varName+'LookAsideBuffer['+index+']) : ('+varName+'LookAsideBuffer['+index+'+1] - '+varName+'LookAsideBuffer['+index+']))')
+        else:
+            indexOffsetStr = (varName+'IntLookAsideBuffer')
+            lengthStr = (varName+'LengthBuffer['+index+']')
+        return [ '"len="+'+lengthStr+'+" val={ "+sparseVecComponentsToString('+varName+'s, '+indexOffsetStr+'['+index+'], '+lengthStr+')+"}"' ]
 
 #################################################################################
 ########################## Visitor for Fsvec type ###############################
@@ -1839,6 +1962,8 @@ class FsvecVisitor(NativeTypeVisitor):
         return [ 'this.individualInputValsCount+"/"+this.input'+core+'Indices.length+" '+core.lower()+'s elements"' ]
     def getIteratorComparison(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getPartitionOfCurrent(self):
+        raise NotImplementedError()
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyLengthForIterator(self):
@@ -1914,6 +2039,23 @@ class FsvecVisitor(NativeTypeVisitor):
                  'for (int i = 0; i < this.nVals; i++) {',
                  '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
                  '}' ]
+    def getCompareKeys(self):
+        raise NotImplementedError()
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
+        if isMapper:
+            limitStr = 'this.nPairs'
+        else:
+            limitStr = 'this.nVals'
+
+        if isInput:
+            valOffsetStr = indexOffsetStr = (varName+'LookAsideBuffer')
+            lengthStr = ('('+index+' == '+limitStr+'-1 ? (individualInputValsCount - '+varName+'LookAsideBuffer['+index+']) : ('+varName+'LookAsideBuffer['+index+'+1] - '+varName+'LookAsideBuffer['+index+']))')
+        else:
+            indexOffsetStr = (varName+'IntLookAsideBuffer')
+            valOffsetStr = (varName+'FloatLookAsideBuffer')
+            lengthStr = (varName+'LengthBuffer['+index+']')
+
+        return [ '"len="+'+lengthStr+'+" val={ "+sparseVecComponentsToString('+varName+'Indices, '+indexOffsetStr+'['+index+'], '+varName+'Vals, '+valOffsetStr+'['+index+'], '+lengthStr+')+"}"' ]
 
 #################################################################################
 ########################## Visitor for Bsvec type ###############################
@@ -2201,6 +2343,8 @@ class BsvecVisitor(NativeTypeVisitor):
         return [ 'this.individualInputValsCount+"/"+this.input'+core+'Indices.length+" '+core.lower()+'s elements"' ]
     def getIteratorComparison(self):
         raise NotImplementedError('sparse vector types not supported as keys')
+    def getPartitionOfCurrent(self):
+        raise NotImplementedError()
     def getKeyFillForIterator(self):
         raise NotImplementedError('sparse vector types not supported as keys')
     def getKeyLengthForIterator(self):
@@ -2276,6 +2420,23 @@ class BsvecVisitor(NativeTypeVisitor):
                  'for (int i = 0; i < this.nVals; i++) {',
                  '    this.inputValLookAsideBuffer[i] = other.inputValLookAsideBuffer[other.nVals + i] - other.individualInputValsCount;',
                  '}' ]
+    def getCompareKeys(self):
+        raise NotImplementedError()
+    def getOutputStrMethod(self, varName, index, isInput, isMapper):
+        if isMapper:
+            limitStr = 'this.nPairs'
+        else:
+            limitStr = 'this.nVals'
+
+        if isInput:
+            valOffsetStr = indexOffsetStr = (varName+'LookAsideBuffer')
+            lengthStr = ('('+index+' == '+limitStr+'-1 ? (individualInputValsCount - '+varName+'LookAsideBuffer['+index+']) : ('+varName+'LookAsideBuffer['+index+'+1] - '+varName+'LookAsideBuffer['+index+']))')
+        else:
+            indexOffsetStr = (varName+'IntLookAsideBuffer')
+            valOffsetStr = (varName+'DoubleLookAsideBuffer')
+            lengthStr = (varName+'LengthBuffer['+index+']')
+
+        return [ '"len="+'+lengthStr+'+" val={ "+sparseVecComponentsToString('+varName+'Indices, '+indexOffsetStr+'['+index+'], '+varName+'Vals, '+valOffsetStr+'['+index+'], '+lengthStr+')+"}"' ]
 
 #################################################################################
 ########################## End of visitors ######################################
@@ -2573,6 +2734,24 @@ def write_with_indent(fp, indent, s):
 
 def writeBulkFillMethod(fp, nativeInputKeyType, nativeInputValueType, isMapper):
     base_indent = 2
+    fp.write('\n')
+    fp.write('    @Override\n')
+    fp.write('    public final void printContents() {\n')
+    if isMapper:
+        fp.write('        for (int i = 0; i < nPairs; i++) {\n')
+        fp.write('            System.err.println("Reading key="+' + \
+            tostr_without_last_ln(visitor(nativeInputKeyType).getOutputStrMethod('inputKey', 'i', True, isMapper), 0) + '+" "+' + \
+            tostr_without_last_ln(visitor(nativeInputValueType).getOutputStrMethod('inputVal', 'i', True, isMapper), 0)+');\n')
+    else:
+        fp.write('        for (int i = 0; i < nKeys; i++) {\n')
+        fp.write('            final String keyStr = ' + \
+            tostr_without_last_ln(visitor(nativeInputKeyType).getOutputStrMethod('inputKey', 'i', True, isMapper), 0)+';\n')
+        fp.write('        for (int j = this.keyIndex[i]; j < (i == nKeys-1 ? nVals : this.keyIndex[i+1]); j++) {\n')
+        fp.write('            System.err.println("Reading key="+keyStr+" "+' + \
+            tostr_without_last_ln(visitor(nativeInputValueType).getOutputStrMethod('inputVal', 'j', True, isMapper), 0)+');\n')
+        fp.write('        }\n')
+    fp.write('        }\n')
+    fp.write('    }\n')
     fp.write('\n')
     fp.write('    @Override\n')
     fp.write('    public final int bulkFill(HadoopCLDataInput stream) throws IOException {\n')
@@ -2886,7 +3065,7 @@ def writeIsFullMethod(fp, isMapper, nativeInputKeyType, nativeInputValueType, ha
                 arrayName = 'inputValIndices'
             elif nativeInputValueType == 'ivec':
                 javaType = 'IntegerVectorWritable'
-                arrayName = 'inputVal'
+                arrayName = 'inputVals'
             elif nativeInputValueType == 'fsvec':
                 javaType = 'FSparseVectorWritable'
                 arrayName = 'inputValIndices'
@@ -3008,6 +3187,16 @@ def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType
     fp.write('    }\n')
     fp.write('\n')
     fp.write('    @Override\n')
+    fp.write('    public final void printContents() {\n')
+    fp.write('        for (int i = 0; i < getCount(); i++) {\n')
+    fp.write('            if (!isValid(i)) continue;\n')
+    fp.write('            System.err.println("Writing key="+'+ \
+        tostr_without_last_ln(visitor(nativeOutputKeyType).getOutputStrMethod('outputKey', 'i', False, isMapper), 0) + '+" "+' + \
+        tostr_without_last_ln(visitor(nativeOutputValueType).getOutputStrMethod('outputVal', 'i', False, isMapper), 0)+');\n')
+    fp.write('        }\n')
+    fp.write('    }\n')
+    fp.write('\n')
+    fp.write('    @Override\n')
     fp.write('    public final int putOutputsIntoHadoop(TaskInputOutputContext context, int soFar) throws IOException, InterruptedException {\n')
     fp.write('        this.start = soFar; this.end = getCount();\n')
     fp.write('        return context.writeCollection(this);\n')
@@ -3059,14 +3248,14 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
             fp.write('                    inputBuffer.inputValIndices = ensureCapacity(inputBuffer.inputValIndices, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
             fp.write('                    inputBuffer.inputValVals = ensureCapacity(inputBuffer.inputValVals, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
         else:
-            fp.write('                    inputBuffer.inputVal = ensureCapacity(inputBuffer.inputVal, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
+            fp.write('                    inputBuffer.inputVals = ensureCapacity(inputBuffer.inputVals, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
         fp.write('                    for (int i = 0; i < curr.length; i++) {\n')
         if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
             fp.write('                        inputBuffer.inputValIndices[index + (i * inputBuffer.nPairs)] = curr.indices[i];\n')
             prefix = 'd' if (nativeInputValType == 'svec' or nativeInputValType == 'bsvec') else 'f'
             fp.write('                        inputBuffer.inputValVals[index + (i * inputBuffer.nPairs)] = curr.'+prefix+'vals[i];\n')
         else:
-            fp.write('                        inputBuffer.inputVal[index + (i * inputBuffer.nPairs)] = curr.indices[i];\n')
+            fp.write('                        inputBuffer.inputVals[index + (i * inputBuffer.nPairs)] = curr.indices[i];\n')
         fp.write('                    }\n')
         fp.write('                    inputBuffer.individualInputValsCount += curr.length;\n')
         fp.write('                    index++;\n')
@@ -3175,6 +3364,13 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('            });\n')
     fp.write('        }\n')
     fp.write('\n')
+    fp.write('        @Override\n')
+    fp.write('        public int getPartitionOfCurrent(int partitions) {\n')
+    fp.write('            final '+outputBufferName+' buf = buffers[current.buffer];\n')
+    fp.write('            final int offset = current.index;\n')
+    writeln(visitor(nativeOutputKeyType).getPartitionOfCurrent(), 3, fp)
+    fp.write('        }\n')
+    fp.write('\n')
     fp.write('        public ByteBuffer getKeyFor(IntegerPair index) throws IOException {\n')
     fp.write('            final '+outputBufferName+' buffer = buffers[index.buffer];\n')
     writeln(visitor(nativeOutputKeyType).getKeyFillForIterator(), 3, fp)
@@ -3212,9 +3408,14 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('        @Override\n')
     fp.write('        public HadoopCLDataInput getBulkReader() {\n')
     fp.write('            return new HadoopCLBulkMapperReader() {\n')
+    fp.write('                private int sortedIndicesIter = 0;\n')
     fp.write('                @Override\n')
     fp.write('                public final boolean hasMore() {\n')
     fp.write('                    return sortedIndicesIter < sortedIndices.size();\n')
+    fp.write('                }\n')
+    fp.write('                @Override\n')
+    fp.write('                public int compareKeys(HadoopCLDataInput other) throws IOException {\n')
+    writeln(visitor(nativeOutputKeyType).getCompareKeys(), 5, fp)
     fp.write('                }\n')
     fp.write('                @Override\n')
     fp.write('                public final void nextKey() throws IOException {\n')

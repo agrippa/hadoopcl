@@ -11,6 +11,5 @@ public interface KVCollection<K, V> extends Iterable<Integer> {
     public boolean isValid(int index);
     public Writable getKeyFor(int index, Writable w);
     public Writable getValueFor(int index, Writable w);
-    public int getPartitionFor(int index,
-        int numReduceTasks);
+    public int getPartitionFor(int index, int numReduceTasks);
 }

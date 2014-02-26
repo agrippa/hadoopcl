@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapreduce.lib.output;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -298,6 +299,11 @@ public class MultipleOutputs<KEYOUT, VALUEOUT> {
       this.writer = writer;
       this.counterName = counterName;
       this.context = context;
+    }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @SuppressWarnings({"unchecked"})

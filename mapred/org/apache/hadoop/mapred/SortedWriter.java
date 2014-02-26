@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.mapreduce.HadoopCLPartitioner;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.BSparseVectorWritable;
 import java.util.HashMap;
@@ -85,13 +86,15 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
 
     private final int partitions;
     private final org.apache.hadoop.mapreduce.Partitioner partitioner;
+    private final HadoopCLPartitioner appendPartitioner;
     private final long startPos;
 
     public SortedWriter(Configuration conf, FileSystem fs, Path file, 
                   Class<K> keyClass, Class<V> valueClass,
                   CompressionCodec codec,
                   Counters.Counter writesCounter,
-                  RawComparator<K> keyComparator, boolean multiPartition) throws IOException {
+                  RawComparator<K> keyComparator, boolean multiPartition,
+                  HadoopCLPartitioner appendPartitioner) throws IOException {
       super(conf, fs, file, keyClass, valueClass, codec, writesCounter);
       this.outputBuffer = new OutputBuffer();
       this.keyComparator = keyComparator;
@@ -102,6 +105,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       this.partitions = conf.getInt("mapred.reduce.tasks", 1);
       this.startPos = this.rawOut.getPos();
       this.multiPartition = multiPartition;
+      this.appendPartitioner = appendPartitioner;
 
       if (this.partitions > 0) {
         partitioner = (org.apache.hadoop.mapreduce.Partitioner)
@@ -121,7 +125,8 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
     public SortedWriter(Configuration conf, FSDataOutputStream out, 
         Class<K> keyClass, Class<V> valueClass,
         CompressionCodec codec, Counters.Counter writesCounter,
-        RawComparator<K> keyComparator, boolean multiPartition) throws IOException {
+        RawComparator<K> keyComparator, boolean multiPartition,
+        HadoopCLPartitioner appendPartitioner) throws IOException {
       super(conf, out, keyClass, valueClass, codec, writesCounter);
       this.outputBuffer = new OutputBuffer();
       this.keyComparator = keyComparator;
@@ -132,6 +137,7 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
       this.partitions = conf.getInt("mapred.reduce.tasks", 1);
       this.startPos = this.rawOut.getPos();
       this.multiPartition = multiPartition;
+      this.appendPartitioner = appendPartitioner;
 
       if (this.partitions > 0) {
         partitioner = (org.apache.hadoop.mapreduce.Partitioner)
@@ -397,7 +403,17 @@ public class SortedWriter<K extends Comparable<K> & Writable, V extends Comparab
     
     public void append(DataInputBuffer key, DataInputBuffer value)
         throws IOException {
-      throw new UnsupportedOperationException();
+      int keyStart = outputBuffer.currentOffset();
+      recordMarks.add(keyStart);
+      outputBuffer.write(key.getData(), key.getPosition(), key.getLength());
+      int valueStart = outputBuffer.currentOffset();
+      valueMarks.add(valueStart);
+      outputBuffer.write(value.getData(), value.getPosition(), value.getLength());
+      int recordEnd = outputBuffer.currentOffset();
+      endOfRecords.add(recordEnd);
+      int part = this.appendPartitioner.getPartitionOfCurrent(this.partitions);
+      keyPartitions.add(part);
+      ++numRecordsWritten;
     }
     
     public long getRawLength() {

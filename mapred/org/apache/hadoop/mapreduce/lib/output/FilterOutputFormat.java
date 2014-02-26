@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.lib.output;
 
 import java.io.IOException;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -91,6 +92,11 @@ public class FilterOutputFormat <K,V> extends OutputFormat<K, V> {
     
     public FilterRecordWriter(RecordWriter<K,V> rwriter) {
       this.rawWriter = rwriter;
+    }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
     }
     
     @Override

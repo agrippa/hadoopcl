@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.mapreduce;
 
+import org.apache.hadoop.io.DataInputBuffer;
+
 /** 
  * Partitions the key space.
  * 
@@ -44,5 +46,4 @@ public abstract class Partitioner<KEY, VALUE> {
    * @return the partition number for the <code>key</code>.
    */
   public abstract int getPartition(KEY key, VALUE value, int numPartitions);
-  
 }

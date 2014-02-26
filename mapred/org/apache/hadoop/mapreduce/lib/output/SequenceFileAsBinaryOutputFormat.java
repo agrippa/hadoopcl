@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapreduce.lib.output;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import java.io.IOException;
 import java.io.DataOutputStream;
@@ -147,6 +148,11 @@ public class SequenceFileAsBinaryOutputFormat
     return new RecordWriter<BytesWritable, BytesWritable>() {
       public void setUsingOpenCL(boolean val) { }
       private WritableValueBytes wvaluebytes = new WritableValueBytes();
+
+      @Override
+      public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+          throw new UnsupportedOperationException();
+      }
 
       public void write(BytesWritable bkey, BytesWritable bvalue)
         throws IOException {

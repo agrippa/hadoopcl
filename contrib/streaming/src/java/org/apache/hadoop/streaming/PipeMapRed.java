@@ -28,6 +28,7 @@ import java.util.Properties;
 
 import org.apache.commons.logging.*;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
@@ -351,6 +352,9 @@ public abstract class PipeMapRed {
           public void collect(Object key, Object value)
             throws IOException {
             //just consume it, no need to write the record anywhere
+          }
+          public void spillIter(HadoopCLKeyValueIterator iter) {
+              throw new UnsupportedOperationException();
           }
           public int collectCollection(KVCollection coll) {
               throw new UnsupportedOperationException();

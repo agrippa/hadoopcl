@@ -41,6 +41,11 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     }
 
     @Override
+    public int compareKeys(HadoopCLDataInput other) throws IOException {
+        return -1 * other.compareKeys(this);
+    }
+
+    @Override
     public boolean hasMore() {
         return current + 1 < end;
     }
@@ -74,6 +79,11 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
             this.currentOffset = 0;
         }
         this.current = previous;
+    }
+
+    @Override
+    public void reset() {
+        this.currentOffset = 0;
     }
 
     private int currentAbsolutePosition() {

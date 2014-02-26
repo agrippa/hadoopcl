@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.OpenCLDriver;
 import java.io.DataInput;
@@ -1186,6 +1187,17 @@ abstract public class Task implements Writable, Configurable {
     }
 
     @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        while (iter.next()) {
+            outCounter.increment(1);
+            writer.append(iter.getKey(), iter.getValue());
+            if ((outCounter.getValue() % progressBar) == 0) {
+              progressable.progress();
+            }
+        }
+    }
+
+    @Override
     public int collectCollection(KVCollection<K, V> coll) throws IOException {
         Writable key = null;
         Writable value = null;
@@ -1351,7 +1363,7 @@ abstract public class Task implements Writable, Configurable {
             RawComparator.class,
             Class.class,
             Class.class, ContextType.class, MapTask.MapOutputBuffer.class,
-            String.class });
+            String.class, Boolean.class });
     } catch (NoSuchMethodException nme) {
       throw new IllegalArgumentException("Can't find constructor");
     }
@@ -1372,7 +1384,8 @@ abstract public class Task implements Writable, Configurable {
                       org.apache.hadoop.mapreduce.StatusReporter reporter,
                       RawComparator<INKEY> comparator,
                       Class<INKEY> keyClass, Class<INVALUE> valueClass,
-                      ContextType setType, MapTask.MapOutputBuffer caller
+                      ContextType setType, MapTask.MapOutputBuffer caller,
+                      boolean directCombiner
   ) throws IOException, ClassNotFoundException {
     try {
       return contextConstructor.newInstance(reducer, job, taskId,
@@ -1380,7 +1393,8 @@ abstract public class Task implements Writable, Configurable {
                                             inputValueCounter, output, 
                                             committer, reporter, comparator, 
                                             keyClass, valueClass, setType,
-                                            caller, Thread.currentThread().getName());
+                                            caller, Thread.currentThread().getName(),
+                                            directCombiner);
     } catch (InstantiationException e) {
       throw new IOException("Can't create Context", e);
     } catch (InvocationTargetException e) {
@@ -1395,6 +1409,7 @@ abstract public class Task implements Writable, Configurable {
     protected final JobConf job;
     protected final TaskReporter reporter;
     protected boolean canRelease;
+    private boolean directCombiner;
 
     public void setValidToRelease(boolean v) {
         this.canRelease = v;
@@ -1406,6 +1421,14 @@ abstract public class Task implements Writable, Configurable {
       this.inputCounter = inputCounter;
       this.job = job;
       this.reporter = reporter;
+    }
+
+    public boolean isDirectCombiner() {
+        return this.directCombiner;
+    }
+
+    public void setDirectCombiner(boolean set) {
+        this.directCombiner = set;
     }
     
     /**
@@ -1528,6 +1551,10 @@ abstract public class Task implements Writable, Configurable {
       public void close(org.apache.hadoop.mapreduce.TaskAttemptContext context){
       }
 
+      public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+          output.spillIter(iter);
+      }
+
       @Override
       public void write(K key, V value
                         ) throws IOException, InterruptedException {
@@ -1562,7 +1589,8 @@ abstract public class Task implements Writable, Configurable {
                                                 committer,
                                                 reporter, comparator, keyClass,
                                                 valueClass, ContextType.Combiner,
-                                                canRelease ? caller : null);
+                                                canRelease ? caller : null,
+                                                this.isDirectCombiner());
       reducer.run(reducerContext);
     } 
   }

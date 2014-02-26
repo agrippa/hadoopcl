@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.output;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -82,6 +83,12 @@ public class TextOutputFormat<K, V> extends FileOutputFormat<K, V> {
         out.write(o.toString().getBytes(utf8));
       }
     }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
 
     public synchronized void write(K key, V value)
       throws IOException {

@@ -138,5 +138,4 @@ public class BinaryPartitioner<V> extends Partitioner<BinaryComparable, V>
       leftIndex, rightIndex - leftIndex + 1);
     return (hash & Integer.MAX_VALUE) % numPartitions;
   }
-  
 }

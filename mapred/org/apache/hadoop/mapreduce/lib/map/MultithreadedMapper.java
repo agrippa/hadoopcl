@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.lib.map;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -209,6 +210,11 @@ public class MultithreadedMapper<K1, V1, K2, V2>
     @Override
     public void close(TaskAttemptContext context) throws IOException,
                                                  InterruptedException {
+    }
+
+    @Override
+    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred.pipes;
 
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -103,6 +104,10 @@ class PipesReducer<K2 extends WritableComparable, V2 extends Writable,
         public void collect(K3 key, 
                             V3 value) throws IOException {
           // NULL
+        }
+        @Override
+        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+            throw new UnsupportedOperationException();
         }
         @Override
         public int collectCollection(KVCollection<K3, V3> coll) {

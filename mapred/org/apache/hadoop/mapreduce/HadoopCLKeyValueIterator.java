@@ -8,7 +8,7 @@ import java.nio.ByteBuffer;
 import java.util.TreeSet;
 import org.apache.hadoop.mapred.RawKeyValueIterator;
 
-public abstract class HadoopCLKeyValueIterator implements RawKeyValueIterator {
+public abstract class HadoopCLKeyValueIterator implements IterateAndPartition {
     public ArrayList<IntegerPair> sortedIndices;
     int sortedIndicesIter = 0;
     protected IntegerPair current = null;
@@ -16,6 +16,7 @@ public abstract class HadoopCLKeyValueIterator implements RawKeyValueIterator {
     protected ByteBuffer valueBytes = null;
     protected final DataInputBuffer key = new DataInputBuffer();
     protected final DataInputBuffer value = new DataInputBuffer();
+    private boolean complete = false;
 
     protected ByteBuffer resizeByteBuffer(ByteBuffer buf, int len) {
         if (buf == null || buf.capacity() < len) {
@@ -57,5 +58,12 @@ public abstract class HadoopCLKeyValueIterator implements RawKeyValueIterator {
             this.buffer = buffer;
             this.index = index;
         }
+    }
+
+    public void setComplete() {
+        this.complete = true;
+    }
+    public boolean getComplete() {
+        return this.complete;
     }
 }

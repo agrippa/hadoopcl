@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.mapreduce.lib.output;
 
+import java.io.IOException;
+import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -34,6 +36,11 @@ public class NullOutputFormat<K, V> extends OutputFormat<K, V> {
   public RecordWriter<K, V> 
          getRecordWriter(TaskAttemptContext context) {
     return new RecordWriter<K, V>(){
+
+        @Override
+        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
+            throw new UnsupportedOperationException();
+        }
         public void write(K key, V value) { }
         public void close(TaskAttemptContext context) { }
 

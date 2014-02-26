@@ -59,6 +59,7 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
   private BytesWritable currentRawKey = new BytesWritable();
   private ValueIterable iterable = new ValueIterable();
   private final MapOutputBuffer caller;
+  private final boolean shouldPrint;
 
   public ReduceContext(Configuration conf, TaskAttemptID taskid,
                        RawKeyValueIterator input, 
@@ -70,7 +71,7 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                        RawComparator<KEYIN> comparator,
                        Class<KEYIN> keyClass,
                        Class<VALUEIN> valueClass, ContextType setType,
-                       MapOutputBuffer caller, String label
+                       MapOutputBuffer caller, String label, boolean shouldPrint
                        ) throws InterruptedException, IOException{
     super(conf, taskid, output, committer, reporter, setType, label);
     this.input = input;
@@ -83,7 +84,12 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     this.valueDeserializer = serializationFactory.getDeserializer(valueClass);
     this.valueDeserializer.open(buffer);
     this.caller = caller;
+    this.shouldPrint = shouldPrint;
     hasMore = input.next();
+  }
+
+  public boolean shouldPrint() {
+      return this.shouldPrint;
   }
 
   public boolean supportsBulkReads() {
@@ -128,7 +134,6 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     currentRawKey.set(next.getData(), next.getPosition(), 
                       next.getLength() - next.getPosition());
     buffer.reset(currentRawKey.getBytes(), 0, currentRawKey.getLength());
-    // key = keyDeserializer.deserialize(key);
     key = keyDeserializer.deserialize(null);
     next = input.getValue();
     buffer.reset(next.getData(), next.getPosition(), next.getLength());

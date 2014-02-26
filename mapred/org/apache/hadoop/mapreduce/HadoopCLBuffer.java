@@ -27,6 +27,7 @@ public abstract class HadoopCLBuffer {
     }
 
     public abstract boolean completedAll();
+    public abstract void printContents();
 
     public long space() {
         return 4 * nWrites.length;
@@ -220,6 +221,37 @@ public abstract class HadoopCLBuffer {
     @Override
     public int hashCode() {
         return this.id;
+    }
+
+    protected String sparseVecComponentsToString(int[] vals, int offset, int len) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < len; i++) {
+          sb.append(vals[offset+i]);
+          sb.append(" ");
+        }
+        return sb.toString();
+    }
+
+    protected String sparseVecComponentsToString(int[] indices, int indicesOffset, float[] vals, int valsOffset, int len) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < len; i++) {
+          sb.append(indices[indicesOffset+i]);
+          sb.append(":");
+          sb.append(vals[valsOffset+i]);
+          sb.append(" ");
+        }
+        return sb.toString();
+    }
+
+    protected String sparseVecComponentsToString(int[] indices, int indicesOffset, double[] vals, int valsOffset, int len) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < len; i++) {
+          sb.append(indices[indicesOffset+i]);
+          sb.append(":");
+          sb.append(vals[valsOffset+i]);
+          sb.append(" ");
+        }
+        return sb.toString();
     }
 
 }

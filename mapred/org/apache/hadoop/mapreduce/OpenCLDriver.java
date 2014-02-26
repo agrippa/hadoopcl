@@ -197,6 +197,10 @@ public class OpenCLDriver {
           }
       }
 
+      // if (this.clContext.isCombiner() && ((ReduceContext)this.clContext.getContext()).shouldPrint()) {
+      //     buffer.printContents();
+      // }
+
       bufferRunner.addWork(buffer);
 
        // LOG:PROFILE
@@ -289,6 +293,7 @@ public class OpenCLDriver {
         bufferRunner = new BufferRunner(inputManager, outputManager,
                 kernelManager, clContext);
         bufferRunnerThread = new Thread(bufferRunner);
+        bufferRunnerThread.setName("Buffer-Runner");
         bufferRunnerThread.start();
 
         buffer = allocateNewInputBuffer();
