@@ -712,53 +712,57 @@ public class BufferRunner implements Runnable {
         // OpenCLDriver.logger.log("Started cooperating", this.clContext);
         List<IterAndBuffers> spilling =
             new LinkedList<IterAndBuffers>();
+        forwardProgress = true;
         while (!toCopyFromOpenCL.isEmpty() || !toWrite.isEmpty()) {
+            if (!forwardProgress) {
+                waitForMoreWork(null);
+            }
             forwardProgress = false;
 
             // Try to get as many output buffers in the JVM as possible
             forwardProgress |= doKernelCopyBack();
 
-            if (!this.clContext.isCombiner()) {
-                // Try to get as many output buffers passed to the spill thread as possible
-                if (!toWrite.isEmpty()) {
-                    final int partitions = this.clContext.getContext().getNumReduceTasks();
-                    final List<OutputBufferSoFar> toSpill =
-                        new ArrayList<OutputBufferSoFar>(toWrite.size());
-                    while (!toWrite.isEmpty()) {
-                        OutputBufferSoFar sofar = toWrite.removeFirst();
-                        toSpill.add(sofar);
-                    }
-                    final HadoopCLOutputBuffer buffer = toSpill.get(0).buffer();
-                    HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill,
-                        partitions);
+            // if (!this.clContext.isCombiner()) {
+            //     // Try to get as many output buffers passed to the spill thread as possible
+            //     if (!toWrite.isEmpty()) {
+            //         final int partitions = this.clContext.getContext().getNumReduceTasks();
+            //         final List<OutputBufferSoFar> toSpill =
+            //             new ArrayList<OutputBufferSoFar>(toWrite.size());
+            //         while (!toWrite.isEmpty()) {
+            //             OutputBufferSoFar sofar = toWrite.removeFirst();
+            //             toSpill.add(sofar);
+            //         }
+            //         final HadoopCLOutputBuffer buffer = toSpill.get(0).buffer();
+            //         HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill,
+            //             partitions);
 
-                    spilling.add(new IterAndBuffers(iter, toSpill));
-                    try {
-                        this.clContext.getContext().spillIter(iter);
-                    } catch (IOException io) {
-                        throw new RuntimeException(io);
-                    }
+            //         spilling.add(new IterAndBuffers(iter, toSpill));
+            //         try {
+            //             this.clContext.getContext().spillIter(iter);
+            //         } catch (IOException io) {
+            //             throw new RuntimeException(io);
+            //         }
 
-                    forwardProgress = true;
-                }
+            //         forwardProgress = true;
+            //     }
 
-                // forwardProgress |= doAllOutputBuffers();
-                if (!forwardProgress) {
-                    List<IterAndBuffers> complete = waitForMoreWork(spilling);
-                    if (complete != null) {
-                        for (IterAndBuffers ib : complete) {
-                            for (OutputBufferSoFar soFar : ib.buffers) {
-                                freeOutputBuffers.free(soFar.buffer());
-                            }
-                        }
-                    }
-                }
-            } else {
+            //     // forwardProgress |= doAllOutputBuffers();
+            //     if (!forwardProgress) {
+            //         List<IterAndBuffers> complete = waitForMoreWork(spilling);
+            //         if (complete != null) {
+            //             for (IterAndBuffers ib : complete) {
+            //                 for (OutputBufferSoFar soFar : ib.buffers) {
+            //                     freeOutputBuffers.free(soFar.buffer());
+            //                 }
+            //             }
+            //         }
+            //     }
+            // } else {
                 forwardProgress |= doAllOutputBuffers();
-                if (!forwardProgress) {
-                    waitForMoreWork(null);
-                }
-            }
+                // if (!forwardProgress) {
+                //     waitForMoreWork(null);
+                // }
+            // }
 
             // spillN(toWrite.size() < clContext.getOutputBufferSpillChunk() ?
             //     toWrite.size() : clContext.getOutputBufferSpillChunk());
