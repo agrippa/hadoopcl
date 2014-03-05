@@ -1178,7 +1178,7 @@ public class MapTask extends Task {
           final boolean kvsoftlimit = ((kvnext > kvend)
               ? kvnext - kvend > softRecordLimit
               : kvend - kvnext <= kvoffsets.length - softRecordLimit);
-          if (kvstart == kvend && kvsoftlimit && spilling.isEmpty()) {
+          if (kvsoftlimit && kvstart == kvend && spilling.isEmpty()) {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
@@ -1284,7 +1284,7 @@ public class MapTask extends Task {
           final boolean kvsoftlimit = ((kvnext > kvend)
               ? kvnext - kvend > softRecordLimit
               : kvend - kvnext <= kvoffsets.length - softRecordLimit);
-          if (kvstart == kvend && kvsoftlimit && spilling.isEmpty()) {
+          if (kvsoftlimit && kvstart == kvend && spilling.isEmpty()) {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
@@ -1581,8 +1581,14 @@ public class MapTask extends Task {
         if (kvend != kvindex || !itersToSpill.isEmpty()) {
           kvend = kvindex;
           bufend = bufmark;
-          spilling.addAll(itersToSpill);
-          itersToSpill.clear();
+          if (!spilling.isEmpty()) {
+              throw new RuntimeException(spilling.size()+
+                  " buffers left over in spilling, "+itersToSpill.size()+
+                  " in itersToSpill");
+          }
+          while (!itersToSpill.isEmpty()) {
+              spilling.add(itersToSpill.remove(0));
+          }
           sortAndSpill();
         }
         spillReady.signal();
@@ -1641,22 +1647,9 @@ public class MapTask extends Task {
         kvstart = kvend;
         bufstart = bufend;
 
-        for (HadoopCLKeyValueIterator i : spilling) {
-            i.setComplete();
-        }
-        spilling.clear();
-
-        int newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
-        double newKvRatio = (double)newDiff / (double)kvoffsets.length;
-        double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
-        if (newKvRatio > quickRestartPercent) {
-          LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
-          kvend = kvindex;
-          bufend = bufmark;
-          LOG.info("bufstart = " + bufstart + "; bufend = " + bufend +
-              "; bufvoid = " + bufvoid);
-          LOG.info("kvstart = " + kvstart + "; kvend = " + kvend +
-              "; length = " + kvoffsets.length);
+        while (!spilling.isEmpty()) {
+            HadoopCLKeyValueIterator iter = spilling.remove(0);
+            iter.setComplete();
         }
 
         synchronized(BufferRunner.somethingHappened) {
@@ -1682,10 +1675,10 @@ public class MapTask extends Task {
 
             spillDone.signalAll();
 
-            while (kvstart == kvend && !noMoreSpilling &&
-                  itersToSpill.isEmpty()) {
+            while (kvstart == kvend && itersToSpill.isEmpty() && !noMoreSpilling) {
               spillReady.await();
             }
+
             if (noMoreSpilling) break;
 
             try {
@@ -1695,10 +1688,11 @@ public class MapTask extends Task {
               }
               alreadyReleased = false;
               if (!spilling.isEmpty()) {
-                  throw new RuntimeException("Buffers left over in spilling");
+                  throw new RuntimeException(spilling.size()+" buffers left over in spilling, "+itersToSpill.size()+" in itersToSpill");
               }
-              spilling.addAll(itersToSpill);
-              itersToSpill.clear();
+              while (!itersToSpill.isEmpty()) {
+                  spilling.add(itersToSpill.remove(0));
+              }
 
               spillLock.unlock();
 
@@ -1712,6 +1706,26 @@ public class MapTask extends Task {
               reportFatalError(getTaskID(), t, logMsg);
             } finally {
                 releaseCurrentlySpilling(true);
+                final int newDiff;
+                if (kvend == kvindex) {
+                    newDiff = 0;
+                } else {
+                    newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
+                }
+                double newKvRatio = (double)newDiff / (double)kvoffsets.length;
+                double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
+                if (newKvRatio > quickRestartPercent || !itersToSpill.isEmpty()) {
+                  LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio+", itersToSpill.size()="+itersToSpill.size());
+                  kvend = kvindex;
+                  bufend = bufmark;
+                  // spilling.addAll(itersToSpill);
+                  // itersToSpill.clear();
+                  LOG.info("bufstart = " + bufstart + "; bufend = " + bufend +
+                      "; bufvoid = " + bufvoid);
+                  LOG.info("kvstart = " + kvstart + "; kvend = " + kvend +
+                      "; length = " + kvoffsets.length);
+                  LOG.info("itersToSpill.size()="+itersToSpill.size());
+                }
             }
           }
         } catch (InterruptedException e) {
@@ -1741,9 +1755,57 @@ public class MapTask extends Task {
       spillReady.signal();
     }
 
+    class NextedWrapper implements IterateAndPartition {
+        private boolean nexted = true;
+        private final IterateAndPartition iter;
+
+        public NextedWrapper(IterateAndPartition iter) {
+            this.iter = iter;
+        }
+        @Override
+        public final DataInputBuffer getKey() throws IOException {
+            return iter.getKey();
+        }
+        @Override
+        public final DataInputBuffer getValue() throws IOException {
+            return iter.getValue();
+        }
+        @Override
+        public final boolean next() throws IOException {
+            final boolean result;
+            if (!nexted) {
+                result = iter.next();
+            } else {
+                nexted = false;
+                result = true;
+            }
+            return result;
+        }
+        @Override
+        public final void close() throws IOException {
+            iter.close();
+        }
+        @Override
+        public final Progress getProgress() {
+            return iter.getProgress();
+        }
+        @Override
+        public final boolean supportsBulkReads() {
+            return iter.supportsBulkReads();
+        }
+        @Override
+        public final HadoopCLDataInput getBulkReader() {
+            return iter.getBulkReader();
+        }
+        @Override
+        public final int getPartitionOfCurrent(int partitions) {
+            return iter.getPartitionOfCurrent(partitions);
+        }
+    }
+
     class MergedIterator implements IterateAndPartition {
-        private IteratorWrapper least = null;
-        private final List<IteratorWrapper> iters = new LinkedList<IteratorWrapper>();
+        private IteratorWrapper iters = null;
+        private int nIters;
         private final RawComparator writeableComp;
         private final Comparator<IteratorWrapper> comp = new Comparator<IteratorWrapper>() {
             @Override
@@ -1766,57 +1828,14 @@ public class MapTask extends Task {
         };
 
         public IterateAndPartition completePrep() {
-            if (iters.isEmpty()) {
+            if (iters == null) {
                 throw new RuntimeException("Unexpected empty iters list");
             }
 
-            if (iters.size() > 1) {
+            if (nIters > 1) {
                 return this;
             } else {
-                return new IterateAndPartition() {
-                    private boolean nexted = true;
-                    private final IterateAndPartition iter = iters.get(0).iter;
-
-                    @Override
-                    public DataInputBuffer getKey() throws IOException {
-                        return iter.getKey();
-                    }
-                    @Override
-                    public DataInputBuffer getValue() throws IOException {
-                        return iter.getValue();
-                    }
-                    @Override
-                    public boolean next() throws IOException {
-                        final boolean result;
-                        if (!nexted) {
-                            result = iter.next();
-                        } else {
-                            nexted = false;
-                            result = true;
-                        }
-                        return result;
-                    }
-                    @Override
-                    public void close() throws IOException {
-                        iter.close();
-                    }
-                    @Override
-                    public Progress getProgress() {
-                        return iter.getProgress();
-                    }
-                    @Override
-                    public boolean supportsBulkReads() {
-                        return iter.supportsBulkReads();
-                    }
-                    @Override
-                    public HadoopCLDataInput getBulkReader() {
-                        return iter.getBulkReader();
-                    }
-                    @Override
-                    public int getPartitionOfCurrent(int partitions) {
-                        return iter.getPartitionOfCurrent(partitions);
-                    }
-                };
+                return new NextedWrapper(iters.iter);
             }
         }
 
@@ -1825,49 +1844,98 @@ public class MapTask extends Task {
         }
 
         public int size() {
-            return iters.size();
+            return nIters;
+        }
+
+        private void sortedInsertHelper(IteratorWrapper iter, IteratorWrapper start) {
+            IteratorWrapper curr = start;
+            IteratorWrapper prev = null;
+            while (curr != null && comp.compare(curr, iter) < 0) {
+                prev = curr;
+                curr = curr.next;
+            }
+
+            if (prev == null) {
+                curr.prev = iter;
+                iter.next = curr;
+                iter.prev = null;
+                this.iters = iter;
+            } else if (curr == null) {
+                prev.next = iter;
+                iter.next = null;
+                iter.prev = prev;
+            } else {
+                iter.next = curr;
+                iter.prev = prev;
+                prev.next = iter;
+                curr.prev = iter;
+            }
+
+        }
+
+        /* For items not in the list yet */
+        private void sortedInsert(IteratorWrapper iter) {
+            if (this.iters == null) {
+                this.iters = iter;
+                iter.next = null;
+                iter.prev = null;
+            } else {
+                sortedInsertHelper(iter, this.iters);
+            }
+        }
+
+        /* For items in the list already */
+        private void sortedUpdate() {
+            if (this.iters.next == null) {
+                return;
+            }
+
+            IteratorWrapper curr = this.iters;
+            this.iters = this.iters.next;
+            this.iters.prev = null;
+            curr.next = curr.prev = null;
+
+            sortedInsertHelper(curr, this.iters);
         }
 
         public void addIter(IterateAndPartition iter) {
-            this.iters.add(new IteratorWrapper(iter));
-            Collections.sort(this.iters, this.comp);
-            least = this.iters.get(0);
+            sortedInsert(new IteratorWrapper(iter));
+            nIters++;
         }
         @Override
         public int getPartitionOfCurrent(int partitions) {
-            return least.iter.getPartitionOfCurrent(partitions);
+            return iters.iter.getPartitionOfCurrent(partitions);
         }
         @Override
         public DataInputBuffer getKey() throws IOException {
-            return least.iter.getKey();
+            return iters.iter.getKey();
         }
         @Override
         public DataInputBuffer getValue() throws IOException {
-            return least.iter.getValue();
+            return iters.iter.getValue();
         }
         @Override
         public boolean next() throws IOException {
-            if (least == null) return false;
+            if (iters == null) return false;
 
             final boolean more;
-            if (least.alreadyNexted) {
-                least.alreadyNexted = false;
+            if (iters.alreadyNexted) {
+                iters.alreadyNexted = false;
                 more = true;
             } else {
-                more = least.iter.next();
+                more = iters.iter.next();
             }
 
             if (!more) {
-                this.iters.remove(least);
+                this.iters = this.iters.next;
+                if (this.iters != null) this.iters.prev = null;
             } else {
-                Collections.sort(this.iters, this.comp);
+                sortedUpdate();
             }
 
-            if (this.iters.isEmpty()) {
-                this.least = null;
+            if (this.iters == null) {
                 return false;
             } else {
-                this.least = this.iters.get(0);
                 return true;
             }
         }
@@ -1880,15 +1948,17 @@ public class MapTask extends Task {
 
         @Override
         public boolean supportsBulkReads() {
-            // return false;
-            boolean allSupport = true;
-            for (IteratorWrapper iw : iters) {
-                if (!iw.iter.supportsBulkReads()) {
-                    allSupport = false;
-                    break;
-                }
-            }
-            return allSupport;
+            return false;
+            // boolean allSupport = true;
+            // IteratorWrapper curr = iters;
+            // while (curr != null) {
+            //     if (!curr.iter.supportsBulkReads()) {
+            //         allSupport = false;
+            //         break;
+            //     }
+            //     curr = curr.next;
+            // }
+            // return allSupport;
         }
 
         @Override
@@ -1915,12 +1985,14 @@ public class MapTask extends Task {
             };
 
             try {
-                for (IteratorWrapper iw : iters) {
+                IteratorWrapper iw = iters;
+                while (iw != null) {
                     HadoopCLDataInput tmp = iw.iter.getBulkReader();
                     if (tmp.hasMore()) {
                         tmp.nextKey();
                         readers.add(new ReaderWrapper(tmp));
                     }
+                    iw = iw.next;
                 }
             } catch (IOException io) {
                 throw new RuntimeException(io);
@@ -1929,12 +2001,35 @@ public class MapTask extends Task {
             Collections.sort(readers, comp);
 
             return new HadoopCLBulkMapperReader() {
+                boolean first = true;
                 private ReaderWrapper least = readers.get(0);
-                private ReaderWrapper previousLeast = null;
 
                 @Override
                 public final boolean hasMore() {
-                    return least != null && least.reader.hasMore();
+                    if (least == null) {
+                        return false;
+                    }
+
+                    if (!first) {
+                        if (!least.reader.hasMore()) {
+                            readers.remove(least);
+                        } else {
+                            try {
+                                least.reader.nextKey();
+                            } catch (IOException io) {
+                                throw new RuntimeException(io);
+                            }
+                            Collections.sort(readers, comp);
+                        }
+                        if (readers.isEmpty()) {
+                            least = null;
+                        } else {
+                            least = readers.get(0);
+                        }
+                    }
+
+                    first = false;
+                    return least != null;
                 }
                 @Override
                 public int compareKeys(HadoopCLDataInput other) throws IOException {
@@ -1942,24 +2037,23 @@ public class MapTask extends Task {
                 }
                 @Override
                 public final void nextKey() throws IOException {
-                    if (this.least.alreadyNexted) {
-                        this.least.alreadyNexted = false;
-                    } else {
-                        final boolean more = this.least.reader.hasMore();
-                        if (!more) {
-                            readers.remove(this.least);
-                        } else {
-                            this.least.reader.nextKey();
-                            Collections.sort(readers, comp);
-                        }
-                    }
-
-                    previousLeast = least;
-                    if (readers.isEmpty()) {
-                        this.least = null;
-                    } else {
-                        this.least = readers.get(0);
-                    }
+                    // if (this.least.alreadyNexted) {
+                    //     this.least.alreadyNexted = false;
+                    // } else {
+                    //     final boolean more = this.least.reader.hasMore();
+                    //     if (!more) {
+                    //         readers.remove(this.least);
+                    //     } else {
+                    //         this.least.reader.nextKey();
+                    //         Collections.sort(readers, comp);
+                    //     }
+                    // }
+                    // previousLeast = least;
+                    // if (readers.isEmpty()) {
+                    //     this.least = null;
+                    // } else {
+                    //     this.least = readers.get(0);
+                    // }
                 }
                 @Override
                 public final void nextValue() throws IOException {
@@ -1967,13 +2061,7 @@ public class MapTask extends Task {
                 }
                 @Override
                 public final void prev() {
-                    if (this.previousLeast == null) {
-                        throw new RuntimeException("Gone back too far");
-                    }
                     this.least.reader.reset();
-                    this.previousLeast.reader.prev();
-                    this.least = this.previousLeast;
-                    this.previousLeast = null;
                 }
                 @Override
                 public final void readFully(int[] b, int off, int len) {
@@ -2004,10 +2092,14 @@ public class MapTask extends Task {
         class IteratorWrapper {
             public final IterateAndPartition iter;
             public boolean alreadyNexted;
+            public IteratorWrapper prev;
+            public IteratorWrapper next;
 
             public IteratorWrapper(IterateAndPartition iter) {
                 this.iter = iter;
                 this.alreadyNexted = true;
+                this.prev = null;
+                this.next = null;
             }
         }
 
@@ -2021,7 +2113,8 @@ public class MapTask extends Task {
           throws IOException, ClassNotFoundException, InterruptedException {
       //approximate the length of the output file to be the length of the
       //buffer + header lengths for the partitions
-      LOG.info("Spilling! kvstart="+kvstart+" kvend="+kvend+" spilling.size() = "+spilling.size());
+      LOG.info("Spilling! kvstart=" + kvstart + " kvend=" + kvend +
+          " spilling.size() = " + spilling.size());
       long size = (bufend >= bufstart
           ? bufend - bufstart
           : (bufvoid - bufend) + bufstart) +
@@ -2163,68 +2256,6 @@ public class MapTask extends Task {
                     spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
             }
         }
-
-        /*
-        int spindex = kvstart;
-        for (int part = 0; part < partitions; ++part) {
-          IFile.Writer<K, V> writer = null;
-          try {
-            long segmentStart = out.getPos();
-            if (combinerRunner == null) {
-              writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
-                                        spilledRecordsCounter);
-              // spill directly
-              DataInputBuffer key = new DataInputBuffer();
-              while (spindex < endPosition &&
-                  kvindices[kvoffsets[spindex % kvoffsets.length]
-                            + PARTITION] == part) {
-                final int kvoff = kvoffsets[spindex % kvoffsets.length];
-                getVBytesForOffset(kvoff, value);
-                key.reset(kvbuffer, kvindices[kvoff + KEYSTART],
-                          (kvindices[kvoff + VALSTART] - 
-                           kvindices[kvoff + KEYSTART]));
-                writer.append(key, value);
-                ++spindex;
-              }
-            } else {
-              writer = new SortedWriter<K, V>(job, out, keyClass, valClass, codec,
-                                        spilledRecordsCounter, comparator, false);
-              int spstart = spindex;
-              while (spindex < endPosition &&
-                  kvindices[kvoffsets[spindex % kvoffsets.length]
-                            + PARTITION] == part) {
-                ++spindex;
-              }
-              // Note: we would like to avoid the combiner if we've fewer
-              // than some threshold of records for a partition
-              if (spstart != spindex) {
-                combineCollector.setWriter(writer);
-                RawKeyValueIterator kvIter =
-                  new MRResultIterator(spstart, spindex);
-                combinerRunner.setValidToRelease(part == (partitions-1));
-                combinerRunner.combine(kvIter, combineCollector);
-              }
-            }
-
-            // close the writer
-            writer.close();
-
-            // record offsets
-            rec.startOffset = segmentStart;
-            rec.rawLength = writer.getRawLength();
-            rec.partLength = writer.getCompressedLength();
-
-            spillRec.putIndex(rec, part);
-
-            writer = null;
-          } catch (Exception ex) {
-            ex.printStackTrace();
-            throw new RuntimeException(ex);
-          } finally {
-            if (null != writer) writer.close();
-          }
-        }
-        */
 
         if (MapTask.totalIndexCacheMemory >= INDEX_CACHE_MEMORY_LIMIT) {
           // create spill index file

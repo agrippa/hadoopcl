@@ -8,6 +8,7 @@ import java.lang.reflect.Constructor;
 import java.io.IOException;
 import java.util.List;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,6 +28,7 @@ import com.amd.aparapi.device.Device.TYPE;
 public abstract class HadoopCLScheduler {
     protected final List<Device.TYPE> deviceTypes;
     protected final int[] deviceOccupancy;
+    protected final Map<Integer, int[]> subDeviceOccupancy;
     protected final ConcurrentHashMap<TaskAttemptID, DeviceLoad> taskToDevice;
 
     public abstract void removeTaskLoad(Task task, TaskStatus taskStatus, 
@@ -35,21 +37,28 @@ public abstract class HadoopCLScheduler {
             throws IOException;
 
     public HadoopCLScheduler() {
-      deviceTypes = new ArrayList<Device.TYPE>();
-      List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
+      this.subDeviceOccupancy = new HashMap<Integer, int[]>();
+      this.deviceTypes = new ArrayList<Device.TYPE>();
+      final List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
       System.out.println("DIAGNOSTICS: Found "+platforms.size()+" OpenCL platforms");
       int platformId = 0;
+      int deviceId = 0;
       for(OpenCLPlatform platform : platforms) {
           System.out.println("DIAGNOSTICS:     Platform "+platformId+" has "+platform.getOpenCLDevices().size()+" devices");
           for(OpenCLDevice device : platform.getOpenCLDevices()) {
               System.out.println("DIAGNOSTICS:         "+deviceTypeString(device.getType()));
               deviceTypes.add(device.getType());
+              if (device.getType() == Device.TYPE.CPU) {
+                  System.out.println("DIAGNOSTICS: Creating subdividable device "+deviceId+" with "+device.getMaxComputeUnits()+" compute units");
+                  this.subDeviceOccupancy.put(deviceId, new int[device.getMaxComputeUnits()]);
+              }
+              deviceId++;
           }
           platformId++;
       }
       deviceTypes.add(Device.TYPE.JAVA); // special fake device
 
-      deviceOccupancy = new int[deviceTypes.size()];
+      this.deviceOccupancy = new int[deviceTypes.size()];
       for(int i = 0; i < deviceOccupancy.length; i++) {
           deviceOccupancy[i] = 0;
       }

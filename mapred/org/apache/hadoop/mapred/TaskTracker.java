@@ -2655,6 +2655,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     private volatile boolean slotTaken = false;
     private TaskLauncher launcher;
     private int assignedDevice = -1;
+    private int assignedDeviceSlot = -1;
     private Device.TYPE combinerDeviceType;
     private int numDevices = -1;
     private boolean isSpeculative = false;
@@ -2672,6 +2673,14 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
     public int getAssignedDevice() {
         return assignedDevice;
+    }
+
+    public int getAssignedDeviceSlot() {
+        return assignedDeviceSlot;
+    }
+
+    public void setAssignedDeviceSlot(int s) {
+        this.assignedDeviceSlot = s;
     }
 
     public void setCombinerDeviceType(Device.TYPE type) {
@@ -2807,10 +2816,14 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         DeviceAssignment assignment = this.scheduler.bestCandidateDevice(task, this.localJobConf);
         long stop = System.currentTimeMillis();
 
-        System.out.println("DIAGNOSTICS: Assigning task "+task.getTaskID().toString()+
-                " to device "+assignment.device()+", "+(assignment.speculative() ? "speculative" : "non-speculative")+", took "+(stop-start)+" ms");
+        System.out.println("DIAGNOSTICS: Assigning task " +
+            task.getTaskID().toString() + " to device " + assignment.device() +
+            ", device slot " + assignment.device_slot() + ", " +
+            (assignment.speculative() ? "speculative" : "non-speculative") +
+            ", took "+(stop-start)+" ms");
 
         this.setAssignedDevice(assignment.device(), this.scheduler.numDevices());
+        this.setAssignedDeviceSlot(assignment.device_slot());
         this.setCombinerDeviceType(Device.TYPE.CPU);
         this.setIsSpeculative(assignment.speculative());
 

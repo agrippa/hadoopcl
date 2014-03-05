@@ -41,6 +41,7 @@ public class HadoopOpenCLContext {
     private int threadsPerGroup;
     private OpenCLDevice device;
     private int deviceId;
+    private int deviceSlot;
     private int isGPU;
     private final int inputBufferSize;
     private final int outputBufferSize;
@@ -152,6 +153,12 @@ public class HadoopOpenCLContext {
         this.deviceId = 0;
       }
       this.device = findDevice(this.deviceId);
+
+      if (System.getProperty("opencl.device_slot") != null) {
+        this.deviceSlot = Integer.parseInt(System.getProperty("opencl.device_slot"));
+      } else {
+        this.deviceSlot = -1;
+      }
 
       if(this.device == null) {
         this.deviceString = "java";
@@ -328,6 +335,10 @@ public class HadoopOpenCLContext {
 
     public int getDeviceId() {
         return this.deviceId;
+    }
+
+    public int getDeviceSlot() {
+        return this.deviceSlot;
     }
 
     public int getThreadsPerGroup() {

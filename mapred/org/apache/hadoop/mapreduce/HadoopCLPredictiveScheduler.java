@@ -211,11 +211,9 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
         int optimalDevice = taskProfile.getNextMissingDevice(occupancyCopy, new HadoopCLDeviceChecker(task, conf, taskProfile, this));
         if(optimalDevice == -1) {
             optimalDevice = taskProfile.predictBestDevice(occupancyCopy, new HadoopCLDeviceChecker(task, conf, taskProfile, this));
-            //System.out.println("DIAGNOSTICS: Got "+optimalDevice+" from predictBestDevice");
-            result = new DeviceAssignment(optimalDevice, false);
+            result = new DeviceAssignment(optimalDevice, -1, false);
         } else {
-            result = new DeviceAssignment(optimalDevice, true);
-            //System.out.println("DIAGNOSTICS: Got "+optimalDevice+" from getNextMissingDevice");
+            result = new DeviceAssignment(optimalDevice, -1, true);
         }
 
         writeLaunch(taskClassName, optimalDevice, occupancyCopy, task.isMapTask());
@@ -226,7 +224,8 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
             this.deviceOccupancy[optimalDevice]++;
         }
 
-        taskToDevice.put(task.getTaskID(), new DeviceLoad(optimalDevice, -1.0, deviceOccupancy));
+        taskToDevice.put(task.getTaskID(), new DeviceLoad(optimalDevice, -1,
+              -1.0, deviceOccupancy));
         return result;
     }
 }

@@ -75,6 +75,7 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                        ) throws InterruptedException, IOException{
     super(conf, taskid, output, committer, reporter, setType, label);
     this.input = input;
+    System.err.println("input="+input.getClass().getName());
     this.inputKeyCounter = inputKeyCounter;
     this.inputValueCounter = inputValueCounter;
     this.comparator = comparator;
@@ -134,10 +135,12 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
     currentRawKey.set(next.getData(), next.getPosition(), 
                       next.getLength() - next.getPosition());
     buffer.reset(currentRawKey.getBytes(), 0, currentRawKey.getLength());
-    key = keyDeserializer.deserialize(null);
+    // key = keyDeserializer.deserialize(null);
+    key = keyDeserializer.deserialize(key);
     next = input.getValue();
     buffer.reset(next.getData(), next.getPosition(), next.getLength());
-    value = valueDeserializer.deserialize(null);
+    // value = valueDeserializer.deserialize(null);
+    value = valueDeserializer.deserialize(value);
     hasMore = input.next();
     if (hasMore) {
       next = input.getKey();

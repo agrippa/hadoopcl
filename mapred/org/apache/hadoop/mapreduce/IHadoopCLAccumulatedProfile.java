@@ -13,4 +13,6 @@ public interface IHadoopCLAccumulatedProfile {
   public long totalKernelTime();
   public long totalWriteTime();
   public long totalKeysProcessed();
+  public long totalValsProcessed();
+  public void addVals(int vals);
 }

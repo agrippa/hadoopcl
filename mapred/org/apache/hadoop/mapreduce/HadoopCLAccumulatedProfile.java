@@ -5,6 +5,7 @@ public class HadoopCLAccumulatedProfile implements IHadoopCLAccumulatedProfile {
     private long accumKernel = 0;
     private long accumWrite = 0;
     private long accumKeys = 0;
+    private long accumVals = 0;
     private long overallTime = 0;
 
     private long startRead = -1;
@@ -53,6 +54,10 @@ public class HadoopCLAccumulatedProfile implements IHadoopCLAccumulatedProfile {
         this.startRead = -1;
     }
 
+    public void addVals(int vals) {
+        this.accumVals += vals;
+    }
+
     public void stopWrite() {
         if (this.startWrite == -1) {
             throw new RuntimeException("Stopping write that was never started");
@@ -81,10 +86,13 @@ public class HadoopCLAccumulatedProfile implements IHadoopCLAccumulatedProfile {
     public long totalKeysProcessed() {
       return this.accumKeys;
     }
+    public long totalValsProcessed() {
+      return this.accumVals;
+    }
 
     @Override
     public String toString() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append("runTime = ");
         sb.append(this.overallTime);
         sb.append(" ms, readTime = ");
@@ -95,6 +103,10 @@ public class HadoopCLAccumulatedProfile implements IHadoopCLAccumulatedProfile {
         sb.append(this.accumWrite);
         sb.append(" ms, keysProcessed = ");
         sb.append(this.accumKeys);
+        if (this.accumVals > 0) {
+            sb.append(", valsProcessed = ");
+            sb.append(this.accumVals);
+        }
         return sb.toString();
     }
 }

@@ -37,7 +37,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
         globalSize *= clContext.getThreadsPerGroup();
 
         return this.reExecute(this.clContext.getDevice().createRange(globalSize,
-                    clContext.getThreadsPerGroup()),
+                    clContext.getThreadsPerGroup()), this.clContext.getDeviceSlot(),
             this.clContext.verboseTypeName()+"::"+this.tracker.toString()) != null;
     }
 
@@ -48,7 +48,7 @@ public abstract class HadoopCLReducerKernel extends HadoopCLKernel {
         globalSize *= clContext.getThreadsPerGroup();
 
         return this.execute(this.clContext.getDevice().createRange(globalSize,
-                    clContext.getThreadsPerGroup()),
+                    clContext.getThreadsPerGroup()), this.clContext.getDeviceSlot(),
             this.clContext.verboseTypeName()+"::"+this.tracker.toString()) != null;
     }
 

@@ -13,6 +13,8 @@ public class HadoopCLEmptyAccumulatedProfile implements IHadoopCLAccumulatedProf
   public long totalKernelTime() { return 0L; }
   public long totalWriteTime() { return 0L; }
   public long totalKeysProcessed() { return 0L; }
+  public long totalValsProcessed() { return 0L; }
+  public void addVals(int vals) { }
   @Override
   public String toString() { return ""; }
 }

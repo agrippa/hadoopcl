@@ -33,12 +33,15 @@ public class HadoopCLBalanceScheduler extends HadoopCLScheduler {
     public DeviceAssignment bestCandidateDevice(Task task, JobConf conf) 
             throws IOException {
         HadoopCLKernel kernel = HadoopCLScheduler.getKernelForTask(task, conf);
-        if(kernel == null) return new DeviceAssignment(deviceOccupancy.length-1, false); // running in Java
+        if(kernel == null) {
+            return new DeviceAssignment(deviceOccupancy.length-1, -1, false); // running in Java
+        }
 
         DeviceStrength strengths = new DeviceStrength();
         kernel.deviceStrength(strengths);
 
         int optimalDevice = -1;
+        int optimalSlot = -1;
         double minLoad = -1.0;
         double addedLoad = -1.0;
 
@@ -58,11 +61,30 @@ public class HadoopCLBalanceScheduler extends HadoopCLScheduler {
             if(optimalDevice == -1) {
                 throw new RuntimeException("Unable to find any devices for task \""+task.toString()+"\". Whoops... How?");
             }
-            taskToDevice.put(task.getTaskID(), new DeviceLoad(optimalDevice, addedLoad, this.deviceOccupancy));
             this.deviceLoads[optimalDevice] = minLoad;
             this.deviceOccupancy[optimalDevice]++;
+
+            int[] subdevices = this.subDeviceOccupancy.get(optimalDevice);
+            if (subdevices != null) {
+                synchronized (subdevices) {
+                    minLoad = subdevices[0];
+                    int minLoadIndex = 0;
+                    for (int i = 1; i < subdevices.length; i++) {
+                        if (subdevices[i] < minLoad) {
+                            minLoad = subdevices[i];
+                            minLoadIndex = i;
+                        }
+                    }
+                    optimalSlot = minLoadIndex;
+                    subdevices[minLoadIndex]++;
+                }
+            }
+
+            taskToDevice.put(task.getTaskID(), new DeviceLoad(optimalDevice,
+                  optimalSlot, addedLoad, this.deviceOccupancy));
         }
-        return new DeviceAssignment(optimalDevice, false);
+
+        return new DeviceAssignment(optimalDevice, optimalSlot, false);
     }
 
     public void removeTaskLoad(Task task, TaskStatus taskStatus,
@@ -72,6 +94,12 @@ public class HadoopCLBalanceScheduler extends HadoopCLScheduler {
             synchronized(this.deviceOccupancy) {
                 deviceLoads[load.getDevice()] -= load.getLoad();
                 deviceOccupancy[load.getDevice()]--;
+                int[] subdevices = this.subDeviceOccupancy.get(load.getDevice());
+                if (subdevices != null) {
+                    synchronized (subdevices) {
+                        subdevices[load.getDeviceSlot()]--;
+                    }
+                }
             }
         }
     }
