@@ -165,7 +165,8 @@ public class BufferRunner implements Runnable {
     //     return null;
     // }
 
-    private void spawnKernelTrackingThread(final HadoopCLKernel kernel, final boolean relaunch) {
+    private void spawnKernelTrackingThread(final HadoopCLKernel kernel,
+            final boolean relaunch) {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -245,8 +246,8 @@ public class BufferRunner implements Runnable {
 
     private HadoopCLOutputBuffer allocOutputBufferWithInit() {
         HadoopCLOutputBuffer result = null;
-        BufferManager.TypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
-            freeOutputBuffers.alloc();
+        final BufferManager.TypeAlloc<HadoopCLOutputBuffer> outputBufferContainer =
+            this.freeOutputBuffers.alloc();
         if (outputBufferContainer != null) {
           result = outputBufferContainer.obj();
         }
@@ -688,11 +689,6 @@ public class BufferRunner implements Runnable {
             }
             forwardProgress = false;
 
-            // /*
-            //  * Input Buffer Handling
-            //  */
-            // forwardProgress |= doInputBuffers();
-
             /*
              * Copy back kernels
              */
@@ -729,88 +725,88 @@ public class BufferRunner implements Runnable {
                 List<IterAndBuffers> complete = waitForMoreWork(spilling);
                 // LOG:DIAGNOSTIC
                 // log("After waiting, complete = "+(complete == null ? "null" : (complete.size()+" buffers completed")));
-                if (complete != null) {
-                    for (IterAndBuffers ib : complete) {
-                        if (!ib.iter.allDone()) {
-                            ib.iter.recalculateLimit();
-                            spilling.add(ib);
+                // if (complete != null) {
+                //     for (IterAndBuffers ib : complete) {
+                //         if (!ib.iter.allDone()) {
+                //             ib.iter.recalculateLimit();
+                //             spilling.add(ib);
 
-                            // LOG:DIAGNOSTIC
-                            // log("Now spilling "+spilling.size()+" iters in total.");
-                            try {
-                                this.clContext.getContext().spillIter(ib.iter);
-                            } catch (IOException io) {
-                                throw new RuntimeException(io);
-                            }
-                        } else {
-                            for (OutputBufferSoFar soFar : ib.buffers) {
-                                freeOutputBuffers.free(soFar.buffer());
-                            }
-                        }
-                    }
-                }
+                //             // LOG:DIAGNOSTIC
+                //             // log("Now spilling "+spilling.size()+" iters in total.");
+                //             try {
+                //                 this.clContext.getContext().spillIter(ib.iter);
+                //             } catch (IOException io) {
+                //                 throw new RuntimeException(io);
+                //             }
+                //         } else {
+                //             for (OutputBufferSoFar soFar : ib.buffers) {
+                //                 freeOutputBuffers.free(soFar.buffer());
+                //             }
+                //         }
+                //     }
+                // }
             }
             forwardProgress = false;
 
             // Try to get as many output buffers in the JVM as possible
             forwardProgress |= doKernelCopyBack();
 
-            if (!this.clContext.isCombiner()) {
-                // Try to get as many output buffers passed to the spill thread as possible
+            // if (!this.clContext.isCombiner()) {
+            //     // Try to get as many output buffers passed to the spill thread as possible
 
-                if (toCopyFromOpenCL.isEmpty() || toWrite.size() > 1) {
-                    final int partitions = this.clContext.getContext().getNumReduceTasks();
-                    final List<OutputBufferSoFar> toSpill =
-                        new ArrayList<OutputBufferSoFar>(toWrite.size());
-                    while (!toWrite.isEmpty()) {
-                        OutputBufferSoFar sofar = toWrite.removeFirst();
-                        toSpill.add(sofar);
-                    }
-                    // LOG:DIAGNOSTIC
-                    // log("Spilling "+toSpill.size()+" buffers at once using spillIter");
-                    final HadoopCLOutputBuffer buffer = toSpill.get(0).buffer();
-                    HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill,
-                        partitions);
+            //     if (toCopyFromOpenCL.isEmpty() || toWrite.size() > 1) {
+            //         final int partitions = this.clContext.getContext().getNumReduceTasks();
+            //         final List<OutputBufferSoFar> toSpill =
+            //             new ArrayList<OutputBufferSoFar>(toWrite.size());
+            //         while (!toWrite.isEmpty()) {
+            //             OutputBufferSoFar sofar = toWrite.removeFirst();
+            //             toSpill.add(sofar);
+            //         }
+            //         // LOG:DIAGNOSTIC
+            //         // log("Spilling "+toSpill.size()+" buffers at once using spillIter");
+            //         final HadoopCLOutputBuffer buffer = toSpill.get(0).buffer();
+            //         HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill,
+            //             partitions);
 
-                    spilling.add(new IterAndBuffers(iter, toSpill));
-                    // LOG:DIAGNOSTIC
-                    // log("Now spilling "+spilling.size()+" iters in total.");
-                    try {
-                        this.clContext.getContext().spillIter(iter);
-                    } catch (IOException io) {
-                        throw new RuntimeException(io);
-                    }
+            //         spilling.add(new IterAndBuffers(iter, toSpill));
+            //         // LOG:DIAGNOSTIC
+            //         // log("Now spilling "+spilling.size()+" iters in total.");
+            //         try {
+            //             this.clContext.getContext().spillIter(iter);
+            //         } catch (IOException io) {
+            //             throw new RuntimeException(io);
+            //         }
 
-                    forwardProgress = true;
-                }
-            } else {
+            //         forwardProgress = true;
+            //     }
+            // } else {
                 forwardProgress |= doAllOutputBuffers();
-            }
+            // }
         }
 
-        while (!spilling.isEmpty()) {
-            List<IterAndBuffers> complete = waitForMoreWork(spilling);
-            if (complete != null) {
-                for (IterAndBuffers ib : complete) {
-                    if (!ib.iter.allDone()) {
-                        ib.iter.recalculateLimit();
-                        spilling.add(ib);
+        // while (!spilling.isEmpty()) {
+        //     List<IterAndBuffers> complete = waitForMoreWork(spilling);
+        //     // if (complete != null) {
+        //     //     for (IterAndBuffers ib : complete) {
+        //     //         if (!ib.iter.allDone()) {
+        //     //             ib.iter.recalculateLimit();
+        //     //             spilling.add(ib);
 
-                        // LOG:DIAGNOSTIC
-                        // log("Now spilling "+spilling.size()+" iters in total.");
-                        try {
-                            this.clContext.getContext().spillIter(ib.iter);
-                        } catch (IOException io) {
-                            throw new RuntimeException(io);
-                        }
-                    } else {
-                        for (OutputBufferSoFar soFar : ib.buffers) {
-                            freeOutputBuffers.free(soFar.buffer());
-                        }
-                    }
-                }
-            }
-        }
+        //     //             // LOG:DIAGNOSTIC
+        //     //             // log("Now spilling "+spilling.size()+" iters in total.");
+        //     //             try {
+        //     //                 this.clContext.getContext().spillIter(ib.iter);
+        //     //             } catch (IOException io) {
+        //     //                 throw new RuntimeException(io);
+        //     //             }
+        //     //         } else {
+        //     //             for (OutputBufferSoFar soFar : ib.buffers) {
+        //     //                 freeOutputBuffers.free(soFar.buffer());
+        //     //             }
+        //     //         }
+        //     //     }
+        //     // }
+        // }
 
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Finished cooperating", this.clContext);

@@ -8,10 +8,9 @@ public class BufferManager<BufferType extends HadoopCLBuffer> extends AllocManag
     private final List<HadoopCLBuffer> globalSpace;
 
     public BufferManager(String name, int setMax,
-            /* Class<? extends BufferType> toInstantiate, */
             List<HadoopCLBuffer> globalSpace, HadoopOpenCLContext clContext,
             Constructor<? extends BufferType> constructor) {
-        super(name, setMax, /* toInstantiate, */ clContext, constructor);
+        super(name, setMax, clContext, constructor);
         this.globalSpace = globalSpace;
     }
 

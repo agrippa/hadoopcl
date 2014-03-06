@@ -1948,17 +1948,16 @@ public class MapTask extends Task {
 
         @Override
         public boolean supportsBulkReads() {
-            return false;
-            // boolean allSupport = true;
-            // IteratorWrapper curr = iters;
-            // while (curr != null) {
-            //     if (!curr.iter.supportsBulkReads()) {
-            //         allSupport = false;
-            //         break;
-            //     }
-            //     curr = curr.next;
-            // }
-            // return allSupport;
+            boolean allSupport = true;
+            IteratorWrapper curr = iters;
+            while (curr != null) {
+                if (!curr.iter.supportsBulkReads()) {
+                    allSupport = false;
+                    break;
+                }
+                curr = curr.next;
+            }
+            return allSupport;
         }
 
         @Override
