@@ -123,7 +123,7 @@ public class OpenCLDriver {
   }
 
   private String profilesToString(long overallTime, long startupTime,
-          List<HadoopCLProfile> profiles) {
+          Queue<HadoopCLProfile> profiles) {
       StringBuilder sb = new StringBuilder();
       sb.append("DIAGNOSTICS: ");
       sb.append(this.clContext.verboseTypeName());
@@ -135,7 +135,7 @@ public class OpenCLDriver {
       sb.append(startupTime);
       sb.append(" ms");
       if (!profiles.isEmpty()) {
-          sb.append(profiles.get(0).listToString(profiles));
+          sb.append(profiles.peek().listToString(profiles));
       }
       return sb.toString();
   }
@@ -277,8 +277,6 @@ public class OpenCLDriver {
     int nAllocatedInputBuffers = 0;
     // final BufferManager<HadoopCLInputBuffer> inputManager;
     final BufferManager<HadoopCLOutputBuffer> outputManager;
-    // final KernelManager kernelManager;
-    final ConcurrentLinkedQueue<HadoopCLKernel> kernelManager;
 
     BufferRunner bufferRunner = null;
     Thread bufferRunnerThread = null;
@@ -286,12 +284,9 @@ public class OpenCLDriver {
     try {
         outputManager = new BufferManager<HadoopCLOutputBuffer>("\""+this.clContext.typeName()+" outputs\"", nOutputBuffers,
             globalSpace, this.clContext, this.clContext.outputBufferConstructor);
-        kernelManager = new ConcurrentLinkedQueue<HadoopCLKernel>();
-        // kernelManager = new KernelManager("\""+this.clContext.typeName()+"kernels\"", nKernels,
-        //         this.clContext, this.clContext.thisKernelConstructor);
 
         bufferRunner = new BufferRunner(inputManager, outputManager,
-                kernelManager, clContext);
+                clContext);
         bufferRunnerThread = new Thread(bufferRunner);
         bufferRunnerThread.setName("Buffer-Runner");
         bufferRunnerThread.start();
@@ -351,9 +346,6 @@ public class OpenCLDriver {
     bufferRunner.addWork(new MainDoneMarker(this.clContext));
 
     bufferRunnerThread.join();
-    for (HadoopCLKernel k : kernelManager) {
-        k.dispose();
-    }
 
     OpenCLDriver.processingFinish = System.currentTimeMillis();
 

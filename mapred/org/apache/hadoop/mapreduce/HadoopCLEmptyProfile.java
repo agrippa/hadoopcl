@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.Queue;
 import java.util.List;
 
 public class HadoopCLEmptyProfile implements HadoopCLProfile {
@@ -32,5 +33,5 @@ public class HadoopCLEmptyProfile implements HadoopCLProfile {
   public long writeTime() { return 0L; }
   public int nItemsProcessed() { return 0; }
   public int nKernelAttempts() { return 0; }
-  public String listToString(List<HadoopCLProfile> profiles) { return ""; }
+  public String listToString(Queue<HadoopCLProfile> profiles) { return ""; }
 }

@@ -18,6 +18,15 @@ public abstract class HadoopCLKernel extends Kernel {
     // public final int id = HadoopCLKernel.idIncr.getAndIncrement();
     public final int id;
     public HadoopCLGlobalId tracker;
+    private boolean available = true;
+
+    public boolean getAvailable() {
+        return this.available;
+    }
+
+    public void setAvailable(boolean s) {
+        this.available = s;
+    }
 
     protected final HadoopOpenCLContext clContext;
     protected IHadoopCLAccumulatedProfile javaProfile;

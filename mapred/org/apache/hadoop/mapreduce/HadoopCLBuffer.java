@@ -2,6 +2,7 @@ package org.apache.hadoop.mapreduce;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.ArrayList;
+import java.util.Queue;
 import java.util.List;
 import com.amd.aparapi.Kernel;
 import com.amd.aparapi.Range;
@@ -174,7 +175,7 @@ public abstract class HadoopCLBuffer {
             return this.nItemsProcessed;
         }
 
-        public String listToString(List<HadoopCLProfile> profiles) {
+        public String listToString(Queue<HadoopCLProfile> profiles) {
           StringBuffer sb = new StringBuffer();
           if (profiles != null && profiles.size() > 0) {
             long accumRead = 0;

@@ -75,7 +75,6 @@ public class ReduceContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
                        ) throws InterruptedException, IOException{
     super(conf, taskid, output, committer, reporter, setType, label);
     this.input = input;
-    System.err.println("input="+input.getClass().getName());
     this.inputKeyCounter = inputKeyCounter;
     this.inputValueCounter = inputValueCounter;
     this.comparator = comparator;

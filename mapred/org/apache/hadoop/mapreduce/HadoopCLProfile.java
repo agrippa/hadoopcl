@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.Queue;
 import java.util.List;
 
 public interface HadoopCLProfile {
@@ -15,5 +16,5 @@ public interface HadoopCLProfile {
   public long writeTime();
   public int nItemsProcessed();
   public int nKernelAttempts();
-  public String listToString(List<HadoopCLProfile> profiles);
+  public String listToString(Queue<HadoopCLProfile> profiles);
 }

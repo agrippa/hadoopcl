@@ -41,61 +41,45 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class BufferRunner implements Runnable {
     private final boolean enableLogs;
-    private final List<HadoopCLProfile> profiles;
+    private final ConcurrentLinkedQueue<HadoopCLProfile> profiles;
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers;
     private final BufferManager<HadoopCLOutputBuffer> freeOutputBuffers; // exclusive
-    // private final KernelManager freeKernels; // exclusive
-    // private final LinkedList<HadoopCLKernel> freeKernels;
-    private final ConcurrentLinkedQueue<HadoopCLKernel> freeKernels;
+    private volatile int kernelThreadsActive;
 
     private final ConcurrentLinkedQueue<HadoopCLInputBuffer> toRun;
-    private final LinkedList<HadoopCLInputBuffer> toRunPrivate; // exclusive
     private final Deque<OutputBufferSoFar> toWrite;
-    // private final LinkedList<OutputBufferSoFar> toWrite; // exclusive
-    private final LinkedList<HadoopCLKernel> toCopyFromOpenCL;
+    private final ConcurrentLinkedQueue<HadoopCLKernel> toCopyFromOpenCL;
 
     public static final AtomicBoolean somethingHappened = new AtomicBoolean(false);
-    // public static final AtomicBoolean somethingHappenedCombiner = new AtomicBoolean(false);
     private final AtomicBoolean somethingHappenedLocal;
     private boolean mainDone;
-
-    // exclusive
-    // private final List<HadoopCLKernel> running;
-    private final AtomicInteger kernelsActive;
 
     private final HadoopOpenCLContext clContext;
 
     public BufferRunner(ConcurrentLinkedQueue<HadoopCLInputBuffer> freeInputBuffers,
             BufferManager<HadoopCLOutputBuffer> freeOutputBuffers,
-            // LinkedList<HadoopCLKernel> freeKernels,
-            ConcurrentLinkedQueue<HadoopCLKernel> freeKernels,
             HadoopOpenCLContext clContext) {
         this.freeInputBuffers = freeInputBuffers;
         this.freeOutputBuffers = freeOutputBuffers;
-        this.freeKernels = freeKernels;
 
         this.toRun = new ConcurrentLinkedQueue<HadoopCLInputBuffer>();
-        this.toRunPrivate = new LinkedList<HadoopCLInputBuffer>();
         this.toWrite = new LinkedList<OutputBufferSoFar>();
-        this.toCopyFromOpenCL = new LinkedList<HadoopCLKernel>();
-
-        kernelsActive = new AtomicInteger(0);
+        this.toCopyFromOpenCL = new ConcurrentLinkedQueue<HadoopCLKernel>();
 
         this.clContext = clContext;
-        this.profiles = new LinkedList<HadoopCLProfile>();
+        this.profiles = new ConcurrentLinkedQueue<HadoopCLProfile>();
 
         this.enableLogs = clContext.enableBufferRunnerDiagnostics();
         this.mainDone = false;
 
         if (this.clContext.isCombiner()) {
-            // this.somethingHappenedLocal = somethingHappenedCombiner;
             this.somethingHappenedLocal = new AtomicBoolean(false);
         } else {
             this.somethingHappenedLocal = somethingHappened;
         }
     }
 
-    public List<HadoopCLProfile> profiles() {
+    public ConcurrentLinkedQueue<HadoopCLProfile> profiles() {
         return this.profiles;
     }
 
@@ -108,98 +92,17 @@ public class BufferRunner implements Runnable {
     public void addWork(HadoopCLInputBuffer input) {
         // LOG:DIAGNOSTIC
         // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
-
-        // possible if getting DONE signal from main
-        HadoopCLKernel k = null;
-        if (!(input instanceof MainDoneMarker)) {
-            input.clearNWrites();
-
-            k = newKernelInstance();
-            if (k != null) {
-                // LOG:DIAGNOSTIC
-                // log("    Allocated kernel "+k.id+" for processing of input buffer "+input.id);
-                if (startKernel(k, input)) {
-                    // LOG:DIAGNOSTIC
-                    // log("    Successfully started kernel "+k.id+" on "+input.id);
-                    profiles.add(input.getProfile());
-                    freeInputBuffers.add(input);
-                    return;
-                } else {
-                    // LOG:DIAGNOSTIC
-                    // log("    Failed to start kernel, marking input "+input.id+" to retry and freeing kernel "+k.id);
-                }
-            }
-        }
-
-        synchronized (this.somethingHappenedLocal) {
-            if (k != null) {
-                freeKernels.add(k);
-            }
+        synchronized (toRun) {
             this.toRun.add(input);
-            this.somethingHappenedLocal.set(true);
-            this.somethingHappenedLocal.notify();
+            this.toRun.notify();
         }
     }
-
-    private HadoopCLKernel newKernelInstance() {
-        return freeKernels.poll();
-    }
-
-    // private List<HadoopCLKernel> getCompleteKernels() {
-    //     List<HadoopCLKernel> complete = new LinkedList<HadoopCLKernel>();
-    //     // for (HadoopCLKernel k : this.running.keySet()) {
-    //     for (HadoopCLKernel k : this.running) {
-    //         if (k.isComplete()) {
-    //             complete.add(k);
-    //         }
-    //     }
-    //     return complete;
-    // }
-
-    // private HadoopCLKernel getFirstCompleteKernel() {
-    //     for (HadoopCLKernel k : this.running) {
-    //         if (k.isComplete()) {
-    //             return k;
-    //         }
-    //     }
-    //     return null;
-    // }
-
-    private void spawnKernelTrackingThread(final HadoopCLKernel kernel,
-            final boolean relaunch) {
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final int willRequireRestart = kernel.waitForCompletion();
-                // LOG:DIAGNOSTIC
-                // log("  Detected completed kernel "+kernel.id);
-                if (relaunch) {
-                    // LOG:PROFILE
-                    // OpenCLDriver.logger.log("recovering relaunched kernel "+kernel.tracker.toString(), clContext);
-                } else {
-                    // LOG:PROFILE
-                    // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
-                }
-                kernel.openclProfile.stopKernel();
-                synchronized (somethingHappenedLocal) {
-                    toCopyFromOpenCL.add(kernel);
-                    if (willRequireRestart == 0) {
-                        kernelsActive.getAndDecrement();
-                    }
-                    somethingHappenedLocal.set(true);
-                    somethingHappenedLocal.notify();
-                }
-            }
-        });
-        t.start();
-    }
-
+    
     private boolean startKernel(final HadoopCLKernel kernel,
             HadoopCLInputBuffer inputBuffer) {
         boolean success;
 
         kernel.tracker = inputBuffer.tracker.clone();
-        // outputBuffer.tracker = inputBuffer.tracker.clone();
         kernel.fill(inputBuffer);
         try {
             // LOG:PROFILE
@@ -213,10 +116,8 @@ public class BufferRunner implements Runnable {
             throw new RuntimeException(io);
         }
         if (success) {
-            kernelsActive.getAndIncrement();
             kernel.openclProfile = inputBuffer.getProfile();
             kernel.openclProfile.startKernel();
-            spawnKernelTrackingThread(kernel, false);
         }
         return success;
     }
@@ -258,6 +159,8 @@ public class BufferRunner implements Runnable {
             HadoopCLOutputBuffer output) {
         // LOG:PROFILE
         // OpenCLDriver.logger.log("started reading from opencl", this.clContext);
+        // LOG:DIAGNOSTIC
+        // log("    Reading kernel "+complete.id+" into output buffer "+output.id);
         complete.prepareForRead(output);
         complete.waitFor();
 
@@ -270,35 +173,15 @@ public class BufferRunner implements Runnable {
         // log("    Adding "+output.id+" to output buffers to write");
         boolean completedAll = output.completedAll();
 
+        synchronized (complete) {
+            complete.setAvailable(true);
+            complete.notify();
+        }
+
         // if (this.clContext.isMapper()) {
         //     output.printContents();
         // }
         toWrite.addLast(new OutputBufferSoFar(output, 0));
-
-        if (!completedAll) {
-            // LOG:DIAGNOSTIC
-            // log("      Retrying kernel "+complete.id+" due to completedAll="+completedAll);
-            complete.tracker.incrementAttempt();
-            // LOG:PROFILE
-            // OpenCLDriver.logger.log("relaunching kernel "+complete.tracker.toString(), this.clContext);
-            try {
-                if (!complete.relaunchKernel()) {
-                    throw new RuntimeException("Failure to re-launch kernel");
-                }
-            } catch (IOException io) {
-                throw new RuntimeException(io);
-            } catch (InterruptedException ie) {
-                throw new RuntimeException(ie);
-            }
-            complete.openclProfile.startKernel();
-            // kernelsActive.getAndIncrement();
-            spawnKernelTrackingThread(complete, true);
-        } else {
-            // LOG:DIAGNOSTIC
-            // log("      Releasing kernel "+complete.id+" due to completedAll="+completedAll);
-            // kernelsActive.getAndDecrement();
-            freeKernels.add(complete);
-        }
     }
 
     private boolean doSingleOutputBuffer(OutputBufferSoFar soFar) {
@@ -351,7 +234,7 @@ public class BufferRunner implements Runnable {
     private boolean doKernelCopyBack() {
         boolean forwardProgress = false;
         do {
-            HadoopCLKernel kernel = toCopyFromOpenCL.poll();
+            final HadoopCLKernel kernel = toCopyFromOpenCL.poll();
             if (kernel == null) break;
 
             HadoopCLOutputBuffer output =
@@ -368,124 +251,18 @@ public class BufferRunner implements Runnable {
         return forwardProgress;
     }
 
-    private HadoopCLInputBuffer getInputBuffer() {
-
-        HadoopCLInputBuffer inputBuffer = toRun.poll();
-        // BufferTypeContainer<HadoopCLInputBuffer> inputBufferContainer = 
-        //     toRun.nonBlockingGet();
-
-        if (inputBuffer != null) {
-            if (inputBuffer instanceof MainDoneMarker) {
-                // LOG:DIAGNOSTIC
-                // log("   Got DONE signal from main");
-                this.mainDone = true;
-                inputBuffer = null;
-            } else {
-                // LOG:DIAGNOSTIC
-                // log("  Got input buffer "+inputBuffer.id+" from main");
-            }
-        }
-        // if (inputBufferContainer != null) {
-        //     if (inputBufferContainer.get() == MainDoneMarker.SINGLETON) {
-        //         // LOG:DIAGNOSTIC
-        //         // log("   Got DONE signal from main");
-        //         this.mainDone = true;
-        //     } else {
-        //         inputBuffer = inputBufferContainer.get();
-        //         // LOG:DIAGNOSTIC
-        //         // log("  Got input buffer "+inputBuffer.id+" from main");
-        //     }
-        // }
-
-        if (inputBuffer == null) {
-            // try again for any retry input buffers
-            if (!toRunPrivate.isEmpty()) {
-                inputBuffer = toRunPrivate.poll();
-            }
-            if (inputBuffer != null) {
-                // LOG:DIAGNOSTIC
-                // log("  Got input buffer "+inputBuffer.id+" from retry list");
-            }
-        }
-
-        return inputBuffer;
-    }
-
-    private boolean doInputBuffers() {
-        boolean forwardProgress = false;
-
-        HadoopCLInputBuffer inputBuffer;
-        while ((inputBuffer = getInputBuffer()) != null) {
-            HadoopCLKernel k = newKernelInstance();
-            if (k != null) {
-                // LOG:DIAGNOSTIC
-                // log("    Allocated kernel "+k.id+" for processing of input buffer "+inputBuffer.id);
-                
-                if (!startKernel(k, inputBuffer)) {
-                    // LOG:DIAGNOSTIC
-                    // log("    Failed to start kernel, marking input "+inputBuffer.id+" to retry and freeing kernel "+k.id);
-                    toRunPrivate.add(inputBuffer);
-                    freeKernels.add(k);
-                    break;
-                } else {
-                    // LOG:DIAGNOSTIC
-                    // log("    Successfully started kernel "+k.id+" on "+inputBuffer.id);
-                    forwardProgress = true;
-                    profiles.add(inputBuffer.getProfile());
-                    synchronized(freeInputBuffers) {
-                        freeInputBuffers.add(inputBuffer);
-                        freeInputBuffers.notify();
-                    }
-                }
-            } else {
-                // LOG:DIAGNOSTIC
-                // log("    Failed to allocate kernel, marking "+inputBuffer.id+" for retry");
-                toRunPrivate.add(inputBuffer);
-                break;
-            }
-        }
-        return forwardProgress;
-    }
-
-    private boolean anyComplete(List<IterAndBuffers> spilling) {
-        if (spilling != null && !spilling.isEmpty()) {
-            for (IterAndBuffers ib : spilling) {
-                if (ib.iter.getComplete()) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private List<IterAndBuffers> collectCompleted(List<IterAndBuffers> spilling) {
-        List<IterAndBuffers> complete =
-            new ArrayList<IterAndBuffers>(spilling.size());
-        for (IterAndBuffers ib : spilling) {
-            if (ib.iter.getComplete()) {
-                complete.add(ib);
-            }
-        }
-        spilling.removeAll(complete);
-        return complete;
-    }
-
-    private List<IterAndBuffers> waitForMoreWork(List<IterAndBuffers> spilling) {
+    private List<IterAndBuffers> waitForMoreWork() {
         List<IterAndBuffers> complete = null;
         boolean local = this.somethingHappenedLocal.getAndSet(false);
         if (local) {
-            if (spilling != null) {
-                return collectCompleted(spilling);
-            } else {
-                return null;
-            }
+            return null;
         } else {
             // LOG:DIAGNOSTIC
             // log("Waiting for more work");
             synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
-                while (this.somethingHappenedLocal.get() == false && !anyComplete(spilling)) {
+                while (this.somethingHappenedLocal.get() == false) {
                     try {
                         this.somethingHappenedLocal.wait();
                     } catch (InterruptedException ie) {
@@ -494,9 +271,6 @@ public class BufferRunner implements Runnable {
                 }
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
-                if (spilling != null) {
-                    complete = collectCompleted(spilling);
-                }
 
                 this.somethingHappenedLocal.set(false);
             }
@@ -506,170 +280,146 @@ public class BufferRunner implements Runnable {
         return complete;
     }
 
-    /*
-    private void spillAll() {
-      spillN(toWrite.size());
-    }
-
-    private void spillN(int N) {
-        if (!toWrite.isEmpty()) {
-            if (this.clContext.isMapper()) {
-                FSDataOutputStream out = null;
-                try {
-                    final Counter combineInputCounter = 
-                      this.clContext.getContext().getCounter(COMBINE_INPUT_RECORDS);
-                    final Counter spilledRecordsCounter =
-                      this.clContext.getContext().getCounter(SPILLED_RECORDS);
-                    final Counter combineOutputCounter =
-                      this.clContext.getContext().getCounter(COMBINE_OUTPUT_RECORDS);
-
-                    final int partitions = this.clContext.getContext().getNumReduceTasks();
-                    final FileSystem rfs = ((LocalFileSystem)FileSystem.getLocal(
-                          this.clContext.getContext().getConfiguration())).getRaw();
-                    final LocalDirAllocator lDirAlloc = 
-                        new LocalDirAllocator("mapred.local.dir");
-
-                    final int mySpillNo = MapTask.numSpills.getAndIncrement();
-                    final SpillRecord spillRec = new SpillRecord(partitions, mySpillNo);
-                    final Path filename = lDirAlloc.getLocalPathForWrite(
-                        TaskTracker.OUTPUT + "/spill"+mySpillNo+".out",
-                        this.clContext.getContext().getConfiguration());
-                    out = rfs.create(filename);
-
-                    final CombineOutputCollector combineCollector;
-                    final CombinerRunner combinerRunner = CombinerRunner.create(
-                        ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()),
-                        (org.apache.hadoop.mapred.TaskAttemptID)this.clContext.getContext().getTaskAttemptID(),
-                        (org.apache.hadoop.mapred.Counters.Counter)combineInputCounter, null, null, null);
-                    if (combinerRunner != null) {
-                        combineCollector = new CombineOutputCollector(
-                            (org.apache.hadoop.mapred.Counters.Counter)combineOutputCounter,
-                            new Progressable() {
-                                @Override
-                                public void progress() {
-                                    clContext.getContext().getReporter().progress();
-                                }
-                            },
-                            this.clContext.getContext().getConfiguration());
-                    } else {
-                        combineCollector = null;
-                    }
-
-                    final SortedWriter writer = new SortedWriter(
-                            this.clContext.getContext().getConfiguration(), out,
-                            toWrite.peekFirst().buffer().getOutputKeyClass(),
-                            toWrite.peekFirst().buffer().getOutputValClass(), null,
-                            (org.apache.hadoop.mapred.Counters.Counter)spilledRecordsCounter,
-                            ((org.apache.hadoop.mapred.JobConf)this.clContext.getContext().getConfiguration()).getOutputKeyComparator(),
-                            true);
-
-                    // LOG:DIAGNOSTIC
-                    // log("    At end, "+toWrite.size()+" output buffers remaining to write to spill "+mySpillNo);
-                    // Just try and fill the spill buffer a little more
-                    // doSingleOutputBuffer(toWrite.removeFirst());
-
-                    List<OutputBufferSoFar> toSpill =
-                        new ArrayList<OutputBufferSoFar>(N);
-                    for (int i = 0; i < N; i++) {
-                        toSpill.add(toWrite.removeFirst());
-                    }
-                    final OutputBufferSoFar soFar = toSpill.get(0);
-                    final HadoopCLOutputBuffer buffer = soFar.buffer();
-                    HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill, partitions);
-
-                    if (this.clContext.getCombinerKernel() == null) {
-                        while (iter.next()) {
-                            writer.append(iter.getKey(), iter.getValue());
-                        }
-                    } else {
-                        combineCollector.setWriter(writer);
-                        combinerRunner.combine(iter, combineCollector);
-                    }
-                    // LOG:DIAGNOSTIC
-                    // log("      Finished combine from mapper on "+toWrite.size()+" output buffers");
-                    for (OutputBufferSoFar s : toSpill) {
-                        freeOutputBuffers.free(s.buffer());
-                    }
-
-                    writer.close();
-
-                    HashMap<Integer, Long> partitionSegmentStarts =
-                        writer.getPartitionSegmentStarts();
-                    HashMap<Integer, Long> partitionRawLengths =
-                        writer.getPartitionRawLengths();
-                    HashMap<Integer, Long> partitionCompressedLengths =
-                        writer.getPartitionCompressedLengths();
-
-                    for (int part = 0; part < partitions; part++) {
-                        final IndexRecord rec = new IndexRecord();
-
-                        rec.startOffset = partitionSegmentStarts.get(part);
-                        rec.rawLength = partitionRawLengths.get(part);
-                        rec.partLength = partitionCompressedLengths.get(part);
-                        spillRec.putIndex(rec, part);
-                        // LOG:DIAGNOSTIC
-                        // log("        Partition "+part+" from "+rec.startOffset+", raw length = "+rec.rawLength+" compressed length = "+rec.partLength);
-                    }
-
-                    synchronized (MapTask.indexCacheList) {
-                        MapTask.indexCacheList.put(spillRec.getSpillNo(), spillRec);
-                        MapTask.totalIndexCacheMemory +=
-                            spillRec.size() * MapTask.MAP_OUTPUT_INDEX_RECORD_LENGTH;
-                    }
-
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    try {
-                        if (out != null) out.close();
-                    } catch (IOException io) {
-                        throw new RuntimeException(io);
-                    }
-                }
-            } else {
-                // LOG:DIAGNOSTIC
-                // log("    At end, "+toWrite.size()+" output buffers remaining to write");
-                int nSoFar = 0;
-                while (!toWrite.isEmpty() && nSoFar < N) {
-                    boolean forwardProgress =
-                        doSingleOutputBuffer(toWrite.removeFirst());
-
-                    if (!forwardProgress) {
-                        waitForMoreWork(null);
-                    }
-                    nSoFar++;
-                }
-            }
-        }
-    }
-*/
-
     @Override
     public void run() {
         // LOG:PROFILE
         // OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
+        Thread[] kernelThreads = new Thread[this.clContext.getNKernels()];
+        this.kernelThreadsActive = this.clContext.getNKernels();
+
         for (int i = 0; i < this.clContext.getNKernels(); i++) {
-            HadoopCLKernel newKernel;
+            final HadoopCLKernel kernel;
             try {
-                newKernel = this.clContext.thisKernelConstructor.newInstance(
+                kernel = this.clContext.thisKernelConstructor.newInstance(
                         this.clContext, i);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-            newKernel.doEntrypointInit(this.clContext.getDevice(),
+            kernel.doEntrypointInit(this.clContext.getDevice(),
                 this.clContext.getDeviceSlot(),
                 this.clContext.getContext().getTaskAttemptID().getTaskID().getId(),
                 this.clContext.getContext().getTaskAttemptID().getId());
-            this.freeKernels.add(newKernel);
+
+            kernelThreads[i] = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (true) {
+                        final HadoopCLInputBuffer input;
+                        synchronized (toRun) {
+                            try {
+                                while (toRun.isEmpty()) {
+                                    toRun.wait();
+                                }
+                            } catch (InterruptedException ie) {
+                                throw new RuntimeException(ie);
+                            }
+                            if (toRun.peek() instanceof MainDoneMarker) {
+                                // LOG:DIAGNOSTIC
+                                // log("   Got DONE signal from main");
+                                toRun.notify();
+                                break;
+                            } else {
+                                input = toRun.poll();
+                                // LOG:DIAGNOSTIC
+                                // log("  Got input buffer "+input.id+" from main");
+                            }
+                        }
+                        input.clearNWrites();
+
+                        if (!startKernel(kernel, input)) {
+                            throw new RuntimeException("Failed to start kernel");
+                        }
+                        profiles.add(input.getProfile());
+                        synchronized (freeInputBuffers) {
+                            freeInputBuffers.add(input);
+                            freeInputBuffers.notify();
+                        }
+
+                        int willRequireRestart = kernel.waitForCompletion();
+                        // LOG:DIAGNOSTIC
+                        // log("  Detected completed kernel "+kernel.id);
+
+                        // LOG:PROFILE
+                        // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
+
+                        kernel.openclProfile.stopKernel();
+                        synchronized (kernel) {
+                            synchronized (somethingHappenedLocal) {
+                                toCopyFromOpenCL.add(kernel);
+                                somethingHappenedLocal.set(true);
+                                somethingHappenedLocal.notify();
+                            }
+
+                            kernel.setAvailable(false);
+                            try {
+                                do {
+                                    kernel.wait();
+                                } while (!kernel.getAvailable());
+                            } catch (InterruptedException ie) {
+                                throw new RuntimeException(ie);
+                            }
+                        }
+
+                        while (willRequireRestart != 0) {
+                            // LOG:DIAGNOSTIC
+                            // log("      Retrying kernel "+kernel.id+" due to willRequireRestart="+willRequireRestart);
+                            kernel.tracker.incrementAttempt();
+                            // LOG:PROFILE
+                            // OpenCLDriver.logger.log("relaunching kernel "+kernel.tracker.toString(), clContext);
+                            try {
+                                if (!kernel.relaunchKernel()) {
+                                    throw new RuntimeException("Failure to re-launch kernel");
+                                }
+                            } catch (IOException io) {
+                                throw new RuntimeException(io);
+                            } catch (InterruptedException ie) {
+                                throw new RuntimeException(ie);
+                            }
+                            kernel.openclProfile.startKernel();
+                            willRequireRestart = kernel.waitForCompletion();
+                            kernel.openclProfile.stopKernel();
+                            // LOG:PROFILE
+                            // OpenCLDriver.logger.log("recovering relaunched kernel "+kernel.tracker.toString(), clContext);    
+
+                            // LOG:DIAGNOSTIC
+                            // log("  Detected completed kernel "+kernel.id);
+
+                            synchronized (kernel) {
+                                synchronized (somethingHappenedLocal) {
+                                    toCopyFromOpenCL.add(kernel);
+                                    somethingHappenedLocal.set(true);
+                                    somethingHappenedLocal.notify();
+                                }
+
+                                kernel.setAvailable(false);
+                                try {
+                                    do {
+                                        kernel.wait();
+                                    } while (!kernel.getAvailable());
+                                } catch (InterruptedException ie) {
+                                    throw new RuntimeException(ie);
+                                }
+                            }
+                        }
+                    }
+
+                    synchronized (somethingHappenedLocal) {
+                        kernelThreadsActive--;
+                        somethingHappenedLocal.set(true);
+                        somethingHappenedLocal.notify();
+                    }
+                    kernel.dispose();
+                }
+            });
+            kernelThreads[i].setName("KernelThread-"+i);
+            kernelThreads[i].start();
         }
 
-        // this.freeKernels.preallocateKernels();
         OpenCLDevice combinerDevice;
         if (this.clContext.isMapper() && this.clContext.jobHasCombiner() &&
                 (combinerDevice = this.clContext.getCombinerDevice()) != null) {
             KernelRunner.doKernelAndArgLinesPrealloc(
                 this.clContext.getCombinerKernel(),
-                // this.clContext.newCombinerKernelObject(),
                 Kernel.TaskType.COMBINER, this.clContext.nCombinerKernels(),
                 combinerDevice, this.clContext.getDeviceSlot());
         }
@@ -683,134 +433,25 @@ public class BufferRunner implements Runnable {
          * not just constantly throwing exceptions
          */
         boolean forwardProgress = false;
-        while (!mainDone || !toRunPrivate.isEmpty() || kernelsActive.get() > 0) {
+
+        while (this.kernelThreadsActive > 0 || !toCopyFromOpenCL.isEmpty() ||
+                !toWrite.isEmpty()) {
             if (!forwardProgress) {
-                waitForMoreWork(null);
+                waitForMoreWork();
             }
             forwardProgress = false;
 
-            /*
-             * Copy back kernels
-             */
             forwardProgress |= doKernelCopyBack();
-
-            /*
-             * Output Buffer Handling
-             */
             forwardProgress |= doOutputBuffers();
-
-            /*
-             * Input Buffer Handling
-             */
-            forwardProgress |= doInputBuffers();
-
-            /*
-             * Kernel Completion Handling
-             */
-            // forwardProgress |= doKernelCompletion();
         }
 
-        // LOG:PROFILE
-        // OpenCLDriver.logger.log("Started cooperating", this.clContext);
-        // LOG:DIAGNOSTIC
-        // log("BufferRunner starting cooperation");
-
-        List<IterAndBuffers> spilling =
-            new LinkedList<IterAndBuffers>();
-        forwardProgress = true;
-        while (!toCopyFromOpenCL.isEmpty() || !toWrite.isEmpty()) {
-            if (!forwardProgress) {
-                // LOG:DIAGNOSTIC
-                // log("No forward progress, waiting with spilling.size()="+spilling.size());
-                List<IterAndBuffers> complete = waitForMoreWork(spilling);
-                // LOG:DIAGNOSTIC
-                // log("After waiting, complete = "+(complete == null ? "null" : (complete.size()+" buffers completed")));
-                // if (complete != null) {
-                //     for (IterAndBuffers ib : complete) {
-                //         if (!ib.iter.allDone()) {
-                //             ib.iter.recalculateLimit();
-                //             spilling.add(ib);
-
-                //             // LOG:DIAGNOSTIC
-                //             // log("Now spilling "+spilling.size()+" iters in total.");
-                //             try {
-                //                 this.clContext.getContext().spillIter(ib.iter);
-                //             } catch (IOException io) {
-                //                 throw new RuntimeException(io);
-                //             }
-                //         } else {
-                //             for (OutputBufferSoFar soFar : ib.buffers) {
-                //                 freeOutputBuffers.free(soFar.buffer());
-                //             }
-                //         }
-                //     }
-                // }
+        try {
+            for (int i = 0; i < this.clContext.getNKernels(); i++) {
+                kernelThreads[i].join();
             }
-            forwardProgress = false;
-
-            // Try to get as many output buffers in the JVM as possible
-            forwardProgress |= doKernelCopyBack();
-
-            // if (!this.clContext.isCombiner()) {
-            //     // Try to get as many output buffers passed to the spill thread as possible
-
-            //     if (toCopyFromOpenCL.isEmpty() || toWrite.size() > 1) {
-            //         final int partitions = this.clContext.getContext().getNumReduceTasks();
-            //         final List<OutputBufferSoFar> toSpill =
-            //             new ArrayList<OutputBufferSoFar>(toWrite.size());
-            //         while (!toWrite.isEmpty()) {
-            //             OutputBufferSoFar sofar = toWrite.removeFirst();
-            //             toSpill.add(sofar);
-            //         }
-            //         // LOG:DIAGNOSTIC
-            //         // log("Spilling "+toSpill.size()+" buffers at once using spillIter");
-            //         final HadoopCLOutputBuffer buffer = toSpill.get(0).buffer();
-            //         HadoopCLKeyValueIterator iter = buffer.getKeyValueIterator(toSpill,
-            //             partitions);
-
-            //         spilling.add(new IterAndBuffers(iter, toSpill));
-            //         // LOG:DIAGNOSTIC
-            //         // log("Now spilling "+spilling.size()+" iters in total.");
-            //         try {
-            //             this.clContext.getContext().spillIter(iter);
-            //         } catch (IOException io) {
-            //             throw new RuntimeException(io);
-            //         }
-
-            //         forwardProgress = true;
-            //     }
-            // } else {
-                forwardProgress |= doAllOutputBuffers();
-            // }
+        } catch (InterruptedException ie) {
+            throw new RuntimeException(ie);
         }
-
-        // while (!spilling.isEmpty()) {
-        //     List<IterAndBuffers> complete = waitForMoreWork(spilling);
-        //     // if (complete != null) {
-        //     //     for (IterAndBuffers ib : complete) {
-        //     //         if (!ib.iter.allDone()) {
-        //     //             ib.iter.recalculateLimit();
-        //     //             spilling.add(ib);
-
-        //     //             // LOG:DIAGNOSTIC
-        //     //             // log("Now spilling "+spilling.size()+" iters in total.");
-        //     //             try {
-        //     //                 this.clContext.getContext().spillIter(ib.iter);
-        //     //             } catch (IOException io) {
-        //     //                 throw new RuntimeException(io);
-        //     //             }
-        //     //         } else {
-        //     //             for (OutputBufferSoFar soFar : ib.buffers) {
-        //     //                 freeOutputBuffers.free(soFar.buffer());
-        //     //             }
-        //     //         }
-        //     //     }
-        //     // }
-        // }
-
-        // LOG:PROFILE
-        // OpenCLDriver.logger.log("Finished cooperating", this.clContext);
-
         // LOG:DIAGNOSTIC
         // log("BufferRunner exiting");
     }
@@ -828,20 +469,7 @@ public class BufferRunner implements Runnable {
         sb.append("  toRun: ");
         sb.append(this.toRun.toString());
         sb.append("\n");
-        sb.append("  toRunPrivate: [ ");
-        for (HadoopCLInputBuffer b : this.toRunPrivate) {
-            sb.append(b.id);
-            sb.append(" ");
-        }
         sb.append("]\n");
-        // sb.append("  toWrite: [ ");
-        // for (OutputBufferSoFar b : this.toWrite) {
-        //     sb.append(b.buffer().id);
-        //     sb.append(" ");
-        // }
-        // sb.append("]\n");
-        sb.append("  freeKernels: ");
-        sb.append(this.freeKernels.toString());
         return sb.toString();
     }
 
