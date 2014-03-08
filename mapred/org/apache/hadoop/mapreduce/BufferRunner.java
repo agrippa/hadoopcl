@@ -150,17 +150,18 @@ public class BufferRunner implements Runnable {
 
         output.copyOverFromKernel(complete);
         output.tracker = complete.tracker.clone();
+
+        synchronized (complete) {
+            complete.setAvailable(true);
+            complete.notify();
+        }
+
         // LOG:PROFILE
         OpenCLDriver.logger.log("done reading from opencl", this.clContext);
 
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
         boolean completedAll = output.completedAll();
-
-        synchronized (complete) {
-            complete.setAvailable(true);
-            complete.notify();
-        }
 
         // if (this.clContext.isMapper()) {
         //     output.printContents();
