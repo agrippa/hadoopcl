@@ -366,6 +366,53 @@ public class Merger {
       return true;
     }
 
+    public boolean supportsBulkReads() {
+        return true;
+    }
+    public HadoopCLDataInput getBulkReader() {
+        return new HadoopCLDataInput() {
+            DataInputBuffer current = null;
+            @Override
+            public boolean hasMore() {
+                return size() > 0;
+            }
+            @Override
+            public void nextKey() throws IOException {
+                next();
+                current = key;
+            }
+            @Override
+            public void nextValue() throws IOException {
+                current = value;
+            }
+            @Override
+            public void prev() {
+                minSegment = null;
+            }
+            @Override
+            public void reset() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public int compareKeys(HadoopCLDataInput other) throws IOException {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void readFully(int[] b, int offset, int len) {
+                current.readFully(b, offset, len);
+            }
+            @Override
+            public void readFully(double[] b, int offset, int len) {
+                current.readFully(b, offset, len);
+            }
+            @Override
+            public void readFully(float[] b, int offset, int len) {
+                current.readFully(b, offset, len);
+            }
+        };
+    }
+
     @SuppressWarnings("unchecked")
     protected boolean lessThan(Object a, Object b) {
       DataInputBuffer key1 = ((Segment<K, V>)a).getKey();
@@ -560,11 +607,5 @@ public class Merger {
       return mergeProgress;
     }
 
-    public boolean supportsBulkReads() {
-        return false;
-    }
-    public HadoopCLDataInput getBulkReader() {
-        throw new UnsupportedOperationException();
-    }
   }
 }
