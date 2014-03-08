@@ -16,5 +16,5 @@ public interface HadoopCLProfile {
   public long writeTime();
   public int nItemsProcessed();
   public int nKernelAttempts();
-  public String listToString(Queue<HadoopCLProfile> profiles);
+  public String listToString(List<HadoopCLProfile> profiles);
 }

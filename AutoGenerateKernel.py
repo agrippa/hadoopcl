@@ -2626,7 +2626,6 @@ def writeHeader(fp, isMapper):
     fp.write('import java.io.DataInput;\n')
     fp.write('import java.util.Collections;\n')
     fp.write('import java.util.Deque;\n')
-    fp.write('import org.apache.hadoop.mapreduce.BufferRunner.OutputBufferSoFar;\n')
     fp.write('import java.util.Stack;\n')
     fp.write('import java.io.IOException;\n')
     fp.write('import java.lang.InterruptedException;\n')
@@ -3453,9 +3452,9 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('\n')
     fp.write('    }\n')
     fp.write('\n')
-    fp.write('    @Override\n')
-    fp.write('    public HadoopCLKeyValueIterator getKeyValueIterator(List<OutputBufferSoFar> toWrite, int numReduceTasks) {\n')
-    fp.write('        return new KeyValueIterator(toWrite, numReduceTasks, this);\n')
+    # fp.write('    @Override\n')
+    # fp.write('    public HadoopCLKeyValueIterator getKeyValueIterator(List<OutputBufferSoFar> toWrite, int numReduceTasks) {\n')
+    # fp.write('        return new KeyValueIterator(toWrite, numReduceTasks, this);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -3737,7 +3736,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     writeGetPartitionFor(output_fp, nativeOutputKeyType)
     output_fp.write('\n')
-    writeKeyValueIteratorDefs(output_fp, nativeOutputKeyType, nativeOutputValueType, isMapper)
+    # writeKeyValueIteratorDefs(output_fp, nativeOutputKeyType, nativeOutputValueType, isMapper)
 
     input_fp.write('}\n\n')
     output_fp.write('}\n\n')

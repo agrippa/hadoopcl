@@ -109,13 +109,13 @@ public abstract class HadoopCLBuffer {
 
         public void startRead(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            // OpenCLDriver.logger.log("starting read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            OpenCLDriver.logger.log("starting read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.startRead = System.currentTimeMillis();
         }
 
         public void stopRead(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            // OpenCLDriver.logger.log("finishing read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            OpenCLDriver.logger.log("finishing read of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.stopRead = System.currentTimeMillis();
         }
         
@@ -129,13 +129,13 @@ public abstract class HadoopCLBuffer {
 
         public void startWrite(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            // OpenCLDriver.logger.log("starting write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            OpenCLDriver.logger.log("starting write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.writeStarts.add(System.currentTimeMillis());
         }
 
         public void stopWrite(HadoopCLBuffer owner) {
             // LOG:PROFILE
-            // OpenCLDriver.logger.log("finishing write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
+            OpenCLDriver.logger.log("finishing write of "+owner.tracker.toString(), HadoopCLBuffer.this.clContext);
             this.writeStops.add(System.currentTimeMillis());
         }
 
@@ -175,7 +175,7 @@ public abstract class HadoopCLBuffer {
             return this.nItemsProcessed;
         }
 
-        public String listToString(Queue<HadoopCLProfile> profiles) {
+        public String listToString(List<HadoopCLProfile> profiles) {
           StringBuffer sb = new StringBuffer();
           if (profiles != null && profiles.size() > 0) {
             long accumRead = 0;

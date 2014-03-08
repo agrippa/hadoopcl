@@ -65,7 +65,6 @@ public abstract class HadoopCLKernel extends Kernel {
         this.globalsMap = globals.globalsMap;
     }
 
-    // public abstract Class getBufferClass();
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
     public abstract Class<? extends HadoopCLOutputBuffer> getOutputBufferClass();
     public abstract boolean launchKernel() throws IOException, InterruptedException;

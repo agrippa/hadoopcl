@@ -2,7 +2,6 @@ package org.apache.hadoop.mapreduce;
 
 import java.util.List;
 import java.util.Deque;
-import org.apache.hadoop.mapreduce.BufferRunner.OutputBufferSoFar;
 import java.util.HashSet;
 import java.io.IOException;
 
@@ -33,10 +32,10 @@ public class RunnerDoneMarker extends HadoopCLOutputBuffer {
     public int getPartitionFor(int index, int numReduceTasks) {
         throw new UnsupportedOperationException();
     }
-    @Override
-    public HadoopCLKeyValueIterator getKeyValueIterator(List<OutputBufferSoFar> toWrite, int numReduceTasks) {
-        throw new UnsupportedOperationException();
-    }
+    // @Override
+    // public HadoopCLKeyValueIterator getKeyValueIterator(List<OutputBufferSoFar> toWrite, int numReduceTasks) {
+    //     throw new UnsupportedOperationException();
+    // }
     @Override
     public int getCount() {
         return 0;
