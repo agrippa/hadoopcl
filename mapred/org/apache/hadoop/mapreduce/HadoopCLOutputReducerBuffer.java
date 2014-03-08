@@ -20,19 +20,6 @@ public abstract class HadoopCLOutputReducerBuffer extends HadoopCLOutputBuffer {
     }
     
     @Override
-    public boolean completedAll() {
-        // int count = 0;
-        // for (int i = 0; i < this.nKeys; i++) {
-        //   if (nWrites[i] == -1) count++;
-        // }
-        // System.out.println("Did not complete "+count);
-        for(int i = 0; i < this.nKeys; i++) {
-            if(nWrites[i] == -1) return false;
-        }
-        return true;
-    }
-
-    @Override
     public void copyOverFromKernel(HadoopCLKernel genericKernel) {
         HadoopCLReducerKernel kernel = (HadoopCLReducerKernel)genericKernel;
         this.nKeys = kernel.nKeys;

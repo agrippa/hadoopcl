@@ -27,17 +27,10 @@ public abstract class HadoopCLBuffer {
         this.nWrites = new int[this.clContext.getInputBufferSize()];
     }
 
-    public abstract boolean completedAll();
     public abstract void printContents();
 
     public long space() {
         return 4 * nWrites.length;
-    }
-
-    public void clearNWrites() {
-        for (int i = 0; i < this.nWrites.length; i++) {
-            this.nWrites[i] = -1;
-        }
     }
 
     public void resetProfile() {

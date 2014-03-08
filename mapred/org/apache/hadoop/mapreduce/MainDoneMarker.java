@@ -18,4 +18,5 @@ public class MainDoneMarker extends HadoopCLInputBuffer {
     public boolean completedAll() { return true; }
     public int bulkFill(HadoopCLDataInput stream) { return 0; }
     public void printContents() { }
+    public void clearNWrites() { }
 }

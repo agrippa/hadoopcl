@@ -26,21 +26,6 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
         return this.nPairs > 0;
     }
 
-    @Override
-    public boolean completedAll() {
-        /*
-        int count = 0;
-        for (int i = 0; i < this.nPairs; i++) {
-          if (nWrites[i] == -1) count++;
-        }
-        System.out.println("Did not complete "+count);
-        */
-        for(int i = 0; i < this.nPairs; i++) {
-            if(nWrites[i] == -1) return false;
-        }
-        return true;
-    }
-
     public void addKeyAndValue(TaskInputOutputContext context)
             throws IOException, InterruptedException {
         addTypedKey(((Context)context).getCurrentKey());
@@ -52,5 +37,12 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
     @Override
     public long space() {
         return super.space();
+    }
+
+    @Override
+    public final void clearNWrites() {
+        for (int i = 0; i < nPairs; i++) {
+            this.nWrites[i] = -1;
+        }
     }
 }

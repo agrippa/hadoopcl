@@ -18,23 +18,6 @@ public abstract class HadoopCLOutputMapperBuffer extends HadoopCLOutputBuffer {
     }
 
     @Override
-    public boolean completedAll() {
-        // StringBuffer sb = new StringBuffer();
-        // int count = 0;
-        // for (int i = 0; i < this.nPairs; i++) {
-        //   sb.append(nWrites[i]+" ");
-        //   if (nWrites[i] == -1) count++;
-        // }
-        // sb.insert(0, "nWrites ("+count+" not completed) ");
-        // System.err.println(sb.toString());
-
-        for(int i = 0; i < this.nPairs; i++) {
-            if(nWrites[i] == -1) return false;
-        }
-        return true;
-    }
-
-    @Override
     public void copyOverFromKernel(HadoopCLKernel genericKernel) {
         HadoopCLMapperKernel kernel = (HadoopCLMapperKernel)genericKernel;
         this.nPairs = kernel.nPairs;

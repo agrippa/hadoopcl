@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.hadoop.io.ReadArrayUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.HadoopCLDataInput;
 import org.apache.commons.logging.Log;
@@ -355,6 +356,8 @@ public class Merger {
         adjustPriorityQueue(minSegment);
         if (size() == 0) {
           minSegment = null;
+          key = null;
+          value = null;
           return false;
         }
       }
@@ -369,25 +372,44 @@ public class Merger {
     public boolean supportsBulkReads() {
         return true;
     }
+
     public HadoopCLDataInput getBulkReader() {
+        try {
+            next();
+        } catch (IOException io) {
+            throw new RuntimeException(io);
+        }
         return new HadoopCLDataInput() {
-            DataInputBuffer current = null;
+            DataInputBuffer current = key;
+            boolean dontNext = true;
+            boolean someLeft = true;
+
             @Override
-            public boolean hasMore() {
-                return size() > 0;
+            public boolean hasMore() throws IOException {
+                if (!someLeft) return false;
+                boolean hasMore = true;
+                if (!dontNext) {
+                    hasMore = next();
+                    if (!hasMore) someLeft = false;
+                    dontNext = true;
+                }
+                return hasMore;
             }
             @Override
             public void nextKey() throws IOException {
-                next();
                 current = key;
+                dontNext = false;
             }
             @Override
             public void nextValue() throws IOException {
                 current = value;
+                dontNext = false;
             }
             @Override
-            public void prev() {
-                minSegment = null;
+            public void prev() throws IOException {
+                key.reset();
+                value.reset();
+                dontNext = true;
             }
             @Override
             public void reset() {
@@ -399,16 +421,83 @@ public class Merger {
             }
 
             @Override
-            public void readFully(int[] b, int offset, int len) {
-                current.readFully(b, offset, len);
+            public void readFully(int[] b, int offset, int len) throws IOException {
+                final int[] arr = ReadArrayUtils.readIntArray(current, len);
+                System.arraycopy(arr, 0, b, offset, len);
             }
             @Override
-            public void readFully(double[] b, int offset, int len) {
-                current.readFully(b, offset, len);
+            public void readFully(double[] b, int offset, int len) throws IOException {
+                final double[] arr = ReadArrayUtils.readDoubleArray(current, len);
+                System.arraycopy(arr, 0, b, offset, len);
             }
             @Override
-            public void readFully(float[] b, int offset, int len) {
-                current.readFully(b, offset, len);
+            public void readFully(float[] b, int offset, int len) throws IOException {
+                final float[] arr = ReadArrayUtils.readFloatArray(current, len);
+                System.arraycopy(arr, 0, b, offset, len);
+            }
+            @Override
+            public int readInt() throws IOException {
+                return current.readInt();
+            }
+
+            @Override
+            public boolean readBoolean() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public byte readByte() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public char readChar() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public double readDouble() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public float readFloat() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void readFully(byte[] b) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void readFully(byte[] b, int off, int len) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public String readLine() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public long readLong() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public short readShort() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public int readUnsignedShort() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public String readUTF() {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public int skipBytes(int n) {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public int readUnsignedByte() {
+                throw new UnsupportedOperationException();
             }
         };
     }

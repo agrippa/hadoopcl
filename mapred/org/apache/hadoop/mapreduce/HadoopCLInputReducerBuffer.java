@@ -51,19 +51,6 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     }
 
     @Override
-    public boolean completedAll() {
-        // int count = 0;
-        // for (int i = 0; i < this.nKeys; i++) {
-        //   if (nWrites[i] == -1) count++;
-        // }
-        // System.out.println("Did not complete "+count);
-        for(int i = 0; i < this.nKeys; i++) {
-            if(nWrites[i] == -1) return false;
-        }
-        return true;
-    }
-
-    @Override
     public void addKeyAndValue(TaskInputOutputContext context)
             throws IOException, InterruptedException {
         addTypedKey(((Context)context).getCurrentKey());
@@ -73,6 +60,13 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     @Override
     public long space() {
         return super.space() + (4 * keyIndex.length);
+    }
+
+    @Override
+    public final void clearNWrites() {
+        for (int i = 0; i < nKeys; i++) {
+            this.nWrites[i] = -1;
+        }
     }
 
     protected final void safeTransfer(final Object src, final Object target, final int srcOffset, final int length) {
@@ -98,103 +92,4 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
             }
         }
     }
-
-    /*
-    protected final void safeTransfer(final int[] src, final int[] target, final int srcOffset, final int length) {
-        safeTransferHelper(src, target, srcOffset, length);
-        final int srcTop = srcOffset + length;
-        if (target != src) {
-            System.arraycopy(src, srcOffset, target, 0, length);
-        } else {
-            if (length < srcOffset) {
-                System.arraycopy(src, srcOffset, target, 0, length);
-            } else {
-                int currentSrc = srcOffset;
-                int currentTarget = 0;
-                while (currentSrc < srcTop) {
-                    int copyable = currentSrc - currentTarget;
-                    if (currentSrc + copyable > srcTop) {
-                        copyable = srcTop - currentSrc;
-                    }
-
-                    System.arraycopy(src, currentSrc, target, currentTarget, copyable);
-                    currentSrc += copyable;
-                    currentTarget += copyable;
-                }
-            }
-        }
-    }
-
-    protected final void safeTransfer(final float[] src, final float[] target, final int srcOffset, final int length) {
-        final int srcTop = srcOffset + length;
-        if (target != src) {
-            System.arraycopy(src, srcOffset, target, 0, length);
-        } else {
-            if (length < srcOffset) {
-                System.arraycopy(src, srcOffset, target, 0, length);
-            } else {
-                int currentSrc = srcOffset;
-                int currentTarget = 0;
-                while (currentSrc < srcTop) {
-                    int copyable = currentSrc - currentTarget;
-                    if (currentSrc + copyable > srcTop) {
-                        copyable = srcTop - currentSrc;
-                    }
-
-                    System.arraycopy(src, currentSrc, target, currentTarget, copyable);
-                    currentSrc += copyable;
-                    currentTarget += copyable;
-                }
-            }
-        }
-    }
-
-    protected final void safeTransfer(final double[] src, final double[] target, final int srcOffset, final int length) {
-        final int srcTop = srcOffset + length;
-        if (target != src) {
-            System.arraycopy(src, srcOffset, target, 0, length);
-        } else {
-            if (length < srcOffset) {
-                System.arraycopy(src, srcOffset, target, 0, length);
-            } else {
-                int currentSrc = srcOffset;
-                int currentTarget = 0;
-                while (currentSrc < srcTop) {
-                    int copyable = currentSrc - currentTarget;
-                    if (currentSrc + copyable > srcTop) {
-                        copyable = srcTop - currentSrc;
-                    }
-
-                    System.arraycopy(src, currentSrc, target, currentTarget, copyable);
-                    currentSrc += copyable;
-                    currentTarget += copyable;
-                }
-            }
-        }
-    }
-
-    protected final void safeTransfer(final long[] src, final long[] target, final int srcOffset, final int length) {
-        final int srcTop = srcOffset + length;
-        if (target != src) {
-            System.arraycopy(src, srcOffset, target, 0, length);
-        } else {
-            if (length < srcOffset) {
-                System.arraycopy(src, srcOffset, target, 0, length);
-            } else {
-                int currentSrc = srcOffset;
-                int currentTarget = 0;
-                while (currentSrc < srcTop) {
-                    int copyable = currentSrc - currentTarget;
-                    if (currentSrc + copyable > srcTop) {
-                        copyable = srcTop - currentSrc;
-                    }
-
-                    System.arraycopy(src, currentSrc, target, currentTarget, copyable);
-                    currentSrc += copyable;
-                    currentTarget += copyable;
-                }
-            }
-        }
-    }
-    */
 }

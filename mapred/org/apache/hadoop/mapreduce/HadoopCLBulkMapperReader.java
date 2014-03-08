@@ -48,7 +48,7 @@ public abstract class HadoopCLBulkMapperReader implements HadoopCLDataInput {
     }
 
     @Override
-    public void readFully(float[] b, int off, int len) {
+    public void readFully(float[] b, int off, int len) throws IOException {
         throw new UnsupportedOperationException();
     }
 

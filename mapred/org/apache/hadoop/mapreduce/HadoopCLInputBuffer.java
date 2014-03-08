@@ -25,4 +25,6 @@ public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
     public long space() {
         return super.space();
     }
+
+    public abstract void clearNWrites();
 }

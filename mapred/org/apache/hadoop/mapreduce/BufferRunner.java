@@ -147,7 +147,6 @@ public class BufferRunner implements Runnable {
         // log("    Reading kernel "+complete.id+" into output buffer "+output.id);
         complete.prepareForRead(output);
         complete.waitFor();
-
         output.copyOverFromKernel(complete);
         output.tracker = complete.tracker.clone();
 
@@ -158,10 +157,8 @@ public class BufferRunner implements Runnable {
 
         // LOG:PROFILE
         OpenCLDriver.logger.log("done reading from opencl", this.clContext);
-
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
-        boolean completedAll = output.completedAll();
 
         // if (this.clContext.isMapper()) {
         //     output.printContents();
@@ -199,79 +196,22 @@ public class BufferRunner implements Runnable {
         }
     }
 
-    @Override
-    public void run() {
-        // LOG:PROFILE
-        OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
+    private final Thread[] constructKernelThreads() {
         Thread[] kernelThreads = new Thread[this.clContext.getNKernels()];
 
-        for (int i = 0; i < this.clContext.getNOutputBuffers(); i++) {
-            final HadoopCLOutputBuffer newOutputBuffer;
-            try {
-                newOutputBuffer = this.clContext.outputBufferConstructor.newInstance(this.clContext, i);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            freeOutputBuffers.add(newOutputBuffer);
-        }
+        try {
+            for (int i = 0; i < this.clContext.getNKernels(); i++) {
+                final HadoopCLKernel kernel =
+                    this.clContext.thisKernelConstructor.newInstance(
+                            this.clContext, i);;
+                kernel.doEntrypointInit(this.clContext.getDevice(),
+                    this.clContext.getDeviceSlot(),
+                    this.clContext.getContext().getTaskAttemptID().getTaskID().getId(),
+                    this.clContext.getContext().getTaskAttemptID().getId());
 
-        for (int i = 0; i < this.clContext.getNKernels(); i++) {
-            final HadoopCLKernel kernel;
-            try {
-                kernel = this.clContext.thisKernelConstructor.newInstance(
-                        this.clContext, i);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            kernel.doEntrypointInit(this.clContext.getDevice(),
-                this.clContext.getDeviceSlot(),
-                this.clContext.getContext().getTaskAttemptID().getTaskID().getId(),
-                this.clContext.getContext().getTaskAttemptID().getId());
+                kernelThreads[i] = new Thread(new Runnable() {
 
-            kernelThreads[i] = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    final List<HadoopCLProfile> localProfiles = new LinkedList<HadoopCLProfile>();
-                    while (true) {
-                        final HadoopCLInputBuffer input;
-                        synchronized (toRun) {
-                            try {
-                                while (toRun.isEmpty()) {
-                                    toRun.wait();
-                                }
-                            } catch (InterruptedException ie) {
-                                throw new RuntimeException(ie);
-                            }
-                            if (toRun.peek() instanceof MainDoneMarker) {
-                                // LOG:DIAGNOSTIC
-                                // log("   Got DONE signal from main");
-                                toRun.notify();
-                                break;
-                            } else {
-                                input = toRun.poll();
-                                // LOG:DIAGNOSTIC
-                                // log("  Got input buffer "+input.id+" from main");
-                            }
-                        }
-                        input.clearNWrites();
-
-                        if (!startKernel(kernel, input)) {
-                            throw new RuntimeException("Failed to start kernel");
-                        }
-                        localProfiles.add(input.getProfile());
-                        synchronized (freeInputBuffers) {
-                            freeInputBuffers.add(input);
-                            freeInputBuffers.notify();
-                        }
-
-                        int willRequireRestart = kernel.waitForCompletion();
-                        // LOG:DIAGNOSTIC
-                        // log("  Detected completed kernel "+kernel.id);
-
-                        // LOG:PROFILE
-                        OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
-
-                        kernel.openclProfile.stopKernel();
+                    private final void copyBackKernel() {
                         synchronized (kernel) {
                             synchronized (toCopyFromOpenCL) {
                                 toCopyFromOpenCL.add(kernel);
@@ -287,70 +227,109 @@ public class BufferRunner implements Runnable {
                                 throw new RuntimeException(ie);
                             }
                         }
+                    }
 
-                        while (willRequireRestart != 0) {
-                            // LOG:DIAGNOSTIC
-                            // log("      Retrying kernel "+kernel.id+" due to willRequireRestart="+willRequireRestart);
-                            kernel.tracker.incrementAttempt();
-                            // LOG:PROFILE
-                            OpenCLDriver.logger.log("relaunching kernel "+kernel.tracker.toString(), clContext);
-                            try {
-                                if (!kernel.relaunchKernel()) {
-                                    throw new RuntimeException("Failure to re-launch kernel");
-                                }
-                            } catch (IOException io) {
-                                throw new RuntimeException(io);
-                            } catch (InterruptedException ie) {
-                                throw new RuntimeException(ie);
-                            }
-                            kernel.openclProfile.startKernel();
-                            willRequireRestart = kernel.waitForCompletion();
-                            kernel.openclProfile.stopKernel();
-                            // LOG:PROFILE
-                            OpenCLDriver.logger.log("recovering relaunched kernel "+kernel.tracker.toString(), clContext);    
-
-                            // LOG:DIAGNOSTIC
-                            // log("  Detected completed kernel "+kernel.id);
-
-                            synchronized (kernel) {
-                                synchronized (toCopyFromOpenCL) {
-                                    toCopyFromOpenCL.add(kernel);
-                                    toCopyFromOpenCL.notify();
-                                }
-
-                                kernel.setAvailable(false);
+                    @Override
+                    public void run() {
+                        final List<HadoopCLProfile> localProfiles = new LinkedList<HadoopCLProfile>();
+                        while (true) {
+                            final HadoopCLInputBuffer input;
+                            synchronized (toRun) {
                                 try {
-                                    do {
-                                        kernel.wait();
-                                    } while (!kernel.getAvailable());
+                                    while (toRun.isEmpty()) {
+                                        toRun.wait();
+                                    }
                                 } catch (InterruptedException ie) {
                                     throw new RuntimeException(ie);
                                 }
+                                if (toRun.peek() instanceof MainDoneMarker) {
+                                    // LOG:DIAGNOSTIC
+                                    // log("   Got DONE signal from main");
+                                    toRun.notify();
+                                    break;
+                                } else {
+                                    input = toRun.poll();
+                                    // LOG:DIAGNOSTIC
+                                    // log("  Got input buffer "+input.id+" from main");
+                                }
+                            }
+                            input.clearNWrites();
+
+                            if (!startKernel(kernel, input)) {
+                                throw new RuntimeException("Failed to start kernel");
+                            }
+                            localProfiles.add(input.getProfile());
+                            synchronized (freeInputBuffers) {
+                                freeInputBuffers.add(input);
+                                freeInputBuffers.notify();
+                            }
+
+                            int willRequireRestart = kernel.waitForCompletion();
+                            // LOG:DIAGNOSTIC
+                            // log("  Detected completed kernel "+kernel.id);
+
+                            // LOG:PROFILE
+                            OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
+
+                            kernel.openclProfile.stopKernel();
+
+                            copyBackKernel();
+
+                            while (willRequireRestart != 0) {
+                                // LOG:DIAGNOSTIC
+                                // log("      Retrying kernel "+kernel.id+" due to willRequireRestart="+willRequireRestart);
+                                kernel.tracker.incrementAttempt();
+                                // LOG:PROFILE
+                                OpenCLDriver.logger.log("relaunching kernel "+kernel.tracker.toString(), clContext);
+                                try {
+                                    if (!kernel.relaunchKernel()) {
+                                        throw new RuntimeException("Failure to re-launch kernel");
+                                    }
+                                } catch (IOException io) {
+                                    throw new RuntimeException(io);
+                                } catch (InterruptedException ie) {
+                                    throw new RuntimeException(ie);
+                                }
+                                kernel.openclProfile.startKernel();
+                                willRequireRestart = kernel.waitForCompletion();
+                                kernel.openclProfile.stopKernel();
+                                // LOG:PROFILE
+                                OpenCLDriver.logger.log("recovering relaunched kernel "+kernel.tracker.toString(), clContext);    
+
+                                // LOG:DIAGNOSTIC
+                                // log("  Detected completed kernel "+kernel.id);
+
+                                copyBackKernel();
                             }
                         }
-                    }
 
-                    synchronized (profiles) {
-                        profiles.addAll(localProfiles);
-                    }
+                        synchronized (profiles) {
+                            profiles.addAll(localProfiles);
+                        }
 
-                    synchronized (somethingHappenedLocal) {
-                        somethingHappenedLocal.set(true);
-                        somethingHappenedLocal.notify();
-                    }
-                    kernel.dispose();
+                        synchronized (somethingHappenedLocal) {
+                            somethingHappenedLocal.set(true);
+                            somethingHappenedLocal.notify();
+                        }
+                        kernel.dispose();
 
-                    synchronized (toCopyFromOpenCL) {
-                        toCopyFromOpenCL.add(new KernelThreadDone(clContext, -1));
-                        toCopyFromOpenCL.notify();
+                        synchronized (toCopyFromOpenCL) {
+                            toCopyFromOpenCL.add(new KernelThreadDone(clContext, -1));
+                            toCopyFromOpenCL.notify();
+                        }
                     }
-                }
-            });
-            kernelThreads[i].setName("KernelThread-"+i);
-            kernelThreads[i].start();
+                });
+                kernelThreads[i].setName("KernelThread-"+i);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
-        Thread copyThread = new Thread() {
+        return kernelThreads;
+    }
+
+    private final Thread constructCopyFromOpenCLThread() {
+        final Thread copyThread = new Thread() {
             @Override
             public void run() {
                 final int totalNKernels = clContext.getNKernels();
@@ -388,6 +367,30 @@ public class BufferRunner implements Runnable {
             }
         };
         copyThread.setName("CopyThread");
+        return copyThread;
+    }
+
+    @Override
+    public void run() {
+        // LOG:PROFILE
+        OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
+
+        try {
+            for (int i = 0; i < this.clContext.getNOutputBuffers(); i++) {
+                freeOutputBuffers.add(
+                    this.clContext.outputBufferConstructor.newInstance(
+                        this.clContext, i));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        final Thread[] kernelThreads = constructKernelThreads();
+        for (Thread t : kernelThreads) {
+            t.start();
+        }
+
+        final Thread copyThread = constructCopyFromOpenCLThread();
         copyThread.start();
 
         OpenCLDevice combinerDevice;

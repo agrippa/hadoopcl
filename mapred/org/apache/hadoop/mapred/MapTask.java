@@ -112,32 +112,26 @@ public class MapTask extends Task {
   // public static final ArrayList<SpillRecord> indexCacheList = new ArrayList<SpillRecord>();
   private static final AtomicInteger numSpills = new AtomicInteger(0);
   public static final int MAP_OUTPUT_INDEX_RECORD_LENGTH = 24;
-  private Boolean isOpenCL = null;
+  private Boolean isOpenCLSpiller = null;
 
-  private boolean isOpenCL() {
-    if (isOpenCL == null) {
+  private boolean isOpenCLSpiller() {
+    if (isOpenCLSpiller == null) {
+      boolean result = false;
       try {
         if (taskContext.getMapperClass().getName().equals("org.apache.hadoop.mapreduce.OpenCLMapper")) {
-          String deviceStr = System.getProperty("opencl.device");
+          final String deviceStr = System.getProperty("opencl.device");
           if (deviceStr != null) {
-            int device = Integer.parseInt(deviceStr);
-            OpenCLDevice dev = HadoopOpenCLContext.findDevice(device);
+            final OpenCLDevice dev = HadoopOpenCLContext.findDevice(Integer.parseInt(deviceStr));
             if (dev.getType() == Device.TYPE.GPU ||
                 dev.getType() == Device.TYPE.CPU) {
-              isOpenCL = new Boolean(true);
-            } else {
-              isOpenCL = new Boolean(false);
+              result = true;
             }
-          } else {
-            isOpenCL = new Boolean(false);
           }
-        } else {
-          isOpenCL = new Boolean(false);
         }
-        isOpenCL = new Boolean(taskContext.getMapperClass().getName().equals("org.apache.hadoop.mapreduce.OpenCLMapper"));
-      } catch(Exception e) { isOpenCL = new Boolean(false); }
+      } catch(Exception e) { }
+      isOpenCLSpiller = new Boolean(result);
     }
-    return isOpenCL.booleanValue();
+    return isOpenCLSpiller.booleanValue();
   }
 
   private TaskSplitIndex splitMetaInfo = new TaskSplitIndex();
@@ -1059,7 +1053,7 @@ public class MapTask extends Task {
       // indexCacheList = new ArrayList<SpillRecord>();
       
       //sanity checks
-      if (isOpenCL()) {
+      if (isOpenCLSpiller()) {
           spillper = job.getFloat("io.sort.spill.percent.hadoopcl",(float)0.8);
           initialspillper = job.getFloat("io.sort.spill.percent.hadoopcl.initial", (float)0.4);
       } else {
@@ -1183,7 +1177,7 @@ public class MapTask extends Task {
             startSpill();
           }
           if (kvfull) {
-            if (kvstart != kvend && isOpenCL()) {
+            if (kvstart != kvend && isOpenCLSpiller()) {
               return coll.start();
               // throw new DontBlockOnSpillDoneException();
             }
@@ -1289,7 +1283,7 @@ public class MapTask extends Task {
             startSpill();
           }
           if (kvfull) {
-            if (kvstart != kvend && isOpenCL()) {
+            if (kvstart != kvend && isOpenCLSpiller()) {
               throw new DontBlockOnSpillDoneException();
             }
             try {
@@ -1515,7 +1509,7 @@ public class MapTask extends Task {
             }
 
             if (buffull && !wrap) {
-              if (kvstart != kvend && isOpenCL()) {
+              if (kvstart != kvend && isOpenCLSpiller()) {
                 throw new DontBlockOnSpillDoneException();
               }
 
@@ -2004,7 +1998,7 @@ public class MapTask extends Task {
                 private ReaderWrapper least = readers.get(0);
 
                 @Override
-                public final boolean hasMore() {
+                public final boolean hasMore() throws IOException {
                     if (least == null) {
                         return false;
                     }
@@ -2063,11 +2057,11 @@ public class MapTask extends Task {
                     this.least.reader.reset();
                 }
                 @Override
-                public final void readFully(int[] b, int off, int len) {
+                public final void readFully(int[] b, int off, int len) throws IOException {
                     this.least.reader.readFully(b, off, len);
                 }
                 @Override
-                public final void readFully(double[] b, int off, int len) {
+                public final void readFully(double[] b, int off, int len) throws IOException {
                     this.least.reader.readFully(b, off, len);
                 }
                 @Override
