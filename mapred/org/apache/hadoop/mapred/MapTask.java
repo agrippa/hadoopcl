@@ -958,6 +958,7 @@ public class MapTask extends Task {
     private final Serializer<V> valSerializer;
     private final CombinerRunner<K,V> combinerRunner;
     private final CombineOutputCollector<K, V> combineCollector;
+    private final CombineOutputCollector<K, V> flushCombineCollector;
     private boolean alreadyReleased = true;
     
     // Compression for map-outputs
@@ -1093,8 +1094,10 @@ public class MapTask extends Task {
                                              reporter, null, this);
       if (combinerRunner != null) {
         combineCollector= new CombineOutputCollector<K,V>(combineOutputCounter, reporter, conf);
+        flushCombineCollector= new CombineOutputCollector<K,V>(combineOutputCounter, reporter, conf);
       } else {
         combineCollector = null;
+        flushCombineCollector = null;
       }
       minSpillsForCombine = job.getInt("min.num.spills.for.combine", 3);
       spillThread.setDaemon(true);
@@ -1536,7 +1539,7 @@ public class MapTask extends Task {
         if (kvend != kvindex) {
           kvend = kvindex;
           bufend = bufmark;
-          sortAndSpill();
+          sortAndSpill(flushCombineCollector);
         }
         spillReady.signal();
       } catch (InterruptedException e) {
@@ -1632,7 +1635,7 @@ public class MapTask extends Task {
 
               spillLock.unlock();
 
-              sortAndSpill();
+              sortAndSpill(combineCollector);
             } catch (Exception e) {
               sortSpillException = e;
             } catch (Throwable t) {
@@ -1643,13 +1646,13 @@ public class MapTask extends Task {
             } finally {
                 releaseCurrentlySpilling(true);
                 final int newDiff;
-                if (kvend == kvindex) {
+                if (kvstart == kvindex) {
                     newDiff = 0;
                 } else {
-                    newDiff = diffWithWrap(kvend, kvindex, kvoffsets.length);
+                    newDiff = diffWithWrap(kvstart, kvindex, kvoffsets.length);
                 }
                 double newKvRatio = (double)newDiff / (double)kvoffsets.length;
-                double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
+                double newBufRatio = (double)diffWithWrap(bufstart, bufmark, bufvoid) / (double)bufvoid;
                 if (newKvRatio > quickRestartPercent) {
                   LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
                   kvend = kvindex;
@@ -2035,7 +2038,7 @@ public class MapTask extends Task {
         }
     }
 
-    private void sortAndSpill()
+    private void sortAndSpill(final CombineOutputCollector<K, V> combineCollector)
           throws IOException, ClassNotFoundException, InterruptedException {
       //approximate the length of the output file to be the length of the
       //buffer + header lengths for the partitions
@@ -2139,6 +2142,7 @@ public class MapTask extends Task {
                 true, null);
             combineCollector.setWriter(writer);
             combinerRunner.setDirectCombiner(true);
+            combinerRunner.setValidToRelease(true);
             combinerRunner.combine(iter, combineCollector);
 
             writer.close();

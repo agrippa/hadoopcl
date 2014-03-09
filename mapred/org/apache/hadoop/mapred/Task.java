@@ -1453,7 +1453,8 @@ abstract public class Task implements Writable, Configurable {
            taskContext.getCombinerClass();
       if (newcls != null) {
         return new NewCombinerRunner<K,V>(newcls, job, taskId, taskContext, 
-                                          inputCounter, reporter, committer, caller);
+                                          inputCounter, reporter, committer,
+                                          caller);
       }
       
       return null;
