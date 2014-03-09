@@ -1211,9 +1211,6 @@ public class MapTask extends Task {
         if (!coll.isValid(index)) continue;
 
         final int partition = coll.getPartitionFor(index, partitions);
-        if (partition < 0 || partition >= partitions) {
-          throw new IOException("Illegal partition");
-        }
         try {
               kvnext = (kvindex + 1) % kvoffsets.length;
               int keystart = bufindex;
