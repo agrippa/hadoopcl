@@ -116,11 +116,6 @@ extends OutputFormat<K,V> {
       }
     }
 
-    @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
     /** {@inheritDoc} */
     public void write(K key, V value) throws IOException {
       try {

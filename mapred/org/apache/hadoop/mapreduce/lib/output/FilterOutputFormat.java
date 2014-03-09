@@ -95,11 +95,6 @@ public class FilterOutputFormat <K,V> extends OutputFormat<K, V> {
     }
 
     @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-    
-    @Override
     public void write(K key, V value) throws IOException, InterruptedException {
       getRawWriter().write(key, value);
     }

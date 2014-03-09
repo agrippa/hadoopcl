@@ -149,11 +149,6 @@ public class SequenceFileAsBinaryOutputFormat
       public void setUsingOpenCL(boolean val) { }
       private WritableValueBytes wvaluebytes = new WritableValueBytes();
 
-      @Override
-      public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-          throw new UnsupportedOperationException();
-      }
-
       public void write(BytesWritable bkey, BytesWritable bvalue)
         throws IOException {
         wvaluebytes.reset(bvalue);

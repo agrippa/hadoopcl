@@ -37,10 +37,6 @@ public class NullOutputFormat<K, V> extends OutputFormat<K, V> {
          getRecordWriter(TaskAttemptContext context) {
     return new RecordWriter<K, V>(){
 
-        @Override
-        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-            throw new UnsupportedOperationException();
-        }
         public void write(K key, V value) { }
         public void close(TaskAttemptContext context) { }
 

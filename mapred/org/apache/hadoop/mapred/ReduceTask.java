@@ -506,10 +506,6 @@ class ReduceTask extends Task {
           reporter.progress();
         }
         @Override
-        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-            throw new UnsupportedOperationException();
-        }
-        @Override
         public int collectCollection(KVCollection<OUTKEY, OUTVALUE> coll) {
             throw new UnsupportedOperationException();
         }
@@ -594,11 +590,6 @@ class ReduceTask extends Task {
       real.close(context);
       long bytesOutCurr = getOutputBytes(fsStats);
       fileOutputByteCounter.increment(bytesOutCurr - bytesOutPrev);
-    }
-
-    @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        real.spillIter(iter);
     }
 
     @Override

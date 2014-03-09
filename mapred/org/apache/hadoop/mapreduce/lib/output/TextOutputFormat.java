@@ -84,12 +84,6 @@ public class TextOutputFormat<K, V> extends FileOutputFormat<K, V> {
       }
     }
 
-    @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-
     public synchronized void write(K key, V value)
       throws IOException {
 

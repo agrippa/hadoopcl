@@ -106,10 +106,6 @@ class PipesReducer<K2 extends WritableComparable, V2 extends Writable,
           // NULL
         }
         @Override
-        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-            throw new UnsupportedOperationException();
-        }
-        @Override
         public int collectCollection(KVCollection<K3, V3> coll) {
             throw new UnsupportedOperationException();
         }

@@ -518,11 +518,6 @@ class Chain {
     }
 
     @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public int collectCollection(KVCollection<K, V> coll) {
         throw new UnsupportedOperationException();
     }

@@ -1187,17 +1187,6 @@ abstract public class Task implements Writable, Configurable {
     }
 
     @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        while (iter.next()) {
-            outCounter.increment(1);
-            writer.append(iter.getKey(), iter.getValue());
-            if ((outCounter.getValue() % progressBar) == 0) {
-              progressable.progress();
-            }
-        }
-    }
-
-    @Override
     public int collectCollection(KVCollection<K, V> coll) throws IOException {
         Writable key = null;
         Writable value = null;
@@ -1549,10 +1538,6 @@ abstract public class Task implements Writable, Configurable {
         
       @Override
       public void close(org.apache.hadoop.mapreduce.TaskAttemptContext context){
-      }
-
-      public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-          output.spillIter(iter);
       }
 
       @Override

@@ -72,11 +72,6 @@ public class SequenceFileOutputFormat <K,V> extends FileOutputFormat<K, V> {
     return new RecordWriter<K, V>() {
         public void setUsingOpenCL(boolean val) { }
 
-        @Override
-        public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-            throw new UnsupportedOperationException();
-        }
-
         public void write(K key, V value)
           throws IOException {
 

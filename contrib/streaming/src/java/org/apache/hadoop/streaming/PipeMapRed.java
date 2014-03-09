@@ -353,9 +353,6 @@ public abstract class PipeMapRed {
             throws IOException {
             //just consume it, no need to write the record anywhere
           }
-          public void spillIter(HadoopCLKeyValueIterator iter) {
-              throw new UnsupportedOperationException();
-          }
           public int collectCollection(KVCollection coll) {
               throw new UnsupportedOperationException();
           }

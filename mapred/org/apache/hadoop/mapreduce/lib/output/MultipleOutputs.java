@@ -301,11 +301,6 @@ public class MultipleOutputs<KEYOUT, VALUEOUT> {
       this.context = context;
     }
 
-    @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
     @SuppressWarnings({"unchecked"})
     public void write(Object key, Object value) 
         throws IOException, InterruptedException {

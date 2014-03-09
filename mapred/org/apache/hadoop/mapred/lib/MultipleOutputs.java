@@ -521,11 +521,6 @@ public class MultipleOutputs {
       }
 
       @Override
-      public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-          throw new UnsupportedOperationException();
-      }
-
-      @Override
       public int collectCollection(KVCollection coll) {
           throw new UnsupportedOperationException();
       }

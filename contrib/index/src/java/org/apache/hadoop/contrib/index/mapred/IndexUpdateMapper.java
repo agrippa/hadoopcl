@@ -74,9 +74,6 @@ public class IndexUpdateMapper<K extends WritableComparable, V extends Writable>
           tmpKey = key;
           tmpValue = value;
         }
-        public void spillIter(HadoopCLKeyValueIterator iter) {
-            throw new UnsupportedOperationException();
-        }
         public int collectCollection(KVCollection<DocumentID, DocumentAndOp> coll) {
             throw new UnsupportedOperationException();
         }

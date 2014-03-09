@@ -213,11 +213,6 @@ public class MultithreadedMapper<K1, V1, K2, V2>
     }
 
     @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void write(K2 key, V2 value) throws IOException,
                                                InterruptedException {
       synchronized (outer) {

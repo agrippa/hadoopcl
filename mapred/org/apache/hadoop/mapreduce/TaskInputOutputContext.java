@@ -93,10 +93,6 @@ public abstract class TaskInputOutputContext<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
       return this.label;
   }
 
-  public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-      output.spillIter(iter);
-  }
-
   /**
    * Generate an output key/value pair.
    */

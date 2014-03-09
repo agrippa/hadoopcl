@@ -40,5 +40,4 @@ public interface OutputCollector<K, V> {
    */
   void collect(K key, V value) throws IOException;
   int collectCollection(KVCollection<K, V> coll) throws IOException;
-  void spillIter(HadoopCLKeyValueIterator iter) throws IOException;
 }

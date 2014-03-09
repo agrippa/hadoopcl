@@ -659,11 +659,6 @@ public class MapTask extends Task {
     }
 
     @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public int collectCollection(KVCollection<K, V> coll) {
         throw new UnsupportedOperationException();
     }
@@ -699,11 +694,6 @@ public class MapTask extends Task {
       out = outputFormat.getRecordWriter(taskContext);
       long bytesOutCurr = getOutputBytes(fsStats);
       fileOutputByteCounter.increment(bytesOutCurr - bytesOutPrev);
-    }
-
-    @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -770,11 +760,6 @@ public class MapTask extends Task {
           }
         };
       }
-    }
-
-    @Override
-    public void spillIter(HadoopCLKeyValueIterator iter) throws IOException {
-        collector.collectIter(iter, partitioner);
     }
 
     @Override
@@ -883,8 +868,6 @@ public class MapTask extends Task {
     public int collectCollection(KVCollection<K,V> kv,
         org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
           throws IOException, InterruptedException;
-    public void collectIter(HadoopCLKeyValueIterator iter,
-        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner);
     public void close() throws IOException, InterruptedException;
     
     public void flush() throws IOException, InterruptedException, 
@@ -942,11 +925,6 @@ public class MapTask extends Task {
                                ClassNotFoundException {
     }
 
-    public void collectIter(HadoopCLKeyValueIterator iter, 
-        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner) {
-      throw new UnsupportedOperationException();
-    }
-
     public int collectCollection(KVCollection<K,V> coll,
         org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
           throws IOException, InterruptedException {
@@ -988,10 +966,6 @@ public class MapTask extends Task {
     // k/v accounting
     private volatile int kvstart = 0;  // marks beginning of spill
     private volatile int kvend = 0;    // marks beginning of collectable
-    private List<HadoopCLKeyValueIterator> itersToSpill =
-        new LinkedList<HadoopCLKeyValueIterator>();
-    private List<HadoopCLKeyValueIterator> spilling =
-        new LinkedList<HadoopCLKeyValueIterator>();
     private int kvindex = 0;           // marks end of collected
     private final int[] kvoffsets;     // indices into kvindices
     private final int[] kvindices;     // partition, k/v offsets into kvbuffer
@@ -1143,16 +1117,6 @@ public class MapTask extends Task {
       }
     }
 
-    public void collectIter(HadoopCLKeyValueIterator iter,
-        org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner) {
-      try {
-          spillLock.lock();
-          startSpillIter(iter);
-      } finally {
-          spillLock.unlock();
-      }
-    }
-
     public synchronized int collectCollection(KVCollection<K,V> coll,
         org.apache.hadoop.mapreduce.Partitioner<K,V> partitioner)
           throws IOException, InterruptedException {
@@ -1172,7 +1136,7 @@ public class MapTask extends Task {
           final boolean kvsoftlimit = ((kvnext > kvend)
               ? kvnext - kvend > softRecordLimit
               : kvend - kvnext <= kvoffsets.length - softRecordLimit);
-          if (kvsoftlimit && kvstart == kvend && spilling.isEmpty()) {
+          if (kvsoftlimit && kvstart == kvend) {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
@@ -1275,7 +1239,7 @@ public class MapTask extends Task {
           final boolean kvsoftlimit = ((kvnext > kvend)
               ? kvnext - kvend > softRecordLimit
               : kvend - kvnext <= kvoffsets.length - softRecordLimit);
-          if (kvsoftlimit && kvstart == kvend && spilling.isEmpty()) {
+          if (kvsoftlimit && kvstart == kvend) {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
@@ -1480,14 +1444,14 @@ public class MapTask extends Task {
               buffull = bufindex + len > bufstart;
             }
 
-            if (kvstart == kvend && spilling.isEmpty()) {
+            if (kvstart == kvend) {
               // spill thread not running
-              if (kvend != kvindex || !itersToSpill.isEmpty()) {
+              if (kvend != kvindex) {
                 // we have records we can spill
                 final boolean bufsoftlimit = (bufindex > bufend)
                   ? bufindex - bufend > softBufferLimit
                   : bufend - bufindex < bufvoid - softBufferLimit;
-                if (bufsoftlimit || (buffull && !wrap) || !itersToSpill.isEmpty()) {
+                if (bufsoftlimit || (buffull && !wrap)) {
                   LOG.info("Spilling map output: buffer full= " + bufsoftlimit);
                   startSpill();
                 }
@@ -1555,7 +1519,7 @@ public class MapTask extends Task {
             // LOG:PROFILE
             // OpenCLDriver.logger.log("Blocking in flush", "mapper");
         }
-        while (kvstart != kvend || !spilling.isEmpty()) {
+        while (kvstart != kvend) {
           reporter.progress();
           spillDone.await();
         }
@@ -1569,17 +1533,9 @@ public class MapTask extends Task {
         }
         noMoreSpilling = true;
 
-        if (kvend != kvindex || !itersToSpill.isEmpty()) {
+        if (kvend != kvindex) {
           kvend = kvindex;
           bufend = bufmark;
-          if (!spilling.isEmpty()) {
-              throw new RuntimeException(spilling.size()+
-                  " buffers left over in spilling, "+itersToSpill.size()+
-                  " in itersToSpill");
-          }
-          while (!itersToSpill.isEmpty()) {
-              spilling.add(itersToSpill.remove(0));
-          }
           sortAndSpill();
         }
         spillReady.signal();
@@ -1638,11 +1594,6 @@ public class MapTask extends Task {
         kvstart = kvend;
         bufstart = bufend;
 
-        while (!spilling.isEmpty()) {
-            HadoopCLKeyValueIterator iter = spilling.remove(0);
-            iter.setComplete();
-        }
-
         synchronized(BufferRunner.somethingHappened) {
             BufferRunner.somethingHappened.set(true);
             BufferRunner.somethingHappened.notify();
@@ -1666,7 +1617,7 @@ public class MapTask extends Task {
 
             spillDone.signalAll();
 
-            while (kvstart == kvend && itersToSpill.isEmpty() && !noMoreSpilling) {
+            while (kvstart == kvend && !noMoreSpilling) {
               spillReady.await();
             }
 
@@ -1678,12 +1629,6 @@ public class MapTask extends Task {
                       "Seems like we missed the last release?");
               }
               alreadyReleased = false;
-              if (!spilling.isEmpty()) {
-                  throw new RuntimeException(spilling.size()+" buffers left over in spilling, "+itersToSpill.size()+" in itersToSpill");
-              }
-              while (!itersToSpill.isEmpty()) {
-                  spilling.add(itersToSpill.remove(0));
-              }
 
               spillLock.unlock();
 
@@ -1705,17 +1650,14 @@ public class MapTask extends Task {
                 }
                 double newKvRatio = (double)newDiff / (double)kvoffsets.length;
                 double newBufRatio = (double)diffWithWrap(bufend, bufmark, bufvoid) / (double)bufvoid;
-                if (newKvRatio > quickRestartPercent || !itersToSpill.isEmpty()) {
-                  LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio+", itersToSpill.size()="+itersToSpill.size());
+                if (newKvRatio > quickRestartPercent) {
+                  LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
                   kvend = kvindex;
                   bufend = bufmark;
-                  // spilling.addAll(itersToSpill);
-                  // itersToSpill.clear();
                   LOG.info("bufstart = " + bufstart + "; bufend = " + bufend +
                       "; bufvoid = " + bufvoid);
                   LOG.info("kvstart = " + kvstart + "; kvend = " + kvend +
                       "; length = " + kvoffsets.length);
-                  LOG.info("itersToSpill.size()="+itersToSpill.size());
                 }
             }
           }
@@ -1726,12 +1668,6 @@ public class MapTask extends Task {
           spillThreadRunning = false;
         }
       }
-    }
-
-    private synchronized void startSpillIter(HadoopCLKeyValueIterator iter) {
-        LOG.info("Spilling map output: itersToSpill.size() = "+(itersToSpill.size()+1));
-        itersToSpill.add(iter);
-        spillReady.signal();
     }
 
     private synchronized void startSpill() {
@@ -2103,20 +2039,11 @@ public class MapTask extends Task {
           throws IOException, ClassNotFoundException, InterruptedException {
       //approximate the length of the output file to be the length of the
       //buffer + header lengths for the partitions
-      LOG.info("Spilling! kvstart=" + kvstart + " kvend=" + kvend +
-          " spilling.size() = " + spilling.size());
+      LOG.info("Spilling! kvstart=" + kvstart + " kvend=" + kvend);
       long size = (bufend >= bufstart
           ? bufend - bufstart
           : (bufvoid - bufend) + bufstart) +
                   partitions * APPROX_HEADER_LENGTH;
-
-      final MergedIterator mergedPrep = new MergedIterator(comparator);
-      for (HadoopCLKeyValueIterator i : spilling) {
-          final boolean more = i.next();
-          if (more) {
-              mergedPrep.addIter(i);
-          }
-      }
 
       final int spillNo = numSpills.getAndIncrement();
       // create spill file
@@ -2125,13 +2052,13 @@ public class MapTask extends Task {
       final Path filename =
           mapOutputFile.getSpillFileForWrite(spillNo, size);
 
+      final IterateAndPartition iter;
       if (kvstart != kvend) {
           final int endPosition = (kvend > kvstart)
             ? kvend
             : kvoffsets.length + kvend;
           sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
 
-          final IterateAndPartition iter;
           if (combinerRunner == null) {
               final int tmp_kvstart = kvstart;
               iter = new IterateAndPartition() {
@@ -2172,13 +2099,7 @@ public class MapTask extends Task {
           } else {
               iter = new MRResultIterator(kvstart, endPosition);
           }
-          final boolean more = iter.next();
-          if (more) {
-              mergedPrep.addIter(iter);
-          }
       }
-
-      final IterateAndPartition merged = mergedPrep.completePrep();
 
       FSDataOutputStream out = null;
       try {
@@ -2186,9 +2107,9 @@ public class MapTask extends Task {
 
         if (combinerRunner == null) {
             BulkWriter<K, V> writer = new BulkWriter<K, V>(job, out,
-                keyClass, valClass, codec, spilledRecordsCounter, merged);
-            while (merged.next()) {
-                writer.append(merged.getKey(), merged.getValue());
+                keyClass, valClass, codec, spilledRecordsCounter, iter);
+            while (iter.next()) {
+                writer.append(iter.getKey(), iter.getValue());
             }
             writer.close();
 
@@ -2220,7 +2141,7 @@ public class MapTask extends Task {
                 true, null);
             combineCollector.setWriter(writer);
             combinerRunner.setDirectCombiner(true);
-            combinerRunner.combine(merged, combineCollector);
+            combinerRunner.combine(iter, combineCollector);
 
             writer.close();
 
