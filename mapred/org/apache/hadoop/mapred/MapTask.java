@@ -2053,52 +2053,50 @@ public class MapTask extends Task {
           mapOutputFile.getSpillFileForWrite(spillNo, size);
 
       final IterateAndPartition iter;
-      if (kvstart != kvend) {
-          final int endPosition = (kvend > kvstart)
-            ? kvend
-            : kvoffsets.length + kvend;
-          sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
+      final int endPosition = (kvend > kvstart)
+        ? kvend
+        : kvoffsets.length + kvend;
+      sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
 
-          if (combinerRunner == null) {
-              final int tmp_kvstart = kvstart;
-              iter = new IterateAndPartition() {
-                  private int pointer = tmp_kvstart - 1;
-                  private final int end = endPosition;
-                  private final DataInputBuffer key = new DataInputBuffer();
-                  private final InMemValBytes value = new InMemValBytes();
-                  public DataInputBuffer getKey() throws IOException {
-                      final int kvoff = kvoffsets[pointer % kvoffsets.length];
-                      key.reset(kvbuffer, kvindices[kvoff + KEYSTART],
-                                (kvindices[kvoff + VALSTART] - 
-                                 kvindices[kvoff + KEYSTART]));
-                      return key;
-                  }
-                  public DataInputBuffer getValue() throws IOException {
-                      final int kvoff = kvoffsets[pointer % kvoffsets.length];
-                      getVBytesForOffset(kvoff, value);
-                      return value;
-                  }
-                  public int getPartitionOfCurrent(int partitions) {
-                      final int kvoff = kvoffsets[pointer % kvoffsets.length];
-                      return kvindices[kvoff + PARTITION];
-                  }
-                  public boolean next() throws IOException {
-                      pointer++;
-                      return pointer < endPosition;
-                  }
-                  public void close() throws IOException {
-                  }
-                  public Progress getProgress() { return null; }
-                  public boolean supportsBulkReads() {
-                      return false;
-                  }
-                  public HadoopCLDataInput getBulkReader() {
-                      throw new UnsupportedOperationException();
-                  }
-              };
-          } else {
-              iter = new MRResultIterator(kvstart, endPosition);
-          }
+      if (combinerRunner == null) {
+          final int tmp_kvstart = kvstart;
+          iter = new IterateAndPartition() {
+              private int pointer = tmp_kvstart - 1;
+              private final int end = endPosition;
+              private final DataInputBuffer key = new DataInputBuffer();
+              private final InMemValBytes value = new InMemValBytes();
+              public DataInputBuffer getKey() throws IOException {
+                  final int kvoff = kvoffsets[pointer % kvoffsets.length];
+                  key.reset(kvbuffer, kvindices[kvoff + KEYSTART],
+                            (kvindices[kvoff + VALSTART] - 
+                             kvindices[kvoff + KEYSTART]));
+                  return key;
+              }
+              public DataInputBuffer getValue() throws IOException {
+                  final int kvoff = kvoffsets[pointer % kvoffsets.length];
+                  getVBytesForOffset(kvoff, value);
+                  return value;
+              }
+              public int getPartitionOfCurrent(int partitions) {
+                  final int kvoff = kvoffsets[pointer % kvoffsets.length];
+                  return kvindices[kvoff + PARTITION];
+              }
+              public boolean next() throws IOException {
+                  pointer++;
+                  return pointer < endPosition;
+              }
+              public void close() throws IOException {
+              }
+              public Progress getProgress() { return null; }
+              public boolean supportsBulkReads() {
+                  return false;
+              }
+              public HadoopCLDataInput getBulkReader() {
+                  throw new UnsupportedOperationException();
+              }
+          };
+      } else {
+          iter = new MRResultIterator(kvstart, endPosition);
       }
 
       FSDataOutputStream out = null;
