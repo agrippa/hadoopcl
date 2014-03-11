@@ -73,6 +73,15 @@ public class OpenCLDriver {
     }
   }
 
+  public static String printStackTrace() {
+      StringBuilder sb = new StringBuilder();
+      StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+      for (int i = 1; i < trace.length; i++) {
+          sb.append(trace[i].toString()+"\n");
+      }
+      return sb.toString();
+  }
+
   public static void hadoopclLog(Configuration conf, String str) throws IOException {
       String taskId = conf.get("mapred.task.id");
       String[] parts = taskId.split("_");
@@ -286,6 +295,7 @@ public class OpenCLDriver {
         buffer = allocateNewInputBuffer();
         buffer.tracker = new HadoopCLGlobalId(bufferCounter++);
         buffer.resetProfile();
+        buffer.reset();
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }

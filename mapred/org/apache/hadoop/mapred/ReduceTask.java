@@ -649,10 +649,10 @@ class ReduceTask extends Task {
         return ret;
       }
       public boolean supportsBulkReads() {
-        return false;
+        return rawIter.supportsBulkReads();
       }
       public HadoopCLDataInput getBulkReader() {
-        throw new UnsupportedOperationException();
+        return rawIter.getBulkReader();
       }
     };
     // make a task context so we can get the classes
@@ -673,7 +673,7 @@ class ReduceTask extends Task {
                                                trackedRW, committer,
                                                reporter, comparator, keyClass,
                                                valueClass, ContextType.Reducer,
-                                               null, false);
+                                               null, true);
     reducer.run(reducerContext);
     trackedRW.close(reducerContext);
   }

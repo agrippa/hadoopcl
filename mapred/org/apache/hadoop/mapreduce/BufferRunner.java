@@ -160,6 +160,7 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
 
+        // if ((clContext.isCombiner() || clContext.isReducer()) && ((ReduceContext)clContext.getContext()).shouldPrint()) {
         // if (this.clContext.isMapper()) {
         //     output.printContents();
         // }
@@ -253,6 +254,9 @@ public class BufferRunner implements Runnable {
                                     // log("  Got input buffer "+input.id+" from main");
                                 }
                             }
+                            // if ((clContext.isCombiner() || clContext.isReducer()) && !((ReduceContext)clContext.getContext()).shouldPrint()) {
+                            //     input.printContents();
+                            // }
                             input.clearNWrites();
 
                             if (!startKernel(kernel, input)) {

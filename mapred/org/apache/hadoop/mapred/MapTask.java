@@ -99,6 +99,9 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.mapreduce.DontBlockOnSpillDoneException;
 import org.apache.hadoop.mapreduce.HadoopOpenCLContext;
 
+import java.text.NumberFormat;
+import java.text.DecimalFormat;
+
 import com.amd.aparapi.device.OpenCLDevice;
 import com.amd.aparapi.device.Device;
 
@@ -108,6 +111,7 @@ public class MapTask extends Task {
    * The size of each record in the index file for the map-outputs.
    */
   public static int totalIndexCacheMemory = 0;
+  private static final NumberFormat numFormat = new DecimalFormat();;
   public static final HashMap<Integer, SpillRecord> indexCacheList = new HashMap<Integer, SpillRecord>();
   // public static final ArrayList<SpillRecord> indexCacheList = new ArrayList<SpillRecord>();
   private static final AtomicInteger numSpills = new AtomicInteger(0);
@@ -992,12 +996,14 @@ public class MapTask extends Task {
     private int softRecordLimit;
     private int softBufferLimit;
     private final float quickRestartPercent;
+    private final float maxRestartPercent;
     private int minSpillsForCombine;
     private final IndexedSorter sorter;
     private final ReentrantLock spillLock = new ReentrantLock();
     private final Condition spillDone = spillLock.newCondition();
     private final Condition spillReady = spillLock.newCondition();
     private final BlockingBuffer bb = new BlockingBuffer();
+    private volatile boolean spillRunning = false;
     private volatile boolean spillThreadRunning = false;
     private volatile boolean noMoreSpilling = false;
     private final SpillThread spillThread = new SpillThread();
@@ -1036,6 +1042,7 @@ public class MapTask extends Task {
           initialspillper = spillper;
       }
 
+      maxRestartPercent = job.getFloat("io.sort.maxrestart", (float)0.5);
       quickRestartPercent = job.getFloat("io.sort.quickrestart", (float)0.3);
       final float recper = job.getFloat("io.sort.record.percent",(float)0.05);
       final int sortmb = job.getInt("io.sort.mb", 100);
@@ -1139,21 +1146,24 @@ public class MapTask extends Task {
           final boolean kvsoftlimit = ((kvnext > kvend)
               ? kvnext - kvend > softRecordLimit
               : kvend - kvnext <= kvoffsets.length - softRecordLimit);
-          if (kvsoftlimit && kvstart == kvend) {
+          if (kvsoftlimit && !spillRunning /* kvstart == kvend */ ) {
             LOG.info("Spilling map output: record full = " + kvsoftlimit);
             startSpill();
           }
           if (kvfull) {
-            if (kvstart != kvend && isOpenCLSpiller()) {
-              return coll.start();
-              // throw new DontBlockOnSpillDoneException();
+            if (isOpenCLSpiller()) {
+                return coll.start();
             }
+            // if (kvstart != kvend && isOpenCLSpiller()) {
+            //   return coll.start();
+            // }
             try {
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
                   // OpenCLDriver.logger.log("Blocking in collect", "mapper");
               }
-              while (kvstart != kvend) {
+              while (kvnext == kvstart) {
+              // while (kvstart != kvend) {
                 reporter.progress();
                 spillDone.await();
               }
@@ -1172,6 +1182,10 @@ public class MapTask extends Task {
         spillLock.unlock();
       }
 
+      int oldKvIndex = kvindex;
+      int oldBufIndex = bufindex;
+      int oldBufStart = bufstart;
+      int oldBufEnd = bufend;
       int index = coll.start();
       for ( ; index < coll.end() &&
               ((kvindex + 1) % kvoffsets.length) != kvstart; index++) {
@@ -1247,15 +1261,19 @@ public class MapTask extends Task {
             startSpill();
           }
           if (kvfull) {
-            if (kvstart != kvend && isOpenCLSpiller()) {
-              throw new DontBlockOnSpillDoneException();
+            // if (kvstart != kvend && isOpenCLSpiller()) {
+            //   throw new DontBlockOnSpillDoneException();
+            // }
+            if (isOpenCLSpiller()) {
+                throw new DontBlockOnSpillDoneException();
             }
             try {
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
                   // OpenCLDriver.logger.log("Blocking in collect", "mapper");
               }
-              while (kvstart != kvend) {
+              while (kvnext == kvstart) {
+              // while (kvstart != kvend) {
                 reporter.progress();
                 spillDone.await();
               }
@@ -1436,6 +1454,7 @@ public class MapTask extends Task {
                   ).initCause(sortSpillException);
             }
 
+            // wrap = whether there would be enough space with a wrap to write the whole thing?
             // sufficient buffer space?
             if (bufstart <= bufend && bufend <= bufindex) {
               buffull = bufindex + len > bufvoid;
@@ -1444,10 +1463,11 @@ public class MapTask extends Task {
               // bufindex <= bufstart <= bufend
               // bufend <= bufindex <= bufstart
               wrap = false;
-              buffull = bufindex + len > bufstart;
+              buffull = bufindex + len >= bufstart;
             }
 
-            if (kvstart == kvend) {
+            if (!spillRunning) {
+            // if (kvstart == kvend) {
               // spill thread not running
               if (kvend != kvindex) {
                 // we have records we can spill
@@ -1473,9 +1493,12 @@ public class MapTask extends Task {
             }
 
             if (buffull && !wrap) {
-              if (kvstart != kvend && isOpenCLSpiller()) {
+              if (isOpenCLSpiller()) {
                 throw new DontBlockOnSpillDoneException();
               }
+              // if (kvstart != kvend && isOpenCLSpiller()) {
+              //   throw new DontBlockOnSpillDoneException();
+              // }
 
               try {
                 if (OpenCLDriver.logger != null) {
@@ -1509,6 +1532,7 @@ public class MapTask extends Task {
           bufindex = 0;
         }
         System.arraycopy(b, off, kvbuffer, bufindex, len);
+
         bufindex += len;
       }
     }
@@ -1539,7 +1563,8 @@ public class MapTask extends Task {
         if (kvend != kvindex) {
           kvend = kvindex;
           bufend = bufmark;
-          sortAndSpill(flushCombineCollector);
+          sortAndSpill(flushCombineCollector, kvstart, kvend,
+              bufstart, bufend, bufvoid);
         }
         spillReady.signal();
       } catch (InterruptedException e) {
@@ -1582,7 +1607,9 @@ public class MapTask extends Task {
 
     public void releaseCurrentlySpilling(boolean callingFromSpillThread) {
 
-        spillLock.lock();
+        if (!callingFromSpillThread) {
+            spillLock.lock();
+        }
 
         if (alreadyReleased) {
           // Don't unlock, as we are being called from the SpillThread
@@ -1633,9 +1660,17 @@ public class MapTask extends Task {
               }
               alreadyReleased = false;
 
+              final int local_kvstart = kvstart;
+              final int local_kvend = kvend;
+              final int local_bufstart = bufstart;
+              final int local_bufend = bufend;
+              final int local_bufvoid = bufvoid;
+
+              spillRunning = true;
               spillLock.unlock();
 
-              sortAndSpill(combineCollector);
+              sortAndSpill(combineCollector, local_kvstart, local_kvend,
+                  local_bufstart, local_bufend, local_bufvoid);
             } catch (Exception e) {
               sortSpillException = e;
             } catch (Throwable t) {
@@ -1644,6 +1679,8 @@ public class MapTask extends Task {
                               + StringUtils.stringifyException(t);
               reportFatalError(getTaskID(), t, logMsg);
             } finally {
+                spillLock.lock();
+                spillRunning = false;
                 releaseCurrentlySpilling(true);
                 final int newDiff;
                 if (kvstart == kvindex) {
@@ -1655,12 +1692,18 @@ public class MapTask extends Task {
                 double newBufRatio = (double)diffWithWrap(bufstart, bufmark, bufvoid) / (double)bufvoid;
                 if (newKvRatio > quickRestartPercent) {
                   LOG.info("Immediate relaunch, kv-ratio="+newKvRatio+" buf-ratio="+newBufRatio);
-                  kvend = kvindex;
-                  bufend = bufmark;
-                  LOG.info("bufstart = " + bufstart + "; bufend = " + bufend +
-                      "; bufvoid = " + bufvoid);
-                  LOG.info("kvstart = " + kvstart + "; kvend = " + kvend +
-                      "; length = " + kvoffsets.length);
+
+                  if (newKvRatio < maxRestartPercent) {
+                      kvend = kvindex;
+                      bufend = bufmark;
+                  } else {
+                      kvend = (kvstart + (int)(kvoffsets.length * maxRestartPercent)) % kvoffsets.length;
+                      bufend = kvindices[kvoffsets[kvend] + KEYSTART];
+                  }
+                  LOG.info("bufstart = " + numFormat.format(bufstart) + "; bufend = " + numFormat.format(bufend) +
+                      "; bufvoid = " + numFormat.format(bufvoid));
+                  LOG.info("kvstart = " + numFormat.format(kvstart) + "; kvend = " + numFormat.format(kvend) +
+                      "; length = " + numFormat.format(kvoffsets.length));
                 }
             }
           }
@@ -1674,10 +1717,10 @@ public class MapTask extends Task {
     }
 
     private synchronized void startSpill() {
-      LOG.info("bufstart = " + bufstart + "; bufend = " + bufmark +
-               "; bufvoid = " + bufvoid);
-      LOG.info("kvstart = " + kvstart + "; kvend = " + kvindex +
-               "; length = " + kvoffsets.length);
+      LOG.info("bufstart = " + numFormat.format(bufstart) + "; bufend = " + numFormat.format(bufmark) +
+               "; bufvoid = " + numFormat.format(bufvoid));
+      LOG.info("kvstart = " + numFormat.format(kvstart) + "; kvend = " + numFormat.format(kvindex) +
+               "; length = " + numFormat.format(kvoffsets.length));
       softBufferLimit = (int)(kvbuffer.length * spillper);
       softRecordLimit = (int)(kvoffsets.length * spillper);
       kvend = kvindex;
@@ -2038,11 +2081,13 @@ public class MapTask extends Task {
         }
     }
 
-    private void sortAndSpill(final CombineOutputCollector<K, V> combineCollector)
+    private void sortAndSpill(final CombineOutputCollector<K, V> combineCollector,
+          final int kvstart, final int kvend,
+          final int bufstart, final int bufend, final int bufvoid)
           throws IOException, ClassNotFoundException, InterruptedException {
       //approximate the length of the output file to be the length of the
       //buffer + header lengths for the partitions
-      LOG.info("Spilling! kvstart=" + kvstart + " kvend=" + kvend);
+      LOG.info("Spilling! kvstart=" + numFormat.format(kvstart) + " kvend=" + numFormat.format(kvend));
       long size = (bufend >= bufstart
           ? bufend - bufstart
           : (bufvoid - bufend) + bufstart) +
@@ -2055,12 +2100,12 @@ public class MapTask extends Task {
       final Path filename =
           mapOutputFile.getSpillFileForWrite(spillNo, size);
 
-      final IterateAndPartition iter;
       final int endPosition = (kvend > kvstart)
         ? kvend
         : kvoffsets.length + kvend;
       sorter.sort(MapOutputBuffer.this, kvstart, endPosition, reporter);
 
+      final IterateAndPartition iter;
       if (combinerRunner == null) {
           final int tmp_kvstart = kvstart;
           iter = new IterateAndPartition() {

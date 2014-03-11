@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.hadoop.mapreduce.OpenCLDriver;
 import org.apache.hadoop.io.ReadArrayUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.HadoopCLDataInput;
@@ -346,8 +347,9 @@ public class Merger {
     }
 
     public boolean next() throws IOException {
-      if (size() == 0)
+      if (size() == 0) {
         return false;
+      }
 
       if (minSegment != null) {
         //minSegment is non-null for all invocations of next except the first
@@ -374,11 +376,13 @@ public class Merger {
     }
 
     public HadoopCLDataInput getBulkReader() {
+      if (minSegment == null) {
         try {
             next();
         } catch (IOException io) {
             throw new RuntimeException(io);
         }
+      }
         return new HadoopCLDataInput() {
             DataInputBuffer current = key;
             boolean dontNext = true;
@@ -386,7 +390,9 @@ public class Merger {
 
             @Override
             public boolean hasMore() throws IOException {
-                if (!someLeft) return false;
+                if (!someLeft) {
+                    return false;
+                }
                 boolean hasMore = true;
                 if (!dontNext) {
                     hasMore = next();

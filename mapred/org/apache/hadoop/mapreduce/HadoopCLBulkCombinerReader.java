@@ -8,6 +8,7 @@ import java.nio.IntBuffer;
 import java.nio.DoubleBuffer;
 
 public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
+    private final int start;
     private final int end;
     private int current;
     private int currentBase;
@@ -25,7 +26,9 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
 
     public HadoopCLBulkCombinerReader(int start, int end, int[] kvoffsets,
         int[] kvindices, byte[] kvbuffer, int bufvoid) {
+
       this.current = start - 1;
+      this.start = start;
       this.end = end;
       this.kvoffsets = kvoffsets;
       this.kvindices = kvindices;
