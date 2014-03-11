@@ -213,7 +213,7 @@ public class OpenCLDriver {
       bufferRunner.addWork(buffer);
 
        // LOG:PROFILE
-       logger.log("start allocating input", this.clContext);
+       // logger.log("start allocating input", this.clContext);
       if (this.nAllocatedInputBuffers < this.nInputBuffers) {
           newBuffer = allocateNewInputBuffer();
       } else {
@@ -226,7 +226,7 @@ public class OpenCLDriver {
       }
       newBuffer.reset();
       // LOG:PROFILE
-      logger.log("done allocating input", this.clContext);
+      // logger.log("done allocating input", this.clContext);
 
       newBuffer.tracker = new HadoopCLGlobalId(bufferCounter++);
       newBuffer.resetProfile();
@@ -255,7 +255,7 @@ public class OpenCLDriver {
 
     final long startupTime = System.currentTimeMillis() - this.startTime;
     // LOG:PROFILE
-    logger.log("entering run", this.clContext);
+    // logger.log("entering run", this.clContext);
 
     if(this.clContext.getDevice() == null) {
         final long start = System.currentTimeMillis();
@@ -265,7 +265,7 @@ public class OpenCLDriver {
         String profileStr = profilesToString(javaProfile, startupTime, stop - start);
         System.out.println(profileStr);
         // LOG:PROFILE
-        logger.log("exiting run", this.clContext);
+        // logger.log("exiting run", this.clContext);
         return;
     }
 
@@ -350,7 +350,7 @@ public class OpenCLDriver {
 
     final long stop = System.currentTimeMillis();
     // LOG:PROFILE
-    logger.log("exiting run", this.clContext);
+    // logger.log("exiting run", this.clContext);
     String profileStr = profilesToString(stop - start, startupTime,
         bufferRunner.profiles());
     System.out.println(profileStr);

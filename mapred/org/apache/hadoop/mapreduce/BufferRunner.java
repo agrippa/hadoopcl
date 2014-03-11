@@ -102,12 +102,12 @@ public class BufferRunner implements Runnable {
         kernel.fill(inputBuffer);
         try {
             // LOG:PROFILE
-            OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(), this.clContext);
+            // OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(), this.clContext);
             // LOG:PROFILE
-            OpenCLDriver.logger.log("starting kernel", this.clContext);
+            // OpenCLDriver.logger.log("starting kernel", this.clContext);
             success = kernel.launchKernel();
             // LOG:PROFILE
-            OpenCLDriver.logger.log("returning from kernel start", this.clContext);
+            // OpenCLDriver.logger.log("returning from kernel start", this.clContext);
         } catch(Exception io) {
             throw new RuntimeException(io);
         }
@@ -142,7 +142,7 @@ public class BufferRunner implements Runnable {
     private void handleOpenCLCopy(HadoopCLKernel complete,
             HadoopCLOutputBuffer output) {
         // LOG:PROFILE
-        OpenCLDriver.logger.log("started reading from opencl", this.clContext);
+        // OpenCLDriver.logger.log("started reading from opencl", this.clContext);
         // LOG:DIAGNOSTIC
         // log("    Reading kernel "+complete.id+" into output buffer "+output.id);
         complete.prepareForRead(output);
@@ -156,7 +156,7 @@ public class BufferRunner implements Runnable {
         }
 
         // LOG:PROFILE
-        OpenCLDriver.logger.log("done reading from opencl", this.clContext);
+        // OpenCLDriver.logger.log("done reading from opencl", this.clContext);
         // LOG:DIAGNOSTIC
         // log("    Adding "+output.id+" to output buffers to write");
 
@@ -179,7 +179,7 @@ public class BufferRunner implements Runnable {
             // log("Waiting for more work");
             synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
-                OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
+                // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
                 while (this.somethingHappenedLocal.get() == false) {
                     try {
                         this.somethingHappenedLocal.wait();
@@ -188,7 +188,7 @@ public class BufferRunner implements Runnable {
                     }
                 }
                 // LOG:PROFILE
-                OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
+                // OpenCLDriver.logger.log("      Unblocking on spillDone", this.clContext);
 
                 this.somethingHappenedLocal.set(false);
             }
@@ -273,7 +273,7 @@ public class BufferRunner implements Runnable {
                             // log("  Detected completed kernel "+kernel.id);
 
                             // LOG:PROFILE
-                            OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
+                            // OpenCLDriver.logger.log("recovering completed kernel "+kernel.tracker.toString(), clContext);
 
                             kernel.openclProfile.stopKernel();
 
@@ -284,7 +284,7 @@ public class BufferRunner implements Runnable {
                                 // log("      Retrying kernel "+kernel.id+" due to willRequireRestart="+willRequireRestart);
                                 kernel.tracker.incrementAttempt();
                                 // LOG:PROFILE
-                                OpenCLDriver.logger.log("relaunching kernel "+kernel.tracker.toString(), clContext);
+                                // OpenCLDriver.logger.log("relaunching kernel "+kernel.tracker.toString(), clContext);
                                 try {
                                     if (!kernel.relaunchKernel()) {
                                         throw new RuntimeException("Failure to re-launch kernel");
@@ -298,7 +298,7 @@ public class BufferRunner implements Runnable {
                                 willRequireRestart = kernel.waitForCompletion();
                                 kernel.openclProfile.stopKernel();
                                 // LOG:PROFILE
-                                OpenCLDriver.logger.log("recovering relaunched kernel "+kernel.tracker.toString(), clContext);    
+                                // OpenCLDriver.logger.log("recovering relaunched kernel "+kernel.tracker.toString(), clContext);    
 
                                 // LOG:DIAGNOSTIC
                                 // log("  Detected completed kernel "+kernel.id);
@@ -377,7 +377,7 @@ public class BufferRunner implements Runnable {
     @Override
     public void run() {
         // LOG:PROFILE
-        OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
+        // OpenCLDriver.logger.log("Preallocating kernels", this.clContext);
 
         try {
             for (int i = 0; i < this.clContext.getNOutputBuffers(); i++) {
@@ -406,7 +406,7 @@ public class BufferRunner implements Runnable {
                 combinerDevice, this.clContext.getDeviceSlot());
         }
         // LOG:PROFILE
-        OpenCLDriver.logger.log("Done reallocating kernels", this.clContext);
+        // OpenCLDriver.logger.log("Done reallocating kernels", this.clContext);
 
         /*
          * I removed the condition !toWrite.isEmpty() because I'd rather
