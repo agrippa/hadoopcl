@@ -2941,8 +2941,7 @@ def writeKernelConstructor(fp, isMapper, nativeInputKeyType, nativeInputValueTyp
     fp.write('    }\n')
     fp.write('    public '+kernelClassName(isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)+'(HadoopOpenCLContext clContext, Integer id) {\n')
     fp.write('        super(clContext, id);\n')
-    # Just init to false, it gets actually set in fill
-    fp.write('        this.setStrided(false);\n')
+    fp.write('        this.setStrided(clContext.runningOnGPU());\n')
     fp.write('\n')
     fp.write('        this.arrayLengths.put("outputIterMarkers", this.clContext.getOutputBufferSize());\n')
     fp.write('        this.arrayLengths.put("memIncr", 1);\n')
@@ -3231,8 +3230,6 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     fp.write('        '+inputBufferClass+' inputBuffer = ('+inputBufferClass+')genericInputBuffer;\n')
 
     if isMapper and isVariableLength(nativeInputValType):
-        fp.write('        this.setStrided(inputBuffer.enableStriding);\n')
-        fp.write('\n')
         fp.write('        if (inputBuffer.enableStriding) {\n')
         fp.write('            int index = 0;\n')
         fp.write('            inputBuffer.individualInputValsCount = 0;\n')

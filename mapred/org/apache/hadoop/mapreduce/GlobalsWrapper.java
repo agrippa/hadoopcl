@@ -59,19 +59,58 @@ public class GlobalsWrapper {
             int countGlobals = metadata[0];
             int totalGlobals = metadata[1];
 
+            final int totalLength = (4 * countGlobals) + (4 * totalGlobals) +
+                (8 * totalGlobals) + (4 * totalGlobals) + (8 * totalGlobals) +
+                (4 * countGlobals * nGlobalBuckets);
+
             this.nGlobals = countGlobals;
-            this.globalIndices = ReadArrayUtils.readIntArray(input,
-                    countGlobals);
-            this.globalsInd = ReadArrayUtils.readIntArray(input, totalGlobals);
-            this.globalsVal = ReadArrayUtils.readDoubleArray(input,
-                    totalGlobals);
-            this.globalsMapInd = ReadArrayUtils.readIntArray(input,
-                    totalGlobals);
-            this.globalsMapVal = ReadArrayUtils.readDoubleArray(input,
-                    totalGlobals);
-            this.globalsMap = ReadArrayUtils.readIntArray(input,
-                    this.nGlobalBuckets * countGlobals);
+
+            final byte[] data = ReadArrayUtils.readBytesStatic(input, totalLength);
             input.close();
+            this.globalIndices = new int[countGlobals];
+            this.globalsInd = new int[totalGlobals];
+            this.globalsVal = new double[totalGlobals];
+            this.globalsMapInd = new int[totalGlobals];
+            this.globalsMapVal = new double[totalGlobals];
+            this.globalsMap = new int[nGlobalBuckets * countGlobals];
+
+            int currentOffset = 0;
+            final ByteBuffer bb = ByteBuffer.wrap(data);
+
+            bb.asIntBuffer().get(this.globalIndices);
+            currentOffset += this.globalIndices.length * 4;
+            bb.position(currentOffset);
+
+            bb.asIntBuffer().get(this.globalsInd);
+            currentOffset += this.globalsInd.length * 4;
+            bb.position(currentOffset);
+
+            bb.asDoubleBuffer().get(this.globalsVal);
+            currentOffset += this.globalsVal.length * 8;
+            bb.position(currentOffset);
+
+            bb.asIntBuffer().get(this.globalsMapInd);
+            currentOffset += this.globalsMapInd.length * 4;
+            bb.position(currentOffset);
+
+            bb.asDoubleBuffer().get(this.globalsMapVal);
+            currentOffset += this.globalsMapVal.length * 8;
+            bb.position(currentOffset);
+
+            bb.asIntBuffer().get(this.globalsMap);
+
+            // this.globalIndices = ReadArrayUtils.readIntArray(input,
+            //         countGlobals);
+            // this.globalsInd = ReadArrayUtils.readIntArray(input, totalGlobals);
+            // this.globalsVal = ReadArrayUtils.readDoubleArray(input,
+            //         totalGlobals);
+            // this.globalsMapInd = ReadArrayUtils.readIntArray(input,
+            //         totalGlobals);
+            // this.globalsMapVal = ReadArrayUtils.readDoubleArray(input,
+            //         totalGlobals);
+            // this.globalsMap = ReadArrayUtils.readIntArray(input,
+            //         this.nGlobalBuckets * countGlobals);
+            // input.close();
 
         } catch(IOException io) {
             throw new RuntimeException(io);

@@ -14,7 +14,8 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     private int currentBase;
     private int currentOffset;
     private int bufvoid;
-    
+   
+    private final byte[] aggregate = new byte[8];
     private final int[] kvoffsets;
     private final int[] kvindices;
     private final byte[] kvbuffer;
@@ -55,7 +56,7 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
 
     @Override
     public void nextKey() throws IOException {
-        int newCurr = current + 1;
+        final int newCurr = current + 1;
         if (newCurr < end) {
             final int kvoff = kvoffsets[newCurr % kvoffsets.length];
             this.currentBase = kvindices[kvoff + MapOutputBuffer.KEYSTART];
@@ -180,15 +181,31 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
         final int distToEnd = bufvoid - currentAbsolutePosition();
 
         if (distToEnd < lenInBytes) {
-            byte[] aggregate = new byte[lenInBytes];
-            System.arraycopy(kvbuffer, currentAbsolutePosition(),
-                aggregate, 0, distToEnd);
-            this.currentOffset += distToEnd;
-            System.arraycopy(kvbuffer, currentAbsolutePosition(),
-                aggregate, distToEnd, lenInBytes - distToEnd);
-            this.currentOffset += (lenInBytes - distToEnd);
+            int intsBeforeSplit = distToEnd / 4;
+            repositionIntBuffer().get(b, off, intsBeforeSplit);
+            this.currentOffset += (intsBeforeSplit * 4);
+            int remaining = len - intsBeforeSplit;
+            final int diff = distToEnd - (intsBeforeSplit * 4);
+            if (diff > 0) {
+                System.arraycopy(kvbuffer, currentAbsolutePosition(), this.aggregate, 0, diff);
+                System.arraycopy(kvbuffer, 0, this.aggregate, diff, 4 - diff);
+                b[off + intsBeforeSplit] = ByteBuffer.wrap(this.aggregate).getInt();
+                remaining--;
+                this.currentOffset += 4;
+                intsBeforeSplit++;
+            }
+            repositionIntBuffer().get(b, off + intsBeforeSplit, remaining);
+            this.currentOffset += (remaining * 4);
 
-            ByteBuffer.wrap(aggregate).asIntBuffer().get(b, off, len);
+            // byte[] aggregate = new byte[lenInBytes];
+            // System.arraycopy(kvbuffer, currentAbsolutePosition(),
+            //     aggregate, 0, distToEnd);
+            // this.currentOffset += distToEnd;
+            // System.arraycopy(kvbuffer, currentAbsolutePosition(),
+            //     aggregate, distToEnd, lenInBytes - distToEnd);
+            // this.currentOffset += (lenInBytes - distToEnd);
+
+            // ByteBuffer.wrap(aggregate).asIntBuffer().get(b, off, len);
         } else {
             repositionIntBuffer().get(b, off, len);
             this.currentOffset += lenInBytes;
@@ -201,15 +218,34 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
         final int distToEnd = bufvoid - currentAbsolutePosition();
 
         if (distToEnd < lenInBytes) {
-            byte[] aggregate = new byte[lenInBytes];
-            System.arraycopy(kvbuffer, currentAbsolutePosition(),
-                aggregate, 0, distToEnd);
-            this.currentOffset += distToEnd;
-            System.arraycopy(kvbuffer, currentAbsolutePosition(),
-                aggregate, distToEnd, lenInBytes - distToEnd);
-            this.currentOffset += (lenInBytes - distToEnd);
 
-            ByteBuffer.wrap(aggregate).asDoubleBuffer().get(b, off, len);
+            int doublesBeforeSplit = distToEnd / 8;
+            repositionDoubleBuffer().get(b, off, doublesBeforeSplit);
+            this.currentOffset += (doublesBeforeSplit * 8);
+            int remaining = len - doublesBeforeSplit;
+            final int diff = distToEnd - (doublesBeforeSplit * 8);
+            if (diff > 0) {
+                System.arraycopy(kvbuffer, currentAbsolutePosition(),
+                    this.aggregate, 0, diff);
+                System.arraycopy(kvbuffer, 0, this.aggregate, diff, 8 - diff);
+                b[off + doublesBeforeSplit] = ByteBuffer.wrap(this.aggregate).getDouble();
+                remaining--;
+                this.currentOffset += 8;
+                doublesBeforeSplit++;
+            }
+            repositionDoubleBuffer().get(b, off + doublesBeforeSplit, remaining);
+            this.currentOffset += (remaining * 8);
+
+
+            // byte[] aggregate = new byte[lenInBytes];
+            // System.arraycopy(kvbuffer, currentAbsolutePosition(),
+            //     aggregate, 0, distToEnd);
+            // this.currentOffset += distToEnd;
+            // System.arraycopy(kvbuffer, currentAbsolutePosition(),
+            //     aggregate, distToEnd, lenInBytes - distToEnd);
+            // this.currentOffset += (lenInBytes - distToEnd);
+
+            // ByteBuffer.wrap(aggregate).asDoubleBuffer().get(b, off, len);
         } else {
             repositionDoubleBuffer().get(b, off, len);
             this.currentOffset += lenInBytes;

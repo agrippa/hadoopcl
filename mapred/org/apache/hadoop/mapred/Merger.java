@@ -387,6 +387,7 @@ public class Merger {
             DataInputBuffer current = key;
             boolean dontNext = true;
             boolean someLeft = true;
+            private final ReadArrayUtils utils = new ReadArrayUtils();
 
             @Override
             public boolean hasMore() throws IOException {
@@ -428,18 +429,15 @@ public class Merger {
 
             @Override
             public void readFully(int[] b, int offset, int len) throws IOException {
-                final int[] arr = ReadArrayUtils.readIntArray(current, len);
-                System.arraycopy(arr, 0, b, offset, len);
+                utils.readIntArrayDynamic(current, b, offset, len);
             }
             @Override
             public void readFully(double[] b, int offset, int len) throws IOException {
-                final double[] arr = ReadArrayUtils.readDoubleArray(current, len);
-                System.arraycopy(arr, 0, b, offset, len);
+                utils.readDoubleArrayDynamic(current, b, offset, len);
             }
             @Override
             public void readFully(float[] b, int offset, int len) throws IOException {
-                final float[] arr = ReadArrayUtils.readFloatArray(current, len);
-                System.arraycopy(arr, 0, b, offset, len);
+                utils.readFloatArrayDynamic(current, b, offset, len);
             }
             @Override
             public int readInt() throws IOException {
