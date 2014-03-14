@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.util.Map;
 import java.util.HashSet;
 import com.amd.aparapi.Kernel;
 import com.amd.aparapi.device.Device;
@@ -459,7 +460,7 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     @Override
-    public String getKernelFile() {
+    public Map<Device.TYPE, String> getKernelFile() {
         return null;
     }
 
