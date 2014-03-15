@@ -321,9 +321,12 @@ public abstract class HadoopCLKernel extends Kernel {
      */
     public int merge(HadoopCLSvecValueIterator valsIter,
             int[] outputIndices, double[] outputVals, int totalNElements,
-            int[] indicesIntoVectors,
-            int[] queueOfSparseIndices, int[] queueOfSparseIndicesLinks,
-            int[] queueOfVectors) {
+            double[] preallocDouble, int[] preallocInt) {
+
+        int[] indicesIntoVectors = preallocInt;
+        int[] queueOfSparseIndices = new int[valsIter.nValues()];
+        int[] queueOfVectors = new int[valsIter.nValues()];
+        int[] queueOfSparseIndicesLinks = new int[valsIter.nValues()];
 
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
