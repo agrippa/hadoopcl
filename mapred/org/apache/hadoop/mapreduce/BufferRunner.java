@@ -127,7 +127,7 @@ public class BufferRunner implements Runnable {
             prof.stopWrite(buffer);
             if (newProgress == -1) {
                 // LOG:DIAGNOSTIC
-                // log("    Done writing "+soFar.buffer().id+", releasing");
+                // log("    Done writing "+buffer.id+", releasing");
                 synchronized (freeOutputBuffers) {
                     this.freeOutputBuffers.add(buffer);
                     freeOutputBuffers.notify();
@@ -205,10 +205,6 @@ public class BufferRunner implements Runnable {
                 final HadoopCLKernel kernel =
                     this.clContext.thisKernelConstructor.newInstance(
                             this.clContext, i);;
-                kernel.doEntrypointInit(this.clContext.getDevice(),
-                    this.clContext.getDeviceSlot(),
-                    this.clContext.getContext().getTaskAttemptID().getTaskID().getId(),
-                    this.clContext.getContext().getTaskAttemptID().getId());
 
                 kernelThreads[i] = new Thread(new Runnable() {
 
@@ -232,6 +228,11 @@ public class BufferRunner implements Runnable {
 
                     @Override
                     public void run() {
+                        kernel.doEntrypointInit(clContext.getDevice(),
+                            clContext.getDeviceSlot(),
+                            clContext.getContext().getTaskAttemptID().getTaskID().getId(),
+                            clContext.getContext().getTaskAttemptID().getId());
+
                         final List<HadoopCLProfile> localProfiles = new LinkedList<HadoopCLProfile>();
                         while (true) {
                             final HadoopCLInputBuffer input;
@@ -405,8 +406,9 @@ public class BufferRunner implements Runnable {
                 Kernel.TaskType.COMBINER, this.clContext.nCombinerKernels(),
                 combinerDevice, this.clContext.getDeviceSlot());
         }
+
         // LOG:PROFILE
-        // OpenCLDriver.logger.log("Done reallocating kernels", this.clContext);
+        // OpenCLDriver.logger.log("Done preallocating kernels", this.clContext);
 
         /*
          * I removed the condition !toWrite.isEmpty() because I'd rather
