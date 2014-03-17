@@ -52,7 +52,6 @@ public class HadoopOpenCLContext {
     private final int preallocDoubleLength;
     private final int outputBufferSpillChunk;
     private String deviceString;
-    private int nVectorsToBuffer;
 
     private boolean isCombiner;
     private final boolean jobHasCombiner;
@@ -178,13 +177,6 @@ public class HadoopOpenCLContext {
         this.threadsPerGroup = Integer.parseInt(threadsPerGroupStr);
       } else {
         this.threadsPerGroup = 256;
-      }
-
-      String vectorsToBufferStr = System.getProperty("opencl.vectorsToBuffer");
-      if (vectorsToBufferStr != null) {
-        this.nVectorsToBuffer = Integer.parseInt(vectorsToBufferStr);
-      } else {
-        this.nVectorsToBuffer = 65536;
       }
 
       try {
@@ -323,10 +315,6 @@ public class HadoopOpenCLContext {
 
     public String typeName() {
         return this.type;
-    }
-
-    public int getNVectorsToBuffer() {
-        return this.nVectorsToBuffer;
     }
 
     public int isGPU() {
