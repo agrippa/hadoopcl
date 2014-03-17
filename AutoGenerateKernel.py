@@ -3209,19 +3209,6 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('            } // while (lengthIter)\n')
         fp.write('        } // if (enableStriding)\n')
         fp.write('\n')
-
-    # if not isMapper:
-    #     fp.write('        if(this.outputsPerInput < 0 && (outputBuffer.outputKeys == null || outputBuffer.outputKeys.length < inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey)) {\n')
-    #     writeln(visitor(nativeOutputKeyType).getMarkerInit(
-    #         'outputBuffer.outputIterMarkers', 'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False),
-    #         3, fp)
-    #     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputBuffer.outputKey',
-    #         'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False, False, isMapper, True),
-    #         3, fp)
-    #     writeln(visitor(nativeOutputValType).getKeyValInit('outputBuffer.outputVal',
-    #         'inputBuffer.nKeys * inputBuffer.maxInputValsPerInputKey', False, False, isMapper, False),
-    #         3, fp)
-    #     fp.write('        }\n')
     fp.write('        this.preKernelSetup(')
 
     write(visitor(nativeInputKeyType).getFillParameter('inputBuffer.inputKey', True, isMapper), 0, fp)
