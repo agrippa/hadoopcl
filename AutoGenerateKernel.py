@@ -2496,10 +2496,6 @@ def outputBufferClassName(isMapper, inputKeyType, inputValueType):
     return typeNameForClassName(inputKeyType)+typeNameForClassName(inputValueType)+ \
         'HadoopCLOutput'+('Mapper' if isMapper else 'Reducer')+'Buffer'
 
-# def bufferClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType):
-#     return classNameHelper(isMapper, inputKeyType, inputValueType, outputKeyType, 
-#             outputValueType, 'HadoopCL', 'Buffer')
-
 def generateWriteWithOffsetSig(outputKeyType, outputValType, fp):
     fp.write('\n')
     fp.write('    protected boolean write(')
@@ -2603,61 +2599,7 @@ def writeHeader(fp, isMapper):
         fp.write('import org.apache.hadoop.mapreduce.Reducer.Context;\n')
     fp.write('\n')
 
-# def writePopulatesMethod(fp, nativeOutputKeyType, nativeOutputValueType):
-#     fp.write('\n')
-#     fp.write('    @Override\n')
-#     fp.write('    public void populate(Object genericReducerKeys, Object genericReducerValues, int[] keyIndex) {\n')
-#     if isNonPrimitive(nativeOutputValueType):
-#         fp.write('        throw new RuntimeException("Invalid to call populate on mapper with non-primitive output");\n')
-#     else:
-#         fp.write('        int[] privateKeyIndex = new int[keyIndex.length];\n')
-#         fp.write('        System.arraycopy(keyIndex, 0, privateKeyIndex, 0, keyIndex.length);\n')
-#         fp.write('        '+nativeOutputKeyType+'[] reducerKeys = ('+nativeOutputKeyType+'[])genericReducerKeys;\n')
-#         fp.write('        '+nativeOutputValueType+'[] reducerValues = ('+nativeOutputValueType+'[])genericReducerValues;\n')
-#         fp.write('\n')
-#         
-#         firstLines = [ ]
-#         firstLines.append('                          int index = 0;\n')
-#         firstLines.append('                          while(reducerKeys[index] != this.outputKeys[DUMMY]) index++;\n')
-#         firstLines.append('                          reducerValues[privateKeyIndex[index]++] = this.outputVals[DUMMY];\n')
-#         
-#         secondLines = [ ]
-#         secondLines.append('                          int index = 0;\n')
-#         secondLines.append('                          while(reducerKeys[index] != this.outputKeys[DUMMY]) index++;\n')
-#         secondLines.append('                          reducerValues[privateKeyIndex[index]++] = this.outputVals[DUMMY];\n')
-#         
-#         writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLines, secondLines)
-#         
-#     fp.write('    }\n')
-
-# def writeKeyCountsMethod(fp, nativeOutputKeyType, nativeOutputValueType, hadoopOutputKeyType, hadoopOutputValueType):
-#     fp.write('\n')
-#     fp.write('    @Override\n')
-#     fp.write('    public HashMap getKeyCounts() {\n')
-#     if isNonPrimitive(nativeOutputValueType):
-#         fp.write('        throw new RuntimeException("Invalid to call getKeyCounts on mapper with non-primitive output");\n')
-#     else:
-#         fp.write('        HashMap<'+hadoopOutputKeyType+'Writable, HadoopCLMutableInteger> keyCounts = new HashMap<'+hadoopOutputKeyType+'Writable, HadoopCLMutableInteger>();\n')
-#         
-#         firstLines = [ ]
-#         firstLines.append('                           '+hadoopOutputKeyType+'Writable temp = new '+hadoopOutputKeyType+'Writable(this.outputKeys[DUMMY]);\n')
-#         firstLines.append('                           if(!keyCounts.containsKey(temp)) keyCounts.put(temp, new HadoopCLMutableInteger());\n')
-#         firstLines.append('                           keyCounts.get(temp).incr();\n')
-#         
-#         secondLines = [ ]
-#         secondLines.append('                               '+hadoopOutputKeyType+'Writable temp = new '+hadoopOutputKeyType+'Writable(this.outputKeys[DUMMY]);\n')
-#         secondLines.append('                               if(!keyCounts.containsKey(temp)) keyCounts.put(temp, new HadoopCLMutableInteger());\n')
-#         secondLines.append('                               keyCounts.get(temp).incr();\n')
-#         
-#         writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLines, secondLines)
-#         
-#         fp.write('        return keyCounts;\n')
-#     fp.write('    }\n')
-
 def writeOutputBufferInit(isMapper, fp, nativeOutputKeyType, nativeOutputValueType):
-    # writeln(visitor(nativeOutputKeyType).getMarkerInit(
-    #     'outputIterMarkers', 'this.clContext.getOutputBufferSize()',
-    #         False), 3, fp)
     writeln(visitor(nativeOutputKeyType).getKeyValInit('outputKey',
         'this.clContext.getOutputBufferSize()', False, False,
             isMapper, True), 3, fp)
@@ -2791,7 +2733,6 @@ def writePostKernelSetupMethod(fp, isMapper, nativeOutputKeyType, nativeOutputVa
     fp.write('        this.memWillRequireRestart = setMemWillRequireRestart;\n')
     fp.write('\n')
 
-    # writeln(visitor(nativeOutputValueType).getSetLengths(), 2, fp)
     fp.write('        this.outputIterMarkers = outputIterMarkers;\n')
 
     if nativeOutputValueType == 'svec' or nativeOutputValueType == 'bsvec':
@@ -2818,10 +2759,6 @@ def writePreKernelSetupDeclaration(fp, isMapper, nativeInputKeyType, nativeInput
     write(visitor(nativeInputKeyType).getSetupParameter('inputKey', True, True), 0, fp)
     fp.write(', ')
     write(visitor(nativeInputValueType).getSetupParameter('inputVal', True, False), 0, fp)
-    # fp.write(', ')
-    # write(visitor(nativeOutputKeyType).getSetupParameter('outputKey', False, True), 0, fp)
-    # fp.write(', ')
-    # write(visitor(nativeOutputValueType).getSetupParameter('outputVal', False, False), 0, fp)
 
     if isMapper:
         fp.write(', int[] setNWrites, int setNPairs')
@@ -3103,7 +3040,6 @@ def writeToHadoopLoop(fp, nativeOutputKeyType, nativeOutputValueType, firstLoopL
     fp.write('                   } while(someLeft);\n')
     fp.write('               }\n')
     fp.write('            }\n')
-    # fp.write('            context.setUsingOpenCL(true);\n')
     fp.write('            return -1;\n')
 
 def writeToHadoopMethod(fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType, nativeOutputKeyType, nativeOutputValueType):
@@ -3214,13 +3150,6 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     write(visitor(nativeInputKeyType).getFillParameter('inputBuffer.inputKey', True, isMapper), 0, fp)
     fp.write(', ')
     write(visitor(nativeInputValType).getFillParameter('inputBuffer.inputVal', True, isMapper), 0, fp)
-    # fp.write(', ')
-    # write(visitor(nativeOutputKeyType).getFillParameter('outputBuffer.outputKey', False, isMapper), 0, fp)
-    # fp.write(', ')
-    # write(visitor(nativeOutputValType).getFillParameter('outputBuffer.outputVal', False, isMapper), 0, fp)
-
-    # if isVariableLength(nativeOutputValType):
-    #     fp.write(', outputBuffer.outputValLengthBuffer')
 
     if isMapper:
         fp.write(', inputBuffer.nWrites, inputBuffer.nPairs')
@@ -3230,14 +3159,6 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
     if isVariableLength(nativeInputValType):
         fp.write(', inputBuffer.individualInputValsCount')
 
-    # if nativeOutputValType == 'svec' or nativeOutputValType == 'bsvec':
-    #     fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxDoubleIncr')
-    # elif nativeOutputValType == 'ivec':
-    #     fp.write(', outputBuffer.memAuxIncr')
-    # elif nativeOutputValType == 'fsvec':
-    #     fp.write(', outputBuffer.memAuxIntIncr, outputBuffer.memAuxFloatIncr')
-
-    # fp.write(', outputBuffer.memIncr, this.outputsPerInput, outputBuffer.outputIterMarkers);\n')
     fp.write(');\n')
     fp.write('    }\n')
     fp.write('\n')
@@ -3386,9 +3307,6 @@ def writeKeyValueIteratorDefs(fp, nativeOutputKeyType, nativeOutputValueType, is
     fp.write('\n')
     fp.write('    }\n')
     fp.write('\n')
-    # fp.write('    @Override\n')
-    # fp.write('    public HadoopCLKeyValueIterator getKeyValueIterator(List<OutputBufferSoFar> toWrite, int numReduceTasks) {\n')
-    # fp.write('        return new KeyValueIterator(toWrite, numReduceTasks, this);\n')
     fp.write('    }\n')
     fp.write('\n')
 
@@ -3417,9 +3335,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     input_fp = open('mapred/org/apache/hadoop/mapreduce/'+inputBufferClassName(isMapper, inputKeyType, inputValueType)+'.java', 'w')
     output_fp = open('mapred/org/apache/hadoop/mapreduce/'+outputBufferClassName(isMapper, outputKeyType, outputValueType)+'.java', 'w')
 
-    # bufferfp = open('mapred/org/apache/hadoop/mapreduce/'+
-    #     bufferClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType)+'.java', 'w')
-
     kernelfp = open('mapred/org/apache/hadoop/mapreduce/'+
         kernelClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType)+'.java', 'w')
 
@@ -3433,9 +3348,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     output_fp.write('public final class '+
             outputBufferClassName(isMapper, outputKeyType, outputValueType)+' extends HadoopCLOutput'+
             capitalizedKernelString(isMapper)+'Buffer implements KVCollection<'+hadoopOutputKeyType+'Writable, '+hadoopOutputValueType+'Writable> {\n')
-    # bufferfp.write('public class '+
-    #     bufferClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType)+' extends HadoopCL'+
-    #     capitalizedKernelString(isMapper)+'Buffer {\n')
 
     kernelfp.write('public abstract class '+
         kernelClassName(isMapper, inputKeyType, inputValueType, outputKeyType, outputValueType)+' extends HadoopCL'+
@@ -3533,8 +3445,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     writeln(visitor(nativeInputValueType).getKeyValDecl('inputVal', isMapper, True, True, False), 1, kernelfp)
     writeln(visitor(nativeOutputKeyType).getKeyValDecl('outputKey', isMapper, False, True, False), 1, kernelfp)
     writeln(visitor(nativeOutputValueType).getKeyValDecl('outputVal', isMapper, False, True, False), 1, kernelfp)
-    # kernelfp.write('    final private '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
-    # kernelfp.write('    final private '+hadoopOutputValueType+'Writable valObj = new '+hadoopOutputValueType+'Writable();\n')
     kernelfp.write('\n')
     generateKernelDecl(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
@@ -3586,8 +3496,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         writeRemoveLastKeyMethod(input_fp, nativeInputValueType)
         writeTransferLastKeyMethod(input_fp, nativeInputKeyType, nativeInputValueType)
 
-    # writeTransferBufferedValues(input_fp, isMapper)
-
     writeToHadoopMethod(output_fp, isMapper, hadoopOutputKeyType, hadoopOutputValueType, nativeOutputKeyType, nativeOutputValueType)
     output_fp.write('    @Override\n')
     output_fp.write('    public Class<?> getOutputKeyClass() { return '+hadoopOutputKeyType+'Writable.class; }\n')
@@ -3595,8 +3503,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     output_fp.write('    public Class<?> getOutputValClass() { return '+hadoopOutputValueType+'Writable.class; }\n')
 
     writeOutputBufferConstructor(output_fp, isMapper, nativeOutputKeyType, nativeOutputValueType)
-
-    # writeResetForAnotherAttempt(input_fp, isMapper, nativeInputKeyType, nativeInputValueType)
 
     writeSpace(input_fp, isMapper, nativeInputKeyType, nativeInputValueType, True)
     writeSpace(output_fp, isMapper, nativeOutputKeyType, nativeOutputValueType, False)
@@ -3608,8 +3514,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     else:
         kernelfp.write('        return false;\n')
     kernelfp.write('    }\n')
-
-    # generateCloneIncompleteMethod(bufferfp, isMapper, nativeInputKeyType, nativeInputValueType, nativeOutputKeyType, nativeOutputValueType)
 
     kernelfp.write('\n')
     kernelfp.write('    private final '+hadoopOutputKeyType+'Writable keyObj = new '+hadoopOutputKeyType+'Writable();\n')
@@ -3668,7 +3572,6 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
 
     writeGetPartitionFor(output_fp, nativeOutputKeyType)
     output_fp.write('\n')
-    # writeKeyValueIteratorDefs(output_fp, nativeOutputKeyType, nativeOutputValueType, isMapper)
 
     input_fp.write('}\n\n')
     output_fp.write('}\n\n')
