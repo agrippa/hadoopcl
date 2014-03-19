@@ -3119,6 +3119,23 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('        if (inputBuffer.enableStriding) {\n')
         fp.write('            int index = 0;\n')
         fp.write('            inputBuffer.individualInputValsCount = 0;\n')
+        fp.write('            final int maxLength = inputBuffer.sortedVals.lastKey();\n')
+        fp.write('            final int nMaxLengthVectors = inputBuffer.sortedVals.get(maxLength).size();\n')
+        fp.write('            final int maxBufLength = ((nMaxLengthVectors - 1) + ((maxLength - 1) * inputBuffer.nPairs)) + 1;\n')
+        if nativeInputValType == 'svec' or nativeInputValType == 'bsvec':
+            fp.write('            if (inputBuffer.inputValIndices.length < maxBufLength) {\n')
+            fp.write('                inputBuffer.inputValIndices = new int[maxBufLength];\n')
+            fp.write('                inputBuffer.inputValVals = new double[maxBufLength];\n')
+            fp.write('            }\n')
+        elif nativeInputValType == 'fsvec':
+            fp.write('            if (inputBuffer.inputValIndices.length < maxBufLength) {\n')
+            fp.write('                inputBuffer.inputValIndices = new int[maxBufLength];\n')
+            fp.write('                inputBuffer.inputValVals = new float[maxBufLength];\n')
+            fp.write('            }\n')
+        else:
+            fp.write('            if (inputBuffer.inputVals.length < maxBufLength) {\n')
+            fp.write('                inputBuffer.inputVals = new int[maxBufLength];\n')
+            fp.write('            }\n')
         fp.write('            Iterator<Integer> lengthIter = inputBuffer.sortedVals.descendingKeySet().iterator();\n')
         fp.write('            while (lengthIter.hasNext()) {\n')
         fp.write('                LinkedList<IndValWrapper> pairs = inputBuffer.sortedVals.get(lengthIter.next());\n')
@@ -3126,11 +3143,6 @@ def generateFill(fp, isMapper, nativeInputKeyType, nativeInputValType, nativeOut
         fp.write('                while (pairsIter.hasNext()) {\n')
         fp.write('                    IndValWrapper curr = pairsIter.next();\n')
         fp.write('                    inputBuffer.inputValLookAsideBuffer[index] = inputBuffer.individualInputValsCount;\n')
-        if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
-            fp.write('                    inputBuffer.inputValIndices = ensureCapacity(inputBuffer.inputValIndices, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
-            fp.write('                    inputBuffer.inputValVals = ensureCapacity(inputBuffer.inputValVals, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
-        else:
-            fp.write('                    inputBuffer.inputVals = ensureCapacity(inputBuffer.inputVals, (index + ((curr.length - 1) * inputBuffer.nPairs)) + 1);\n')
         fp.write('                    for (int i = 0; i < curr.length; i++) {\n')
         if nativeInputValType == 'svec' or nativeInputValType == 'fsvec' or nativeInputValType == 'bsvec':
             fp.write('                        inputBuffer.inputValIndices[index + (i * inputBuffer.nPairs)] = curr.indices[i];\n')

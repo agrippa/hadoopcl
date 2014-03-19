@@ -88,6 +88,7 @@ public class BufferRunner implements Runnable {
     public void addWork(HadoopCLInputBuffer input) {
         // LOG:DIAGNOSTIC
         // log("Placing input buffer "+(input == null ? "null" : input.id)+" from main");
+
         synchronized (toRun) {
             this.toRun.add(input);
             this.toRun.notify();
