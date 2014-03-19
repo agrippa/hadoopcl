@@ -41,10 +41,6 @@ import org.apache.hadoop.util.ProcessTree;
 import org.apache.hadoop.util.ProcessTree.Signal;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
 
-import com.amd.aparapi.internal.opencl.OpenCLPlatform;
-import com.amd.aparapi.device.OpenCLDevice;
-import com.amd.aparapi.device.Device.TYPE;
-
 class JvmManager {
 
   public static final Log LOG =

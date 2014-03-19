@@ -26,9 +26,15 @@ import com.amd.aparapi.device.OpenCLDevice;
 import com.amd.aparapi.device.Device.TYPE;
 
 public abstract class HadoopCLScheduler {
+    // List of available device types in a platform, indexed by device id
     protected final List<Device.TYPE> deviceTypes;
+    // Current number of tasks placed on each device, does not account for
+    // compute units of subdivided devices
     protected final int[] deviceOccupancy;
+    // For each device that can be subdivided, the occupancy of those children
+    // compute units
     protected final Map<Integer, int[]> subDeviceOccupancy;
+    // Mapping from task attempt to device it is running on
     protected final ConcurrentHashMap<TaskAttemptID, DeviceLoad> taskToDevice;
 
     public abstract void removeTaskLoad(Task task, TaskStatus taskStatus, 
@@ -40,17 +46,14 @@ public abstract class HadoopCLScheduler {
       this.subDeviceOccupancy = new HashMap<Integer, int[]>();
       this.deviceTypes = new ArrayList<Device.TYPE>();
       final List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
-      System.out.println("DIAGNOSTICS: Found "+platforms.size()+" OpenCL platforms");
       int platformId = 0;
       int deviceId = 0;
       for(OpenCLPlatform platform : platforms) {
-          System.out.println("DIAGNOSTICS:     Platform "+platformId+" has "+platform.getOpenCLDevices().size()+" devices");
           for(OpenCLDevice device : platform.getOpenCLDevices()) {
-              System.out.println("DIAGNOSTICS:         "+deviceTypeString(device.getType()));
               deviceTypes.add(device.getType());
               if (device.getType() == Device.TYPE.CPU) {
-                  System.out.println("DIAGNOSTICS: Creating subdividable device "+deviceId+" with "+device.getMaxComputeUnits()+" compute units");
-                  this.subDeviceOccupancy.put(deviceId, new int[device.getMaxComputeUnits()]);
+                  this.subDeviceOccupancy.put(deviceId,
+                          new int[device.getMaxComputeUnits()]);
               }
               deviceId++;
           }
@@ -68,7 +71,8 @@ public abstract class HadoopCLScheduler {
 
     public int[] getOccupancyCopy() {
         int[] copy = new int[this.deviceOccupancy.length];
-        System.arraycopy(this.deviceOccupancy, 0, copy, 0, this.deviceOccupancy.length);
+        System.arraycopy(this.deviceOccupancy, 0, copy, 0,
+                this.deviceOccupancy.length);
         return copy;
     }
 
@@ -90,8 +94,6 @@ public abstract class HadoopCLScheduler {
 
     protected String deviceTypeString(Device.TYPE type) {
         switch(type) {
-            case UNKNOWN:
-                return "UNKNOWN";
             case GPU:
                 return "GPU";
             case CPU:
@@ -110,13 +112,15 @@ public abstract class HadoopCLScheduler {
             throws IOException {
         String taskClassName = task.getMainClassName(conf);
         if(taskClassName == null) return null;
+
+        // Construct class loader
         String jarStr = conf.getJar();
         JarFile jarFile = new JarFile(jarStr);
         Enumeration e = jarFile.entries();
         URL[] urls = { new URL("jar:file:"+jarStr+"!/") };
-        ClassLoader cl = null;
-        cl = URLClassLoader.newInstance(urls);
+        ClassLoader cl = URLClassLoader.newInstance(urls);
 
+        // Locate class for current task
         Class taskClass = null;
         while(e.hasMoreElements()) {
             JarEntry je = (JarEntry)e.nextElement();
@@ -135,13 +139,12 @@ public abstract class HadoopCLScheduler {
             }
         }
 
+        // Construct kernel object from this task's main class
         HadoopCLKernel kernel = null;
-
         try {
             Constructor<? extends HadoopCLKernel> c = taskClass.getConstructor(
                 new Class[] { HadoopOpenCLContext.class, Integer.class });
-            kernel = c.newInstance(new HadoopOpenCLContext(),
-                -1);
+            kernel = c.newInstance(new HadoopOpenCLContext(), -1);
         } catch(Exception ex) {
             throw new RuntimeException("Exception loading kernel class in TaskTracker ("+jarStr+" | "+taskClassName+")", ex);
         }

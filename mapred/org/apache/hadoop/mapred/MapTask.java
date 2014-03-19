@@ -126,10 +126,8 @@ public class MapTask extends Task {
           final String deviceStr = System.getProperty("opencl.device");
           if (deviceStr != null) {
             final OpenCLDevice dev = HadoopOpenCLContext.findDevice(Integer.parseInt(deviceStr));
-            if (dev.getType() == Device.TYPE.GPU ||
-                dev.getType() == Device.TYPE.CPU) {
-              result = true;
-            }
+            result = dev.getType() == Device.TYPE.GPU ||
+                dev.getType() == Device.TYPE.CPU;
           }
         }
       } catch(Exception e) { }

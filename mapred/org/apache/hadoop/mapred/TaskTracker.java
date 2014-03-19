@@ -855,9 +855,9 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     setIndexCache(new IndexCache(this.fConf));
 
     try {
-        Class mapSchedulerClass = fConf.getClass(JobContext.OCL_MAP_SCHEDULER,
+        final Class mapSchedulerClass = fConf.getClass(JobContext.OCL_MAP_SCHEDULER,
                 fConf.getClassByName("org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler"));
-        Class reduceSchedulerClass = fConf.getClass(JobContext.OCL_REDUCE_SCHEDULER,
+        final Class reduceSchedulerClass = fConf.getClass(JobContext.OCL_REDUCE_SCHEDULER,
                 fConf.getClassByName("org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler"));
         this.mapScheduler = (HadoopCLScheduler)mapSchedulerClass.newInstance();
         this.reduceScheduler = (HadoopCLScheduler)reduceSchedulerClass.newInstance();
@@ -886,9 +886,11 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     File recordingsFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+"-"+fileID+".recordings");
     while(recordingsFile.isFile()) {
         fileID = rand.nextInt(50000);
-        recordingsFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+"-"+fileID+".recordings");
+        recordingsFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+
+                "-"+fileID+".recordings");
     }
-    File launchesFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+"-"+fileID+".launches");
+    File launchesFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+
+            "-"+fileID+".launches");
 
     if(this.mapScheduler instanceof HadoopCLPredictiveScheduler ||
             this.reduceScheduler instanceof HadoopCLPredictiveScheduler) {
@@ -907,8 +909,10 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         }
 
         if(this.mapScheduler instanceof HadoopCLPredictiveScheduler) {
-            ((HadoopCLPredictiveScheduler)this.mapScheduler).setRecordingsFile(recordingsWriter);
-            ((HadoopCLPredictiveScheduler)this.mapScheduler).setLaunchesFile(launchesWriter);
+            ((HadoopCLPredictiveScheduler)this.mapScheduler).setRecordingsFile(
+                recordingsWriter);
+            ((HadoopCLPredictiveScheduler)this.mapScheduler).setLaunchesFile(
+                launchesWriter);
         }
         if(this.reduceScheduler instanceof HadoopCLPredictiveScheduler) {
             ((HadoopCLPredictiveScheduler)this.reduceScheduler).setRecordingsFile(recordingsWriter);
@@ -2813,7 +2817,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         localizeTask(task);
 
         long start = System.currentTimeMillis();
-        DeviceAssignment assignment = this.scheduler.bestCandidateDevice(task, this.localJobConf);
+        DeviceAssignment assignment = this.scheduler.bestCandidateDevice(task,
+                this.localJobConf);
         long stop = System.currentTimeMillis();
 
         System.out.println("DIAGNOSTICS: Assigning task " +
@@ -2822,7 +2827,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
             (assignment.speculative() ? "speculative" : "non-speculative") +
             ", took "+(stop-start)+" ms");
 
-        this.setAssignedDevice(assignment.device(), this.scheduler.numDevices());
+        this.setAssignedDevice(assignment.device(),
+                this.scheduler.numDevices());
         this.setAssignedDeviceSlot(assignment.device_slot());
         this.setCombinerDeviceType(Device.TYPE.CPU);
         this.setIsSpeculative(assignment.speculative());
@@ -3537,8 +3543,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
       boolean keepAlive = true;
 
-      HadoopCLScheduler scheduler = (tip.getTask().isMapTask() ? this.mapScheduler : 
-            this.reduceScheduler);
+      final HadoopCLScheduler scheduler = (tip.getTask().isMapTask() ?
+              this.mapScheduler : this.reduceScheduler);
 
       int[] currentOccupancy = scheduler.getOccupancyCopy();
       tip.addToOccupancyHistory(currentOccupancy);
@@ -3547,20 +3553,23 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
           scheduler instanceof HadoopCLPredictiveScheduler &&
               tip.getStatus().getProcessingStart() != -1L) {
 
-          HadoopCLPredictiveScheduler predictiveSched = (HadoopCLPredictiveScheduler)scheduler;
+          HadoopCLPredictiveScheduler predictiveSched =
+              (HadoopCLPredictiveScheduler)scheduler;
 		  //TODO improve these calculations
-          long elapsedTime = tip.getStatus().getTimeStamp() - tip.getStatus().getProcessingStart();
+          long elapsedTime = tip.getStatus().getTimeStamp() -
+              tip.getStatus().getProcessingStart();
           double processingProgress = tip.getStatus().getProgress();
-          long expectedTotalTime = (long)((double)elapsedTime / processingProgress);
+          long expectedTotalTime = (long)((double)elapsedTime /
+                  processingProgress);
           long expectedRemainingTime = expectedTotalTime - elapsedTime;
           long readSoFar = tip.getStatus().getInputsRead();
-          long expectedTotalInputs = (long)((double)readSoFar / processingProgress);
+          long expectedTotalInputs = (long)((double)readSoFar /
+                  processingProgress);
 
           long start = System.currentTimeMillis();
-		  int shouldSwitch = predictiveSched.shouldSwitchPlatform(tip.getTask(), tip.getJobConf(),
-                  expectedRemainingTime, expectedTotalInputs);
+		  int shouldSwitch = predictiveSched.shouldSwitchPlatform(tip.getTask(),
+                  tip.getJobConf(), expectedRemainingTime, expectedTotalInputs);
           long stop = System.currentTimeMillis();
-          //System.out.println("DIAGNOSTICS: Should switch calculation took "+(stop-start)+" ms");
 		  
 		  if(shouldSwitch != -1) {
 			int currentDevice = predictiveSched.currentlyAssignedDevice(tip.getTask());

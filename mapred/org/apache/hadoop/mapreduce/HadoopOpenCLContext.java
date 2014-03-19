@@ -40,6 +40,7 @@ public class HadoopOpenCLContext {
     private final String verboseType;
     private int threadsPerGroup;
     private OpenCLDevice device;
+    private OpenCLDevice combinerDevice;
     private int deviceId;
     private int deviceSlot;
     private int isGPU;
@@ -145,7 +146,7 @@ public class HadoopOpenCLContext {
       }
 
       if (this.isCombiner) {
-        this.deviceId = findDeviceWithType(retrieveCombinerDeviceType(conf));
+        this.deviceId = findFirstDeviceWithType(retrieveCombinerDeviceType(conf));
       } else if(System.getProperty("opencl.device") != null) {
         this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
       } else {
@@ -256,7 +257,7 @@ public class HadoopOpenCLContext {
         return combinerType;
     }
 
-    private int findDeviceWithType(Device.TYPE type) {
+    private int findFirstDeviceWithType(Device.TYPE type) {
         int devicesSoFar = 0;
         List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();
         for(OpenCLPlatform platform : platforms) {
@@ -412,20 +413,6 @@ public class HadoopOpenCLContext {
         return this.inputValEleMultiplier;
     }
 
-    // private HadoopCLKernel instantiateKernelObject(Class cls) {
-    //     HadoopCLKernel kernel;
-    //     try {
-    //         kernel = (HadoopCLKernel)cls.newInstance();
-    //     } catch (Exception e) {
-    //         throw new RuntimeException(e);
-    //     }
-    //     return kernel;
-    // }
-
-    // public HadoopCLKernel newCombinerKernelObject() {
-    //     return this.combinerKernel;
-    // }
-
     public boolean jobHasCombiner() {
         return this.jobHasCombiner;
     }
@@ -435,7 +422,11 @@ public class HadoopOpenCLContext {
     }
 
     public OpenCLDevice getCombinerDevice() {
-        return findDevice(findDeviceWithType(retrieveCombinerDeviceType(
-                this.hadoopContext.getConfiguration())));
+        if (combinerDevice == null) {
+            combinerDevice = findDevice(findFirstDeviceWithType(
+                    retrieveCombinerDeviceType(
+                    this.hadoopContext.getConfiguration())));
+        }
+        return combinerDevice;
     }
 }
