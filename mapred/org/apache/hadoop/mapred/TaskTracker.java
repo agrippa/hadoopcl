@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapred;
 
+import java.lang.reflect.Constructor;
 import java.util.jar.JarFile;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
@@ -859,8 +860,12 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
                 fConf.getClassByName("org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler"));
         final Class reduceSchedulerClass = fConf.getClass(JobContext.OCL_REDUCE_SCHEDULER,
                 fConf.getClassByName("org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler"));
-        this.mapScheduler = (HadoopCLScheduler)mapSchedulerClass.newInstance();
-        this.reduceScheduler = (HadoopCLScheduler)reduceSchedulerClass.newInstance();
+
+        Constructor mapSchedulerConstructor = mapSchedulerClass.getConstructor(new Class[] { JobConf.class } );
+        Constructor reduceSchedulerConstructor = reduceSchedulerClass.getConstructor(new Class[] { JobConf.class } );
+
+        this.mapScheduler = (HadoopCLScheduler)mapSchedulerConstructor.newInstance(fConf);
+        this.reduceScheduler = (HadoopCLScheduler)reduceSchedulerConstructor.newInstance(fConf);
 
         String type = fConf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "CPU");
         EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);

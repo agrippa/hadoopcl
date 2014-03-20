@@ -23,7 +23,8 @@ import java.net.URLClassLoader;
 public class HadoopCLBalanceScheduler extends HadoopCLScheduler {
     private double[] deviceLoads;
 
-    public HadoopCLBalanceScheduler() {
+    public HadoopCLBalanceScheduler(JobConf conf) {
+      super(conf);
       deviceLoads = new double[deviceTypes.size()];
       for(int i = 0; i < deviceLoads.length; i++) {
           deviceLoads[i] = 0.0;

@@ -27,10 +27,9 @@ import java.net.URLClassLoader;
 
 public class HadoopCLStaticScheduler extends HadoopCLPredictiveScheduler<Device.TYPE, Double> {
 
-    public HadoopCLStaticScheduler() {
-        super();
-        //setFromFile("/scratch/jmg3/hadoopcl-recordings/recordings.saved");
-        loadFromDirectory("/scratch/jmg3/hadoopcl-recordings/");
+    public HadoopCLStaticScheduler(JobConf conf) {
+        super(conf);
+        loadFromDirectory(conf.get("opencl.recordings_folder"));
 
         //for(String taskName : taskPerfProfile.keySet()) {
         //    AHadoopCLTaskCharacterization profile = taskPerfProfile.get(taskName);

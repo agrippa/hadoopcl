@@ -42,7 +42,7 @@ public abstract class HadoopCLScheduler {
     public abstract DeviceAssignment bestCandidateDevice(Task task, JobConf conf) 
             throws IOException;
 
-    public HadoopCLScheduler() {
+    public HadoopCLScheduler(JobConf conf) {
       this.subDeviceOccupancy = new HashMap<Integer, int[]>();
       this.deviceTypes = new ArrayList<Device.TYPE>();
       final List<OpenCLPlatform> platforms = OpenCLUtil.getOpenCLPlatforms();

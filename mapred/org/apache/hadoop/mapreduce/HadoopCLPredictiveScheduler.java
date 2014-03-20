@@ -21,9 +21,10 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
     protected BufferedWriter launchesWriter = null;
     protected final ConcurrentHashMap<String, AHadoopCLTaskCharacterization<MappingType, RecordingType>> taskPerfProfile;
 
-    public HadoopCLPredictiveScheduler() {
-        super();
-        this.taskPerfProfile = new ConcurrentHashMap<String, AHadoopCLTaskCharacterization<MappingType, RecordingType>>();
+    public HadoopCLPredictiveScheduler(JobConf conf) {
+        super(conf);
+        this.taskPerfProfile = new ConcurrentHashMap<String,
+            AHadoopCLTaskCharacterization<MappingType, RecordingType>>();
     }
 
 	public abstract int shouldSwitchPlatform(Task task, JobConf conf, 

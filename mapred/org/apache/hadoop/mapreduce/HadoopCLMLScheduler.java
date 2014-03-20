@@ -23,6 +23,10 @@ import java.net.URLClassLoader;
 
 public class HadoopCLMLScheduler extends HadoopCLPredictiveScheduler<Integer, double[]> {
 
+    public HadoopCLMLScheduler(JobConf conf) {
+        super(conf);
+    }
+
     public AHadoopCLTaskCharacterization<Integer, double[]> getCharacterizationObject(String taskName, 
             List<Device.TYPE> deviceTypes, boolean isMapper) {
         return new HadoopCLTaskCharacterization(taskName, deviceTypes.size(), isMapper);

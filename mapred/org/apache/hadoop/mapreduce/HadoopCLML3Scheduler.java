@@ -26,9 +26,9 @@ import java.net.URLClassLoader;
 
 public class HadoopCLML3Scheduler extends HadoopCLPredictiveScheduler<Device.TYPE, Double> {
 
-    public HadoopCLML3Scheduler() {
-      super();
-      loadFromDirectory("/scratch/jmg3/hadoopcl-recordings/");
+    public HadoopCLML3Scheduler(JobConf conf) {
+      super(conf);
+      loadFromDirectory(conf.get("opencl.recordings_folder"));
     }
 
     public AHadoopCLTaskCharacterization<Device.TYPE, Double> getCharacterizationObject(String taskName, 
