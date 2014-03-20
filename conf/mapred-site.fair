@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+
+<property>
+  <name>mapred.job.tracker</name>
+  <value>MASTER:54311</value>
+  <description>The host and port that the MapReduce job tracker runs
+  at.  If "local", then jobs are run in-process as a single map
+  and reduce task.
+  </description>
+</property>
+
+
+<property>
+  <name>mapred.reduce.parallel.copies</name><value>0</value>
+  <description>The default number of parallel transfers run by reduce
+  during the copy(shuffle) phase.
+  </description>
+</property>
+
+
+<property>
+  <name>task.tracker.http.threads</name><value>0</value>
+  <description>The default number of parallel transfers run by reduce
+  during the copy(shuffle) phase.
+  </description>
+</property>
+
+
+
+<property>
+  <name>mapred.tasktracker.map.tasks.maximum</name><value>0</value>
+  <description>The maximum number of map tasks that will be run
+  simultaneously by a task tracker.
+  </description>
+</property>
+
+<property>
+  <name>mapred.tasktracker.reduce.tasks.maximum</name><value>0</value>
+  <description>The maximum number of reduce tasks that will be run
+  simultaneously by a task tracker.
+  </description>
+</property>
+
+<property>
+  <name>mapred.map.tasks.speculative.execution</name>
+  <value>true</value>
+  <description>If true, then multiple instances of some map tasks 
+               may be executed in parallel.</description>
+</property>
+
+<property>
+  <name>mapred.reduce.tasks.speculative.execution</name>
+  <value>true</value>
+  <description>If true, then multiple instances of some reduce tasks 
+               may be executed in parallel.</description>
+</property>
+
+<property>
+  <name>mapred.jobtracker.taskScheduler</name>
+    <value>org.apache.hadoop.mapred.FairScheduler</value>
+    </property>
+
+
+</configuration>

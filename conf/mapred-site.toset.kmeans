@@ -1,0 +1,187 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+
+<property>
+  <name>mapred.job.tracker</name>
+  <value>MASTER:54311</value>
+  <description>The host and port that the MapReduce job tracker runs at.  
+  If "local", then jobs are run in-process as a single map and reduce task.
+</description>
+</property>
+
+<property>
+  <name>mapred.task.tracker.http.address</name>
+  <value>0.0.0.0:50061</value>
+  <description>
+    The task tracker http server address and port.
+    If the port is 0 then the server will start on a free port.
+  </description>
+</property>
+
+<property>
+  <name>mapred.reduce.parallel.copies</name><value>5</value>
+</property>
+
+
+<property>
+  <name>tasktracker.http.threads</name><value>40</value>
+</property>
+
+<!-- Maximum number of total map tasks to run for a job -->
+<property>
+  <name>mapred.map.tasks</name><value>24</value>
+</property>
+
+<!-- Maximum number of total reduce tasks to run for a job -->
+<property>
+  <name>mapred.reduce.tasks</name><value>2</value>
+</property>
+
+<!-- Maximum number of map tasks to run at a time per tasktracker/node -->
+<property>
+  <name>mapred.tasktracker.map.tasks.maximum</name><value>12</value>
+</property>
+
+<!-- Maximum number of reduce tasks to run at a time per tasktracker/node -->
+<property>
+  <name>mapred.tasktracker.reduce.tasks.maximum</name><value>2</value>
+</property>
+
+<property>
+  <name>mapred.map.tasks.speculative.execution</name>
+  <value>true</value>
+</property>
+
+<property>
+  <name>mapred.task.timeout</name><value>3600000</value>
+  <!--name>mapred.task.timeout</name><value>1200000</value-->
+</property>
+
+<property>
+  <name>mapred.child.java.opts</name><value>-Xmx48G</value>
+</property>
+
+<property>
+  <name>mapred.map.tasks.speculative.execution</name><value>false</value>
+</property>
+
+<property>
+  <name>mapred.reduce.tasks.speculative.execution</name><value>false</value>
+</property>
+
+<property>
+  <name>mapreduce.map.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value>
+  <!--name>mapreduce.map.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLML4Scheduler</value-->
+</property>
+
+<property>
+  <!--name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value-->
+  <name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLML4Scheduler</value>
+</property>
+
+<property>
+  <name>io.compression.codecs</name>
+  <value>org.apache.hadoop.io.compress.GzipCodec,org.apache.hadoop.io.compress.DefaultCodec,org.apache.hadoop.io.compress.BZip2Codec,org.apache.hadoop.io.compress.SnappyCodec,com.hadoop.compression.lzo.LzoCodec,com.hadoop.compression.lzo.LzopCodec</value>
+</property>
+
+<property>
+  <name>io.sort.spill.percent</name>
+  <value>0.7</value>
+</property>
+
+<property>
+  <name>io.sort.spill.percent.hadoopcl</name>
+  <value>0.6</value>
+</property>
+<property>
+  <name>io.sort.spill.percent.hadoopcl.initial</name>
+  <value>0.5</value>
+</property>
+
+<property>
+  <name>io.sort.quickrestart</name>
+  <value>0.4</value>
+</property>
+
+<property>
+  <name>io.sort.maxrestart</name>
+  <value>0.6</value>
+</property>
+
+<property>
+  <name>io.sort.mb</name>
+  <value>100</value>
+</property>
+
+<property>
+  <name>min.num.spills.for.combine</name>
+  <value>3</value>
+</property>
+
+<property>
+  <name>opencl.global.buckets</name>
+  <value>65536</value>
+</property>
+
+<property>
+  <name>opencl.spill.chunk</name>
+  <value>2</value>
+</property>
+
+<property><name>opencl.mapper.nkernels</name><value>1</value></property>
+<property><name>opencl.mapper.ninputbuffers</name><value>2</value></property>
+<property><name>opencl.mapper.noutputbuffers</name><value>4</value></property>
+<property><name>opencl.mapper.prealloc.length.int</name><value>1966080</value></property>
+<property><name>opencl.mapper.prealloc.length.float</name><value>0</value></property>
+<property><name>opencl.mapper.prealloc.length.double</name><value>1966080</value></property>
+<property><name>opencl.mapper.inputBufferSize</name><value>65536</value></property>
+<property><name>opencl.mapper.outputBufferSize</name><value>65536</value></property>
+<property><name>opencl.mapper.val_ele_multiplier</name><value>15</value></property>
+<!--property><name>opencl.mapper.compare</name><value>true</value></property-->
+
+<property><name>opencl.combiner.nkernels</name><value>1</value></property>
+<property><name>opencl.combiner.ninputbuffers</name><value>1</value></property>
+<property><name>opencl.combiner.noutputbuffers</name><value>1</value></property>
+<property><name>opencl.combiner.prealloc.length.int</name><value>7340032</value></property>
+<property><name>opencl.combiner.prealloc.length.float</name><value>0</value></property>
+<property><name>opencl.combiner.prealloc.length.double</name><value>6291456</value></property>
+<property><name>opencl.combiner.inputBufferSize</name><value>6000</value></property>
+<property><name>opencl.combiner.outputBufferSize</name><value>16384</value></property>
+<property><name>opencl.combiner.val_multiplier</name><value>60</value></property>
+<property><name>opencl.combiner.val_ele_multiplier</name><value>20</value></property>
+
+<property><name>opencl.reducer.nkernels</name><value>1</value></property>
+<property><name>opencl.reducer.ninputbuffers</name><value>1</value></property>
+<property><name>opencl.reducer.noutputbuffers</name><value>1</value></property>
+<property><name>opencl.reducer.prealloc.length.int</name><value>16777216</value></property>
+<property><name>opencl.reducer.prealloc.length.float</name><value>0</value></property>
+<property><name>opencl.reducer.prealloc.length.double</name><value>16777216</value></property>
+<property><name>opencl.reducer.inputBufferSize</name><value>65536</value></property>
+<property><name>opencl.reducer.outputBufferSize</name><value>2048</value></property>
+
+
+<property>
+  <name>opencl.buffer.diagnostics</name>
+  <value>false</value>
+</property>
+
+<property>
+  <name>opencl.profiling</name>
+  <value>false</value>
+</property>
+
+<property>
+  <name>opencl.highlevel</name>
+  <value>false</value>
+</property>
+
+<property>
+  <name>opencl.recordings_folder</name>
+  <value>/scratch/jmg3/hadoopcl-recordings/</value>
+</property>
+
+</configuration>
