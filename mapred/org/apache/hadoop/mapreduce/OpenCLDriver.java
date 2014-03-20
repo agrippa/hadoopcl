@@ -82,7 +82,7 @@ public class OpenCLDriver {
       return sb.toString();
   }
 
-  public IHadoopCLAccumulatedProfile javaRun() throws IOException, InterruptedException {
+  public IHadoopCLAccumulatedProfile javaRun(final boolean shouldIncr) throws IOException, InterruptedException {
     HadoopCLKernel kernel = null;
     try {
         kernel = this.clContext.thisKernelConstructor.newInstance(this.clContext,
@@ -90,7 +90,7 @@ public class OpenCLDriver {
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
-    return kernel.javaProcess(this.context);
+    return kernel.javaProcess(this.context, shouldIncr);
   }
 
   private String profilesToString(IHadoopCLAccumulatedProfile profile,
@@ -227,9 +227,10 @@ public class OpenCLDriver {
    */
   public void run() throws IOException, InterruptedException {
 
+    final boolean isCombiner = this.clContext.isCombiner();
     OpenCLDriver.processingFinish = -1;
     OpenCLDriver.processingStart = System.currentTimeMillis();
-    if (this.clContext.isMapper()) {
+    if (!isCombiner) {
         OpenCLDriver.inputsRead = 0;
     }
 
@@ -239,7 +240,7 @@ public class OpenCLDriver {
 
     if(this.clContext.getDevice() == null) {
         final long start = System.currentTimeMillis();
-        IHadoopCLAccumulatedProfile javaProfile = javaRun();
+        IHadoopCLAccumulatedProfile javaProfile = javaRun(!isCombiner);
         final long stop = System.currentTimeMillis();
         OpenCLDriver.processingFinish = System.currentTimeMillis();
         String profileStr = profilesToString(javaProfile, startupTime, stop - start);
@@ -289,7 +290,7 @@ public class OpenCLDriver {
             itemCount += buffer.bulkFill(stream);
 
             buffer.getProfile().addItemsProcessed(itemCount);
-            if (this.clContext.isMapper()) {
+            if (!isCombiner) {
                 OpenCLDriver.inputsRead += itemCount;
             }
 
@@ -299,7 +300,6 @@ public class OpenCLDriver {
             }
         }
     } else {
-        final boolean isMapper = this.clContext.isMapper();
         while (this.context.nextKeyValue()) {
             if (buffer.isFull(this.context)) {
                 buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager, this.context);
@@ -307,7 +307,7 @@ public class OpenCLDriver {
             }
 
             buffer.addKeyAndValue(this.context);
-            if (isMapper) {
+            if (!isCombiner) {
                 OpenCLDriver.inputsRead++;
             }
             itemCount++;
@@ -335,22 +335,4 @@ public class OpenCLDriver {
         bufferRunner.profiles());
     System.out.println(profileStr);
   }
-
-  /*
-  public static class NoExit extends SecurityManager {
-      @Override
-      public void checkPermission(Permission perm) {
-      }
-      @Override
-      public void checkPermission(Permission perm, Object context) {
-      }
-      @Override
-      public void checkExit(int status) {
-          System.err.println("Printing stack from exit "+status);
-          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-              System.out.println("  "+ste);
-          }
-      }
-  }
-  */
 }

@@ -3537,7 +3537,7 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
     generateKernelCall(isMapper, nativeInputKeyType, nativeInputValueType, kernelfp)
 
     kernelfp.write('    @Override\n')
-    kernelfp.write('    public IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException {\n')
+    kernelfp.write('    public IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context, final boolean shouldIncr) throws InterruptedException, IOException {\n')
     kernelfp.write('        Context ctx = (Context)context;\n')
     kernelfp.write('        if (this.clContext.doHighLevelProfiling()) {\n')
     kernelfp.write('            this.javaProfile = new HadoopCLAccumulatedProfile();\n')
@@ -3560,22 +3560,24 @@ def generateFile(isMapper, inputKeyType, inputValueType, outputKeyType, outputVa
         kernelfp.write('            map('+tostr_without_last_ln(visitor(nativeInputKeyType).getMapArguments('key'), 0)+', '+
             tostr(visitor(nativeInputValueType).getMapArguments('val'), 0)+');\n')
         kernelfp.write('            this.javaProfile.stopKernel();\n')
+        kernelfp.write('            if (shouldIncr) OpenCLDriver.inputsRead++;\n')
     else:
         kernelfp.write('            '+hadoopInputKeyType +'Writable key = ('+hadoopInputKeyType+'Writable)ctx.getCurrentKey();\n')
         kernelfp.write('            Iterable<'+hadoopInputValueType+'Writable> values = (Iterable<'+hadoopInputValueType+'Writable>)ctx.getValues();\n')
+        kernelfp.write('            int countValues = 0;\n')
         writeln(visitor(nativeInputValueType).getResetHelper(), 3, kernelfp)
 
         kernelfp.write('            for('+hadoopInputValueType+'Writable v : values) {\n')
         writeln(visitor(nativeInputValueType).getAddValHelper(), 4, kernelfp)
-
+        kernelfp.write('                countValues++;\n')
         kernelfp.write('            }\n')
         kernelfp.write('            this.javaProfile.stopRead();\n')
         kernelfp.write('            this.javaProfile.startKernel();\n')
         kernelfp.write('            reduce('+tostr_without_last_ln(visitor(nativeInputKeyType).getMapArguments('key'), 0)+', ')
         writeln(visitor(nativeInputValueType).getJavaProcessReducerCall(), 3, kernelfp)
         kernelfp.write('            this.javaProfile.stopKernel();\n')
+        kernelfp.write('            if (shouldIncr) OpenCLDriver.inputsRead+=countValues;\n')
 
-    kernelfp.write('            OpenCLDriver.inputsRead++;\n')
     kernelfp.write('            this.javaProfile.startRead();\n')
     kernelfp.write('        }\n')
     kernelfp.write('        this.javaProfile.stopOverall();\n')

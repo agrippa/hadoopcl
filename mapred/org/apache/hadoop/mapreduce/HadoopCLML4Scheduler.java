@@ -105,6 +105,7 @@ public class HadoopCLML4Scheduler extends HadoopCLPredictiveScheduler<Device.TYP
             String taskClassName = task.getMainClassName(conf);
             if(taskStatus.getInputsRead() > 0) {
                 double processingRate = taskStatus.getInputsRead() / (taskStatus.getProcessingFinish()-taskStatus.getProcessingStart());
+                System.err.println("For task "+task.toString()+" inputsRead="+taskStatus.getInputsRead()+" processing time="+(taskStatus.getProcessingFinish()-taskStatus.getProcessingStart())+" processingRate="+processingRate);
 
                 AHadoopCLTaskCharacterization<Device.TYPE, Double> taskProfile = this.getCharacterizationObject(taskClassName, 
                         this.deviceTypes, task.isMapTask());

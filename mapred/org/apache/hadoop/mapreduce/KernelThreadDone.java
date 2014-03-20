@@ -13,7 +13,7 @@ public class KernelThreadDone extends HadoopCLKernel {
     public Class<? extends HadoopCLOutputBuffer> getOutputBufferClass() { return null; }
     public boolean launchKernel() throws IOException, InterruptedException { return true; }
     public boolean relaunchKernel() throws IOException, InterruptedException { return true; }
-    public IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context) throws InterruptedException, IOException { return null; }
+    public IHadoopCLAccumulatedProfile javaProcess(TaskInputOutputContext context, boolean shouldIncr) throws InterruptedException, IOException { return null; }
     public void fill(HadoopCLInputBuffer inputBuffer) { }
     public void prepareForRead(HadoopCLOutputBuffer outputBuffer) { }
 

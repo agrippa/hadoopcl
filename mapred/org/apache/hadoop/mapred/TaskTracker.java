@@ -1518,7 +1518,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     FILE_CACHE_SIZE = conf.getInt("mapred.tasktracker.file.cache.size", 2000);
     maxMapSlots = conf.getInt(
                   "mapred.tasktracker.map.tasks.maximum", 2);
-    System.err.println("Max num map slots is "+maxMapSlots);
     maxReduceSlots = conf.getInt(
                   "mapred.tasktracker.reduce.tasks.maximum", 2);
     diskHealthCheckInterval = conf.getLong(DISK_HEALTH_CHECK_INTERVAL_PROPERTY,
@@ -3345,7 +3344,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       this.scheduler.removeTaskLoad(task, 
           taskStatus, this.localJobConf, avgOccupancy);
       long stop = System.currentTimeMillis();
-      //System.out.println("DIAGNOSTICS: Removing task load took "+(stop-start)+" ms");
 
       if (slotTaken) {
         if (launcher != null) {
@@ -3600,7 +3598,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       return keepAlive;
     } else {
       LOG.warn("Progress from unknown child task: "+taskid);
-      //System.out.println("DIAGNOSTICS: For task "+taskid.toString()+" with progress "+taskStatus.getProgress()+" returning false");
       return false;
     }
   }
