@@ -82,26 +82,6 @@ public class OpenCLDriver {
       return sb.toString();
   }
 
-  public static void hadoopclLog(Configuration conf, String str) throws IOException {
-      String taskId = conf.get("mapred.task.id");
-      String[] parts = taskId.split("_");
-      String attemptId = parts[4]+"-"+parts[5];
-
-      FileWriter fstream = new FileWriter("/scratch/jmg3/"+attemptId, true);
-      BufferedWriter out = new BufferedWriter(fstream);
-      out.write(str+"\n");
-      out.close();
-  }
-
-  public static void hadoopclLog(Configuration conf) throws IOException {
-
-      String tmp = "";
-      for(StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-          tmp = tmp + ste.toString()+"\n";
-      }
-      hadoopclLog(conf, tmp);
-  }
-
   public IHadoopCLAccumulatedProfile javaRun() throws IOException, InterruptedException {
     HadoopCLKernel kernel = null;
     try {

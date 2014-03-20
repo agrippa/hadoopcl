@@ -883,13 +883,21 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     prefix = prefix.substring(0, prefix.indexOf(':'));
     Random rand = new Random();
     int fileID = rand.nextInt(50000);
-    File recordingsFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+"-"+fileID+".recordings");
+
+    final String recordingsFolder = fConf.get("opencl.recordings_folder", "NULL");
+    if (recordingsFolder.equals("NULL")) {
+        throw new RuntimeException("If using a predictive scheduler, " +
+                "opencl.recordings_folder must be specified");
+    }
+
+    File recordingsFile = new File(recordingsFolder + "/" + prefix + "-" +
+            fileID + ".recordings");
     while(recordingsFile.isFile()) {
         fileID = rand.nextInt(50000);
-        recordingsFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+
+        recordingsFile = new File(recordingsFolder+"/"+prefix+
                 "-"+fileID+".recordings");
     }
-    File launchesFile = new File("/scratch/jmg3/hadoopcl-recordings/"+prefix+
+    File launchesFile = new File(recordingsFolder+"/"+prefix+
             "-"+fileID+".launches");
 
     if(this.mapScheduler instanceof HadoopCLPredictiveScheduler ||
