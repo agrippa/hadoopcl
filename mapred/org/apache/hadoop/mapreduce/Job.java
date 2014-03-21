@@ -146,11 +146,6 @@ public class Job extends JobContext {
       conf.setClass(OCL_MAP_CLASS_ATTR, cls);
   }
 
-  public void setOCLCombinerDeviceType(Device.TYPE t) throws IllegalStateException {
-    ensureState(JobState.DEFINE);
-    conf.set(OCL_COMBINER_DEVICE_TYPE, t.toString());
-  }
-
   public void setOCLReducerClass(Class cls) throws IllegalStateException {
       ensureState(JobState.DEFINE);
       conf.setClass(OCL_REDUCE_CLASS_ATTR, cls);

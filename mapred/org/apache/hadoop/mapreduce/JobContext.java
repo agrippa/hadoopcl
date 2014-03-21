@@ -43,7 +43,6 @@ public class JobContext {
 
   public static final String OCL_COMBINE_CLASS_ATTR = "mapreduce.combine.ocl_class";
   public static final String OCL_MAP_CLASS_ATTR = "mapreduce.map.ocl_class";
-  public static final String OCL_COMBINER_DEVICE_TYPE = "mapreduce.combiner.device.type";
   public static final String OCL_REDUCE_CLASS_ATTR = "mapreduce.reduce.ocl_class";
   protected static final String OCL_MAP_BUFFER_CLASS_ATTR = "mapreduce.map.ocl_buffer_class";
   protected static final String OCL_REDUCE_BUFFER_CLASS_ATTR = "mapreduce.reduce.ocl_buffer_class";

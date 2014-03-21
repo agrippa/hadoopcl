@@ -40,7 +40,7 @@ public class HadoopOpenCLContext {
     private final String verboseType;
     private int threadsPerGroup;
     private OpenCLDevice device;
-    private OpenCLDevice combinerDevice;
+    private OpenCLDevice combinerDeviceForJvm;
     private int deviceId;
     private int deviceSlot;
     private int isGPU;
@@ -145,41 +145,6 @@ public class HadoopOpenCLContext {
         this.globals.init(conf);
       }
 
-      if (this.isCombiner) {
-        this.deviceId = findFirstDeviceWithType(retrieveCombinerDeviceType(conf));
-      } else if(System.getProperty("opencl.device") != null) {
-        this.deviceId = Integer.parseInt(System.getProperty("opencl.device"));
-      } else {
-        this.deviceId = 0;
-      }
-      this.device = findDevice(this.deviceId);
-
-      if (System.getProperty("opencl.device_slot") != null) {
-        this.deviceSlot = Integer.parseInt(System.getProperty("opencl.device_slot"));
-      } else {
-        this.deviceSlot = -1;
-      }
-
-      if(this.device == null) {
-        this.deviceString = "java";
-        this.isGPU = 0;
-      } else {
-        if(this.device.getType() == Device.TYPE.GPU) {
-          this.deviceString = "gpu";
-          this.isGPU = 1;
-        } else {
-          this.deviceString = "cpu";
-          this.isGPU = 0;
-        }
-      }
-
-      String threadsPerGroupStr = System.getProperty("opencl."+this.type+".threadsPerGroup."+this.deviceString);
-      if(threadsPerGroupStr != null) {
-        this.threadsPerGroup = Integer.parseInt(threadsPerGroupStr);
-      } else {
-        this.threadsPerGroup = 256;
-      }
-
       try {
         final Class mapperClass = hadoopContext.getOCLMapperClass();
         final Class reducerClass = hadoopContext.getOCLReducerClass();
@@ -231,30 +196,83 @@ public class HadoopOpenCLContext {
       } catch(Exception ex) {
         throw new RuntimeException(ex);
       }
+
+      if (this.isCombiner) {
+        this.deviceId = getCombinerDeviceId();
+      } else {
+        this.deviceId = jvmDeviceId();
+      }
+      this.device = findDevice(this.deviceId);
+
+      if (this.isCombiner) {
+        this.deviceSlot = getCombinerDeviceSlot();
+      } else {
+        this.deviceSlot = jvmDeviceSlot();
+      }
+
+      if(this.device == null) {
+        this.deviceString = "java";
+        this.isGPU = 0;
+      } else {
+        if(this.device.getType() == Device.TYPE.GPU) {
+          this.deviceString = "gpu";
+          this.isGPU = 1;
+        } else {
+          this.deviceString = "cpu";
+          this.isGPU = 0;
+        }
+      }
+
+      String threadsPerGroupStr = System.getProperty("opencl."+this.type+".threadsPerGroup."+this.deviceString);
+      if(threadsPerGroupStr != null) {
+        this.threadsPerGroup = Integer.parseInt(threadsPerGroupStr);
+      } else {
+        this.threadsPerGroup = 256;
+      }
     }
 
-    private Device.TYPE retrieveCombinerDeviceType(Configuration conf) {
-        final Device.TYPE combinerType;
-        if (!conf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL").equals("FAIL")) {
-          final String combinerTypeString = conf.get(
-              JobContext.OCL_COMBINER_DEVICE_TYPE, "FAIL");
-          EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
-          Device.TYPE result = null;
-          for (Device.TYPE t : allTypes) {
-            if (t.toString().equals(combinerTypeString)) {
-              result = t;
-              break;
-            }
-          }
-          if (result == null) {
-            combinerType = Device.TYPE.CPU;
-          } else {
-            combinerType = result;
-          }
+    private Device.TYPE jvmDeviceType() {
+        OpenCLDevice dev = findDevice(jvmDeviceId());
+        if (dev == null) {
+            return Device.TYPE.JAVA;
         } else {
-          combinerType = Device.TYPE.CPU;
+            return dev.getType();
         }
-        return combinerType;
+    }
+
+    private int jvmDeviceId() {
+        return System.getProperty("opencl.device") == null ? 0 :
+            Integer.parseInt(System.getProperty("opencl.device"));
+    }
+
+    private int jvmDeviceSlot() {
+        return System.getProperty("opencl.device_slot") == null ? -1 :
+            Integer.parseInt(System.getProperty("opencl.device_slot"));
+    }
+
+    private Device.TYPE getCombinerDeviceType() {
+        final int taskId = this.getContext().getTaskAttemptID().getTaskID().getId();
+        DeviceStrength strength = new DeviceStrength();
+        this.combinerKernel.deviceStrength(strength);
+        return strength.randomlySelectedDeviceType(taskId);
+    }
+
+    private int getCombinerDeviceId() {
+        Device.TYPE type = getCombinerDeviceType();
+        if (type == jvmDeviceType()) {
+            return jvmDeviceId();
+        } else {
+            return findFirstDeviceWithType(type);
+        }
+    }
+
+    private int getCombinerDeviceSlot() {
+        Device.TYPE type = getCombinerDeviceType();
+        if (type == jvmDeviceType()) {
+            return jvmDeviceSlot();
+        } else {
+            return -1;
+        }
     }
 
     private int findFirstDeviceWithType(Device.TYPE type) {
@@ -422,11 +440,9 @@ public class HadoopOpenCLContext {
     }
 
     public OpenCLDevice getCombinerDevice() {
-        if (combinerDevice == null) {
-            combinerDevice = findDevice(findFirstDeviceWithType(
-                    retrieveCombinerDeviceType(
-                    this.hadoopContext.getConfiguration())));
+        if (combinerDeviceForJvm == null) {
+            combinerDeviceForJvm = findDevice(getCombinerDeviceId());
         }
-        return combinerDevice;
+        return combinerDeviceForJvm;
     }
 }

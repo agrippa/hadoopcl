@@ -866,20 +866,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
         this.mapScheduler = (HadoopCLScheduler)mapSchedulerConstructor.newInstance(fConf);
         this.reduceScheduler = (HadoopCLScheduler)reduceSchedulerConstructor.newInstance(fConf);
-
-        String type = fConf.get(JobContext.OCL_COMBINER_DEVICE_TYPE, "CPU");
-        EnumSet<Device.TYPE> allTypes = EnumSet.allOf(Device.TYPE.class);
-        Device.TYPE combinerDeviceType = null;
-        for (Device.TYPE t : allTypes) {
-          if (t.toString().equals(type)) {
-            combinerDeviceType = t;
-            break;
-          }
-        }
-        if (combinerDeviceType == null) {
-          throw new RuntimeException("Invalid combiner device type "+type+" specified");
-        }
-        this.combinerDeviceType = combinerDeviceType;
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
@@ -889,24 +875,24 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     Random rand = new Random();
     int fileID = rand.nextInt(50000);
 
-    final String recordingsFolder = fConf.get("opencl.recordings_folder", "NULL");
-    if (recordingsFolder.equals("NULL")) {
-        throw new RuntimeException("If using a predictive scheduler, " +
-                "opencl.recordings_folder must be specified");
-    }
-
-    File recordingsFile = new File(recordingsFolder + "/" + prefix + "-" +
-            fileID + ".recordings");
-    while(recordingsFile.isFile()) {
-        fileID = rand.nextInt(50000);
-        recordingsFile = new File(recordingsFolder+"/"+prefix+
-                "-"+fileID+".recordings");
-    }
-    File launchesFile = new File(recordingsFolder+"/"+prefix+
-            "-"+fileID+".launches");
-
     if(this.mapScheduler instanceof HadoopCLPredictiveScheduler ||
             this.reduceScheduler instanceof HadoopCLPredictiveScheduler) {
+
+        final String recordingsFolder = fConf.get("opencl.recordings_folder", "NULL");
+        if (recordingsFolder.equals("NULL")) {
+            throw new RuntimeException("If using a predictive scheduler, " +
+                    "opencl.recordings_folder must be specified");
+        }
+
+        File recordingsFile = new File(recordingsFolder + "/" + prefix + "-" +
+                fileID + ".recordings");
+        while(recordingsFile.isFile()) {
+            fileID = rand.nextInt(50000);
+            recordingsFile = new File(recordingsFolder+"/"+prefix+
+                    "-"+fileID+".recordings");
+        }
+        File launchesFile = new File(recordingsFolder+"/"+prefix+
+                "-"+fileID+".launches");
 
         BufferedWriter recordingsWriter = null;
         BufferedWriter launchesWriter = null;
@@ -2361,7 +2347,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     return biggestSeenSoFar;
   }
   
-  private Device.TYPE combinerDeviceType;
   private HadoopCLScheduler mapScheduler;
   private HadoopCLScheduler reduceScheduler;
   private TaskLauncher mapLauncher;
@@ -2509,7 +2494,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
              " task's state:" + t.getState());
     TaskInProgress tip = new TaskInProgress(t, this.fConf, 
             (t.isMapTask() ? this.mapScheduler : this.reduceScheduler),
-            this.combinerDeviceType, launcher);
+            launcher);
     synchronized (this) {
       tasks.put(t.getTaskID(), tip);
       runningTasks.put(t.getTaskID(), tip);
@@ -2672,7 +2657,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     private TaskLauncher launcher;
     private int assignedDevice = -1;
     private int assignedDeviceSlot = -1;
-    private Device.TYPE combinerDeviceType;
     private int numDevices = -1;
     private boolean isSpeculative = false;
     private final HadoopCLScheduler scheduler;
@@ -2699,14 +2683,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         this.assignedDeviceSlot = s;
     }
 
-    public void setCombinerDeviceType(Device.TYPE type) {
-      this.combinerDeviceType = type;
-    }
-
-    public Device.TYPE getCombinerDeviceType() {
-      return combinerDeviceType;
-    }
-
     public void setIsSpeculative(boolean set) {
         this.isSpeculative = set;
     }
@@ -2729,19 +2705,17 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
     /**
      */
-    public TaskInProgress(Task task, JobConf conf, HadoopCLScheduler setScheduler,
-        Device.TYPE combinerDeviceType) {
-      this(task, conf, setScheduler, combinerDeviceType, null);
+    public TaskInProgress(Task task, JobConf conf, HadoopCLScheduler setScheduler) {
+      this(task, conf, setScheduler, null);
     }
     
     public TaskInProgress(Task task, JobConf conf,
-        HadoopCLScheduler setScheduler, Device.TYPE combinerDeviceType,
+        HadoopCLScheduler setScheduler,
         TaskLauncher launcher) {
       this.task = task;
       this.launcher = launcher;
       this.lastProgressReport = System.currentTimeMillis();
       this.scheduler = setScheduler;
-      this.combinerDeviceType = combinerDeviceType;
       this.ttConf = conf;
       this.occupancyHistory = new ArrayList<int[]>();
       localJobConf = null;
@@ -2842,7 +2816,6 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         this.setAssignedDevice(assignment.device(),
                 this.scheduler.numDevices());
         this.setAssignedDeviceSlot(assignment.device_slot());
-        this.setCombinerDeviceType(Device.TYPE.CPU);
         this.setIsSpeculative(assignment.speculative());
 
         if (this.taskStatus.getRunState() == TaskStatus.State.UNASSIGNED) {
