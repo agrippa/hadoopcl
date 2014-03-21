@@ -135,12 +135,12 @@
 <property><name>opencl.mapper.nkernels</name><value>1</value></property>
 <property><name>opencl.mapper.ninputbuffers</name><value>2</value></property>
 <property><name>opencl.mapper.noutputbuffers</name><value>4</value></property>
-<property><name>opencl.mapper.prealloc.length.int</name><value>1966080</value></property>
+<property><name>opencl.mapper.prealloc.length.int</name><value>8388608</value></property>
 <property><name>opencl.mapper.prealloc.length.float</name><value>0</value></property>
-<property><name>opencl.mapper.prealloc.length.double</name><value>1966080</value></property>
-<property><name>opencl.mapper.inputBufferSize</name><value>65536</value></property>
-<property><name>opencl.mapper.outputBufferSize</name><value>65536</value></property>
-<property><name>opencl.mapper.val_ele_multiplier</name><value>15</value></property>
+<property><name>opencl.mapper.prealloc.length.double</name><value>8388608</value></property>
+<property><name>opencl.mapper.inputBufferSize</name><value>53248</value></property>
+<property><name>opencl.mapper.outputBufferSize</name><value>327680</value></property>
+<property><name>opencl.mapper.val_ele_multiplier</name><value>20</value></property>
 <!--property><name>opencl.mapper.compare</name><value>true</value></property-->
 
 <property><name>opencl.combiner.nkernels</name><value>1</value></property>
@@ -157,9 +157,9 @@
 <property><name>opencl.reducer.nkernels</name><value>1</value></property>
 <property><name>opencl.reducer.ninputbuffers</name><value>1</value></property>
 <property><name>opencl.reducer.noutputbuffers</name><value>1</value></property>
-<property><name>opencl.reducer.prealloc.length.int</name><value>16777216</value></property>
+<property><name>opencl.reducer.prealloc.length.int</name><value>25165824</value></property>
 <property><name>opencl.reducer.prealloc.length.float</name><value>0</value></property>
-<property><name>opencl.reducer.prealloc.length.double</name><value>16777216</value></property>
+<property><name>opencl.reducer.prealloc.length.double</name><value>25165824</value></property>
 <property><name>opencl.reducer.inputBufferSize</name><value>65536</value></property>
 <property><name>opencl.reducer.outputBufferSize</name><value>2048</value></property>
 

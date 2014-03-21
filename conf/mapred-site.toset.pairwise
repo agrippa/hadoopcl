@@ -75,10 +75,12 @@
 
 <property>
   <name>mapreduce.map.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value>
+  <!--name>mapreduce.map.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLML4Scheduler</value-->
 </property>
 
 <property>
-  <name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value>
+  <!--name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value-->
+  <name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLML4Scheduler</value>
 </property>
 
 <property>
@@ -155,9 +157,9 @@
 <property><name>opencl.reducer.nkernels</name><value>1</value></property>
 <property><name>opencl.reducer.ninputbuffers</name><value>1</value></property>
 <property><name>opencl.reducer.noutputbuffers</name><value>1</value></property>
-<property><name>opencl.reducer.prealloc.length.int</name><value>3145728</value></property>
+<property><name>opencl.reducer.prealloc.length.int</name><value>25165824</value></property>
 <property><name>opencl.reducer.prealloc.length.float</name><value>0</value></property>
-<property><name>opencl.reducer.prealloc.length.double</name><value>3145728</value></property>
+<property><name>opencl.reducer.prealloc.length.double</name><value>25165824</value></property>
 <property><name>opencl.reducer.inputBufferSize</name><value>65536</value></property>
 <property><name>opencl.reducer.outputBufferSize</name><value>2048</value></property>
 
@@ -175,6 +177,11 @@
 <property>
   <name>opencl.highlevel</name>
   <value>false</value>
+</property>
+
+<property>
+  <name>opencl.recordings_folder</name>
+  <value>/scratch/jmg3/hadoopcl-recordings/</value>
 </property>
 
 </configuration>
