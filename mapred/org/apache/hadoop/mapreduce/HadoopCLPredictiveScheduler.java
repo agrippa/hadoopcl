@@ -5,6 +5,7 @@ import org.apache.hadoop.mapred.JobConf;
 import java.io.IOException;
 import java.io.BufferedWriter;
 import com.amd.aparapi.device.Device;
+import java.util.HashMap;
 import java.util.jar.JarFile;
 import java.util.Enumeration;
 import java.net.URL;
@@ -45,10 +46,13 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
     protected void loadFromDirectory(String dirname) {
         loadRecordingsFromFile(dirname+"/recordings.saved");
         loadLaunchesFromFile(dirname+"/launches.saved");
+        for (String s : taskPerfProfile.keySet()) {
+            taskPerfProfile.get(s).finishInitializing();
+        }
     }
 
     private void loadLaunchesFromFile(String filename) {
-    long start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
         try {
             File file = new File(filename);
             if (file.exists() && file.isFile()) {
@@ -73,7 +77,8 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
                         taskPerfProfile.put(taskName, 
                                 this.getCharacterizationObject(taskName, this.deviceTypes, isMapper));
                     }
-                    taskPerfProfile.get(taskName).unsafeAddLaunch(this.getMappingObject(device), 
+                    taskPerfProfile.get(taskName).unsafeAddLaunch(
+                            this.getMappingObject(device), 
                         this.getRecordingObject(device, 0.0, tmpOccupancy));
                 }
                 reader.close();
@@ -116,7 +121,6 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
                     HadoopCLRecording<RecordingType> recording = this.getRecordingObject(device, Double.parseDouble(rateStr), tmpOccupancy);
                     MappingType map = this.getMappingObject(device);
                     this.taskPerfProfile.get(taskName).unsafeAddRecording(map, recording);
-                    //taskPerfProfile.get(taskName).addRecording(this.getMappingObject(device), recording);
                 }
                 reader.close();
             }
@@ -209,9 +213,11 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
 
         DeviceAssignment result = null;
 
-        int optimalDevice = taskProfile.getNextMissingDevice(occupancyCopy, new HadoopCLDeviceChecker(task, conf, taskProfile, this));
+        int optimalDevice = taskProfile.getNextMissingDevice(occupancyCopy,
+                new HadoopCLDeviceChecker(task, conf, taskProfile, this));
         if(optimalDevice == -1) {
-            optimalDevice = taskProfile.predictBestDevice(occupancyCopy, new HadoopCLDeviceChecker(task, conf, taskProfile, this));
+            optimalDevice = taskProfile.predictBestDevice(occupancyCopy,
+                    new HadoopCLDeviceChecker(task, conf, taskProfile, this));
             result = new DeviceAssignment(optimalDevice, -1, false);
         } else {
             result = new DeviceAssignment(optimalDevice, -1, true);

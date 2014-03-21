@@ -35,14 +35,20 @@ public abstract class AHadoopCLTaskCharacterization<MappingType, RecordingType> 
     private final Polynomial<RecordingType> poly;
     private AtomicBoolean canPredict;
 
+    private boolean initializing = true;
+    final private HashMap<MappingType, Integer> nLaunchesLoaded = new HashMap<MappingType, Integer>();
+    final private HashMap<MappingType, Integer> nRecordingsLoaded = new HashMap<MappingType, Integer>();
+
 	public AHadoopCLTaskCharacterization(int setTotalNumDevices, 
             String taskName, boolean isMapper) {
         this.devicePointer = new AtomicInteger(0);
         this.totalNumDevices = setTotalNumDevices;
         this.taskName = taskName;
         this.predictors = new ConcurrentHashMap<MappingType, HadoopCLPredictor>();
-        this.deviceToRecordings = new ConcurrentHashMap<MappingType, List<HadoopCLRecording<RecordingType>>>();
-        this.deviceToLaunches = new ConcurrentHashMap<MappingType, List<HadoopCLRecording<RecordingType>>>();
+        this.deviceToRecordings = new ConcurrentHashMap<MappingType,
+            List<HadoopCLRecording<RecordingType>>>();
+        this.deviceToLaunches = new ConcurrentHashMap<MappingType,
+            List<HadoopCLRecording<RecordingType>>>();
         this.poly = getPolynomialObject(this.getOrder(), this.getNVariables());
         this.canPredict = new AtomicBoolean(false);
         this.isMapperTask = isMapper;
@@ -53,7 +59,27 @@ public abstract class AHadoopCLTaskCharacterization<MappingType, RecordingType> 
     protected abstract int getNVariables();
     protected abstract int getOrder();
     protected abstract Polynomial<RecordingType> getPolynomialObject(int order, int nvars);
-    protected abstract RecordingDensity getSparsestDevice(int[] occupancy, int radius, HadoopCLDeviceChecker checker) throws IOException;
+    protected abstract RecordingDensity getSparsestDevice(int[] occupancy,
+            int radius, HadoopCLDeviceChecker checker) throws IOException;
+
+    public void finishInitializing() {
+        this.initializing = false;
+    }
+
+    protected boolean failingDevice(MappingType m) {
+        final int launches, recordings;
+        if (!nLaunchesLoaded.containsKey(m)) {
+            launches = 0;
+        } else {
+            launches = nLaunchesLoaded.get(m);
+        }
+        if (!nRecordingsLoaded.containsKey(m)) {
+            recordings = 0;
+        } else {
+            recordings = nRecordingsLoaded.get(m);
+        }
+        return ((double)recordings / (double)launches) < 0.5;
+    }
 
     public HadoopCLKernel getKernelObject(Task task, JobConf conf) throws IOException {
         if(this.kernelObject.get() != null) {
@@ -66,6 +92,14 @@ public abstract class AHadoopCLTaskCharacterization<MappingType, RecordingType> 
     }
 
     public void unsafeAddLaunch(MappingType m, HadoopCLRecording<RecordingType> record) {
+        if (initializing) {
+            if (this.nLaunchesLoaded.containsKey(m)) {
+                this.nLaunchesLoaded.put(m, new Integer(
+                            this.nLaunchesLoaded.get(m).intValue() + 1));
+            } else {
+                this.nLaunchesLoaded.put(m, new Integer(1));
+            }
+        }
         this.deviceToLaunches.get(m).add(record);
     }
 
@@ -142,6 +176,14 @@ public abstract class AHadoopCLTaskCharacterization<MappingType, RecordingType> 
     }
 
     public void unsafeAddRecording(MappingType m, HadoopCLRecording<RecordingType> record) {
+        if (initializing) {
+            if (this.nRecordingsLoaded.containsKey(m)) {
+                this.nRecordingsLoaded.put(m, new Integer(
+                            this.nRecordingsLoaded.get(m).intValue() + 1));
+            } else {
+                this.nRecordingsLoaded.put(m, new Integer(1));
+            }
+        }
         if(!this.deviceToRecordings.containsKey(m)) {
             this.deviceToRecordings.put(m, new ArrayList<HadoopCLRecording<RecordingType>>());
         }
@@ -162,7 +204,8 @@ public abstract class AHadoopCLTaskCharacterization<MappingType, RecordingType> 
         return this.canPredict.get();
     }
 	
-	public int getNextMissingDevice(int[] occupancy, HadoopCLDeviceChecker checker) throws IOException {
+	public int getNextMissingDevice(int[] occupancy, HadoopCLDeviceChecker checker)
+            throws IOException {
         RecordingDensity density;
         if(this.isMapperTask) {
             density = this.getSparsestDevice(occupancy, 4, checker);
@@ -170,27 +213,20 @@ public abstract class AHadoopCLTaskCharacterization<MappingType, RecordingType> 
             density = this.getSparsestDevice(occupancy, 2, checker);
         }
         if(!this.hasData() || density.density() == 0.0) {
-            StringBuffer sb = new StringBuffer();
-            sb.append("DIAGNOSTICS: Recording density of ");
-            sb.append(density.density());
-            sb.append(" for device ");
-            sb.append(density.device());
-            sb.append(" at occupancy [ ");
-            for(int i : occupancy) {
-                sb.append(i);
-                sb.append(" ");
-            }
-            sb.append("]");
-            System.out.println(sb.toString());
+            // StringBuffer sb = new StringBuffer();
+            // sb.append("DIAGNOSTICS: Recording density of ");
+            // sb.append(density.density());
+            // sb.append(" for device ");
+            // sb.append(density.device());
+            // sb.append(" at occupancy [ ");
+            // for(int i : occupancy) {
+            //     sb.append(i);
+            //     sb.append(" ");
+            // }
+            // sb.append("]");
+            // System.out.println(sb.toString());
             return density.device();
         }
         return -1;
-        //if(this.hasData()) {
-        //    return -1;
-        //}
-        //System.out.println("DIAGNOSTICS: Recording density of "+density.density()+" for device "+density.device());
-
-        //int toReturn = this.devicePointer.getAndIncrement();
-        //return toReturn % this.totalNumDevices;
     }
 }

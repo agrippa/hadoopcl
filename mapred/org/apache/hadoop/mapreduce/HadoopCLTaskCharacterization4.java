@@ -16,7 +16,8 @@ import com.amd.aparapi.device.OpenCLDevice;
 import com.amd.aparapi.device.Device;
 import com.amd.aparapi.device.Device.TYPE;
 
-public class HadoopCLTaskCharacterization4 extends AHadoopCLTaskCharacterization<Device.TYPE, Double> {
+public class HadoopCLTaskCharacterization4
+        extends AHadoopCLTaskCharacterization<Device.TYPE, Double> {
     private final List<Device.TYPE> deviceTypes;
 
     public HadoopCLTaskCharacterization4(String taskName, int setTotalNumDevices, List<Device.TYPE> deviceTypes, boolean isMapper) {
@@ -45,7 +46,7 @@ public class HadoopCLTaskCharacterization4 extends AHadoopCLTaskCharacterization
         int deviceIndex = 0;
 
         for(Device.TYPE t : this.deviceTypes) {
-            if(!checker.validDeviceForTask(t)) continue;
+            if (!checker.validDeviceForTask(t) || failingDevice(t)) continue;
             int area = 1;
             for(int i = 0; i < occupancy.length; i++) {
                 int low = occupancy[i] - radius;
@@ -55,7 +56,8 @@ public class HadoopCLTaskCharacterization4 extends AHadoopCLTaskCharacterization
             }
 
             int count = 0;
-            List<HadoopCLRecording<Double>> recordings = this.deviceToRecordings.get(t);
+            List<HadoopCLRecording<Double>> recordings =
+                this.deviceToRecordings.get(t);
             if(recordings != null) {
                 synchronized(recordings) {
                     for(HadoopCLRecording<Double> r : recordings) {
@@ -85,7 +87,6 @@ public class HadoopCLTaskCharacterization4 extends AHadoopCLTaskCharacterization
 
             deviceIndex = deviceIndex + 1;
         }
-        //System.out.println("DIAGNOSTICS: After first loop, lowestDensity="+lowestDensity+", # eligible devices="+eligible.size());
 
         List<Device.TYPE> trulyEligible;
         if(lowestDensity == 0.0) {
@@ -94,7 +95,6 @@ public class HadoopCLTaskCharacterization4 extends AHadoopCLTaskCharacterization
             for(Device.TYPE t : this.deviceTypes) {
                 if(eligible.contains(t) && !trulyEligible.contains(t)) {
                     int launchesNear = countLaunchesNear(t, occupancy, radius);
-                    //System.out.println("DIAGNOSTICS: For device "+deviceIndex+" got "+launchesNear+" launches nearby");
                     if(launchesNear < 3) {
                         trulyEligible.add(t);
                     }
@@ -132,7 +132,7 @@ public class HadoopCLTaskCharacterization4 extends AHadoopCLTaskCharacterization
 		Device.TYPE bestDevice = Device.TYPE.UNKNOWN;
         for(int i = 0; i < occupancy.length; i++) {
             Device.TYPE type = this.deviceTypes.get(i);
-            if(checker.validDeviceForTask(type)) {
+            if(checker.validDeviceForTask(type) && !failingDevice(type)) {
                 double prediction = predict(type, (double)(occupancy[i]));
                 if(prediction > bestRate) {
                     bestRate = prediction;
