@@ -95,6 +95,7 @@ public class RegressionPredictor<RecordingType> implements HadoopCLPredictor<Rec
     protected DeviceFunction getDeviceFunction(String command) {
         try {
             List<String> output = new ArrayList<String>();
+            System.out.println("DIAGNOSTICS: Running \""+command+"\"");
             runProcess(command, output);
             
             if(output.size() > 0) {
