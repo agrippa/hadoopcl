@@ -197,6 +197,9 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
             throws IOException {
 
         String taskClassName = task.getMainClassName(conf);
+        if (taskClassName == null) {
+            return new DeviceAssignment(deviceOccupancy.length-1, -1, false); // running in Java
+        }
         AHadoopCLTaskCharacterization<MappingType, RecordingType> taskProfile = 
             getCharacterizationObject(taskClassName, this.deviceTypes, task.isMapTask());
         taskProfile = taskPerfProfile.putIfAbsent(taskClassName, taskProfile);

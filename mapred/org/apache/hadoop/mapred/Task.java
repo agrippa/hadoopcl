@@ -207,11 +207,6 @@ abstract public class Task implements Writable, Configurable {
       } else {
           className = localConf.get(JobContext.OCL_REDUCE_CLASS_ATTR);
       }
-      if (className == null) {
-          throw new RuntimeException("Missing main OCL class for current " +
-                  "task, did you run a regular Hadoop job with a predictive " +
-                  "scheduler specified?");
-      }
       return className;
   }
 
