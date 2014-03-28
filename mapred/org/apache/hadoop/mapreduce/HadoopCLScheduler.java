@@ -49,7 +49,9 @@ public abstract class HadoopCLScheduler {
       int platformId = 0;
       int deviceId = 0;
       for(OpenCLPlatform platform : platforms) {
+          System.err.println("Platform "+platformId);
           for(OpenCLDevice device : platform.getOpenCLDevices()) {
+              System.err.println("  Device "+deviceId+" "+device.getType().toString());
               deviceTypes.add(device.getType());
               if (device.getType() == Device.TYPE.CPU) {
                   this.subDeviceOccupancy.put(deviceId,

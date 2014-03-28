@@ -704,7 +704,7 @@ abstract public class Task implements Writable, Configurable {
           if (!taskFound) {
             LOG.warn("Parent died.  Exiting "+taskId);
             resetDoneFlag();
-            System.exit(66);
+            System.exit(65);
           }
 
           sendProgress = resetProgressFlag(); 
@@ -717,7 +717,7 @@ abstract public class Task implements Writable, Configurable {
             ReflectionUtils.logThreadInfo(LOG, "Communication exception", 0);
             LOG.warn("Last retry, killing "+taskId);
             resetDoneFlag();
-            System.exit(65);
+            System.exit(64);
           }
         }
       }

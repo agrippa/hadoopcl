@@ -57,7 +57,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
             File file = new File(filename);
             if (file.exists() && file.isFile()) {
                 BufferedReader reader = new BufferedReader(new FileReader(filename));
-                String line;
+                String line = "";
                 while((line = reader.readLine()) != null) {
                     String[] tokens = line.split(" ");
                     String taskName = tokens[0];
@@ -93,11 +93,11 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
 
     private void loadRecordingsFromFile(String filename) {
         long start = System.currentTimeMillis();
+        String line = "";
         try {
             File file = new File(filename);
             if (file.exists() && file.isFile()) {
                 BufferedReader reader = new BufferedReader(new FileReader(filename));
-                String line;
                 while((line = reader.readLine()) != null) {
                     String[] tokens = line.split(" ");
                     String taskName = tokens[0];
@@ -125,7 +125,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
                 reader.close();
             }
         } catch(Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(line, e);
         }
         for(String key : taskPerfProfile.keySet()) {
             this.taskPerfProfile.get(key).characterizationInitialization();

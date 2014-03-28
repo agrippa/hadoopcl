@@ -198,8 +198,7 @@ public class BufferRunner implements Runnable {
         }
     }
 
-    private final Thread[] constructKernelThreads() {
-        Thread[] kernelThreads = new Thread[this.clContext.getNKernels()];
+    private final Thread[] constructKernelThreads(final Thread[] kernelThreads, final HadoopCLKernel kernels[]) {
 
         try {
             for (int i = 0; i < this.clContext.getNKernels(); i++) {
@@ -207,6 +206,7 @@ public class BufferRunner implements Runnable {
                     this.clContext.thisKernelConstructor.newInstance(
                             this.clContext, i);;
 
+                kernels[i] = kernel;
                 kernelThreads[i] = new Thread(new Runnable() {
 
                     private final void copyBackKernel() {
@@ -391,7 +391,10 @@ public class BufferRunner implements Runnable {
             throw new RuntimeException(e);
         }
 
-        final Thread[] kernelThreads = constructKernelThreads();
+        final Thread[] kernelThreads = new Thread[this.clContext.getNKernels()];
+        final HadoopCLKernel[] kernels = new HadoopCLKernel[this.clContext.getNKernels()];
+        constructKernelThreads(kernelThreads, kernels);
+
         for (Thread t : kernelThreads) {
             t.start();
         }
@@ -450,6 +453,9 @@ public class BufferRunner implements Runnable {
                 kernelThreads[i].join();
             }
             copyThread.join();
+            for (int i = 0; i < this.clContext.getNKernels(); i++) {
+                kernels[i].dispose();
+            }
         } catch (InterruptedException ie) {
             throw new RuntimeException(ie);
         }
