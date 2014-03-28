@@ -1536,13 +1536,13 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       // II. Create the (appropriate) task status
       if (type.equals(Values.MAP.name())) {
         taskStatus = 
-          new MapTaskStatus(attemptId, 0L, -1L, -1L, System.currentTimeMillis(), 0.0f,
+          new MapTaskStatus(attemptId, -1L, -1L, System.currentTimeMillis(), 0.0f,
                             job.getNumSlotsPerTask(TaskType.MAP),
                             TaskStatus.State.RUNNING, "", "", trackerName, 
                             TaskStatus.Phase.MAP, new Counters());
       } else {
         taskStatus = 
-          new ReduceTaskStatus(attemptId, 0L, -1L, -1L, System.currentTimeMillis(), 0.0f,
+          new ReduceTaskStatus(attemptId, -1L, -1L, System.currentTimeMillis(), 0.0f,
                                job.getNumSlotsPerTask(TaskType.REDUCE), 
                                TaskStatus.State.RUNNING, "", "", trackerName, 
                                TaskStatus.Phase.REDUCE, new Counters());

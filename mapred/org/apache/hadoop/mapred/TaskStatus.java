@@ -47,9 +47,8 @@ public abstract class TaskStatus implements Writable, Cloneable {
   private final TaskAttemptID taskid;
   private float progress;
 
-  private long inputsRead = -1;
-  private long processingStart = -1;
-  private long processingFinish = -1;
+  private long nInputs = -1;
+  private long processingTime = -1;
   private long timeStamp = -1;
 
   private volatile State runState;
@@ -73,9 +72,8 @@ public abstract class TaskStatus implements Writable, Cloneable {
   }
 
   public TaskStatus(TaskAttemptID taskid, 
-                    long inputsRead,
-                    long processingStart,
-                    long processingFinish, 
+                    long nInputs,
+                    long processingTime,
                     long timeStamp,
                     float progress, int numSlots,
                     State runState, String diagnosticInfo,
@@ -83,9 +81,8 @@ public abstract class TaskStatus implements Writable, Cloneable {
                     Phase phase, Counters counters) {
     this.taskid = taskid;
 
-    this.inputsRead = inputsRead;
-    this.processingStart = processingStart;
-    this.processingFinish = processingFinish;
+    this.nInputs = nInputs;
+    this.processingTime = processingTime;
     this.timeStamp = timeStamp;
 
     this.progress = progress;
@@ -105,12 +102,10 @@ public abstract class TaskStatus implements Writable, Cloneable {
     return numSlots;
   }
 
-  public long getInputsRead() { return this.inputsRead; }
-  public void setInputsRead(long set) { this.inputsRead = set; }
-  public long getProcessingStart() { return this.processingStart; }
-  public void setProcessingStart(long set) { this.processingStart = set; }
-  public long getProcessingFinish() { return this.processingFinish; }
-  public void setProcessingFinish(long set) { this.processingFinish = set; }
+  public long getNInputs() { return this.nInputs; }
+  public void setNInputs(long set) { this.nInputs = set; }
+  public long getProcessingTime() { return this.processingTime; }
+  public void setProcessingTime(long set) { this.processingTime = set; }
   public long getTimeStamp() { return this.timeStamp; }
   public void setTimeStamp(long set) { this.timeStamp = set; }
 
@@ -329,15 +324,13 @@ public abstract class TaskStatus implements Writable, Cloneable {
    * @param counters
    */
   synchronized void statusUpdate(float progress,
-                                 long inputsRead,
-                                 long processingStart,
-                                 long processingFinish, 
+                                 long nInputs,
+                                 long processingTime,
                                  long timeStamp,
                                  String state, 
                                  Counters counters) {
-    setInputsRead(inputsRead);
-    setProcessingStart(processingStart);
-    setProcessingFinish(processingFinish);
+    setNInputs(nInputs);
+    setProcessingTime(processingTime);
     setTimeStamp(timeStamp);
     setProgress(progress);
     setStateString(state);
@@ -350,9 +343,8 @@ public abstract class TaskStatus implements Writable, Cloneable {
    * @param status updated status
    */
   synchronized void statusUpdate(TaskStatus status) {
-    this.inputsRead = status.getInputsRead();
-    this.processingStart = status.getProcessingStart();
-    this.processingFinish = status.getProcessingFinish();
+    this.nInputs = status.getNInputs();
+    this.processingTime = status.getProcessingTime();
     this.timeStamp = status.getTimeStamp();
 
     this.progress = status.getProgress();
@@ -387,18 +379,16 @@ public abstract class TaskStatus implements Writable, Cloneable {
    * @param finishTime
    */
   synchronized void statusUpdate(State runState, 
-                                 long inputsRead,
-                                 long processingStart,
-                                 long processingFinish, 
+                                 long nInputs,
+                                 long processingTime,
                                  long timeStamp,
                                  float progress,
                                  String state, 
                                  Phase phase,
                                  long finishTime) {
     setRunState(runState);
-    setInputsRead(inputsRead);
-    setProcessingStart(processingStart);
-    setProcessingFinish(processingFinish);
+    setNInputs(nInputs);
+    setProcessingTime(processingTime);
     setTimeStamp(timeStamp);
     setProgress(progress);
     setStateString(state);
@@ -434,9 +424,8 @@ public abstract class TaskStatus implements Writable, Cloneable {
   public void write(DataOutput out) throws IOException {
     taskid.write(out);
 
-    out.writeLong(inputsRead);
-    out.writeLong(processingStart);
-    out.writeLong(processingFinish);
+    out.writeLong(nInputs);
+    out.writeLong(processingTime);
     out.writeLong(timeStamp);
 
     out.writeFloat(progress);
@@ -458,9 +447,8 @@ public abstract class TaskStatus implements Writable, Cloneable {
   public void readFields(DataInput in) throws IOException {
     this.taskid.readFields(in);
 
-    this.inputsRead = in.readLong();
-    this.processingStart = in.readLong();
-    this.processingFinish = in.readLong();
+    this.nInputs = in.readLong();
+    this.processingTime = in.readLong();
     this.timeStamp = in.readLong();
 
     this.progress = in.readFloat();
@@ -485,8 +473,7 @@ public abstract class TaskStatus implements Writable, Cloneable {
   //////////////////////////////////////////////////////////////////////////////
   
   static TaskStatus createTaskStatus(DataInput in, TaskAttemptID taskId, 
-                                     long inputsRead,
-                                     long processingStart, long processingFinish,
+                                     long nInputs, long processingTime,
                                      long timeStamp,
                                      float progress, int numSlots,
                                      State runState, String diagnosticInfo,
@@ -494,27 +481,26 @@ public abstract class TaskStatus implements Writable, Cloneable {
                                      Phase phase, Counters counters) 
   throws IOException {
     boolean isMap = in.readBoolean();
-    return createTaskStatus(isMap, taskId, inputsRead, 
-            processingStart, processingFinish, timeStamp,
+    return createTaskStatus(isMap, taskId, nInputs, processingTime,
+            timeStamp,
             progress, numSlots, runState, 
             diagnosticInfo, stateString, taskTracker, phase, 
             counters);
   }
   
   static TaskStatus createTaskStatus(boolean isMap, TaskAttemptID taskId, 
-                                     long inputsRead,
-                                     long processingStart, long processingFinish,
+                                     long nInputs, long processingTime,
                                      long timeStamp,
                                      float progress, int numSlots,
                                      State runState, String diagnosticInfo,
                                      String stateString, String taskTracker,
                                      Phase phase, Counters counters) { 
-    return (isMap) ? new MapTaskStatus(taskId, inputsRead, processingStart,
-            processingFinish, timeStamp, progress, numSlots, runState, 
+    return (isMap) ? new MapTaskStatus(taskId, nInputs, processingTime,
+            timeStamp, progress, numSlots, runState, 
                                        diagnosticInfo, stateString, taskTracker, 
                                        phase, counters) :
-                     new ReduceTaskStatus(taskId, inputsRead, processingStart,
-                             processingFinish, timeStamp, progress, numSlots, runState, 
+                     new ReduceTaskStatus(taskId, nInputs, processingTime,
+                                          timeStamp, progress, numSlots, runState, 
                                           diagnosticInfo, stateString, 
                                           taskTracker, phase, counters);
   }

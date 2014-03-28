@@ -18,6 +18,7 @@
 package org.apache.hadoop.mapred;
 
 import org.apache.hadoop.mapreduce.OpenCLDriver;
+import org.apache.hadoop.mapreduce.OpenCLDriver.MutableLongPair;
 
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
@@ -3170,11 +3171,11 @@ public class JobInProgress {
   public void failedTask(TaskInProgress tip, TaskAttemptID taskid, String reason, 
                          TaskStatus.Phase phase, TaskStatus.State state, 
                          String trackerName) {
+    MutableLongPair curr = OpenCLDriver.globalStatus.get();
     TaskStatus status = TaskStatus.createTaskStatus(tip.isMapTask(), 
                                                     taskid,
-                                                    OpenCLDriver.inputsRead,
-                                                    OpenCLDriver.processingStart,
-                                                    OpenCLDriver.processingFinish,
+                                                    curr.nInputs,
+                                                    curr.processingTime,
                                                     System.currentTimeMillis(),
                                                     0.0f,
                                                     tip.isMapTask() ? 

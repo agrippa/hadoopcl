@@ -34,6 +34,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
             List<Device.TYPE> deviceTypes, boolean isMapper);
     public abstract HadoopCLRecording<RecordingType> getRecordingObject(int device, double rate, double[] setOccupancy);
     public abstract MappingType getMappingObject(int device);
+    public abstract boolean recordLaunches();
 
     public void setRecordingsFile(BufferedWriter writer) {
         this.recordingsWriter = writer;
@@ -136,7 +137,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
 
     protected void writeLaunch(String taskName, int device, int[] occupancy, boolean isMapper) {
         try {
-            if(this.launchesWriter != null) {
+            if(this.launchesWriter != null && recordLaunches()) {
                 StringBuffer buffer = new StringBuffer();
                 buffer.append(taskName);
                 buffer.append(" ");

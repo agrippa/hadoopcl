@@ -34,12 +34,12 @@ class ReduceTaskStatus extends TaskStatus {
   
   public ReduceTaskStatus() {}
 
-  public ReduceTaskStatus(TaskAttemptID taskid, long inputsRead,
-          long processingStart, long processingFinish, long timeStamp,
+  public ReduceTaskStatus(TaskAttemptID taskid, long nInputs,
+          long processingTime, long timeStamp,
           float progress, int numSlots,
           State runState, String diagnosticInfo, String stateString, 
           String taskTracker, Phase phase, Counters counters) {
-    super(taskid, inputsRead, processingStart, processingFinish, timeStamp, 
+    super(taskid, nInputs, processingTime, timeStamp, 
             progress, numSlots, runState, diagnosticInfo, stateString, 
             taskTracker, phase, counters);
   }

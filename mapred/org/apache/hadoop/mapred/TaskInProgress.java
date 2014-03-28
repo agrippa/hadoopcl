@@ -613,8 +613,8 @@ class TaskInProgress {
       taskStatuses.put(taskid, status);
     } else {
       taskStatuses.get(taskid).statusUpdate(status.getRunState(),
-        status.getInputsRead(), status.getProcessingStart(),
-        status.getProcessingFinish(), status.getTimeStamp(),
+        status.getNInputs(), status.getProcessingTime(),
+        status.getTimeStamp(),
         status.getProgress(), 
         status.getStateString(), status.getPhase(),
         status.getFinishTime());

@@ -47,54 +47,10 @@ public class HadoopCLStaticScheduler extends HadoopCLPredictiveScheduler<Device.
     public Device.TYPE getMappingObject(int device) {
         return this.deviceTypes.get(device);
     }
-
-    /*
-    private void setFromFile(String filename) {
-        try {
-            File file = new File(filename);
-            if(file.exists() && file.isFile()) {
-                BufferedReader reader = new BufferedReader(new FileReader(filename));
-                String line;
-                int lineCount = 0;
-                while((line = reader.readLine()) != null) {
-                    String[] tokens = line.split(" ");
-                    String taskName = tokens[0];
-                    String deviceStr = tokens[1];
-                    int device = Integer.parseInt(deviceStr);
-                   
-                    int startBIndex = 4;
-                    while(startBIndex < tokens.length && !tokens[startBIndex].equals("[")) {
-                        startBIndex++;
-                    }
-                    startBIndex = startBIndex + 1;
-
-                    int endBIndex = startBIndex;
-                    while(endBIndex < tokens.length && !tokens[endBIndex].equals("]")) {
-                        endBIndex ++;
-                    }
-
-                    List<String> predictorTokens = new ArrayList<String>();
-
-                    for(int i = startBIndex; i < endBIndex; i++) {
-                        predictorTokens.add(tokens[i]);
-                    }
-
-                    if(!taskPerfProfile.containsKey(taskName)) {
-                        taskPerfProfile.put(taskName,
-                                this.getCharacterizationObject(taskName, this.deviceTypes));
-                    }
-                    taskPerfProfile.get(taskName).initPredictor(this.deviceTypes.get(device), predictorTokens);
-                    //taskPerfProfile.get(taskName).setFunction(this.deviceTypes.get(device), new DeviceFunction(tmpB, 0.0));
-                    lineCount++;
-                }
-                reader.close();
-            }
-        } catch(Exception e) {
-            throw new RuntimeException(e);
-        }
+    @Override
+    public boolean recordLaunches() {
+        return false;
     }
-    */
-
 
     @Override
 	public int shouldSwitchPlatform(Task task, JobConf conf, 

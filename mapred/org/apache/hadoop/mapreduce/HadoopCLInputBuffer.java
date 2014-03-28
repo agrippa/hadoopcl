@@ -12,6 +12,7 @@ public abstract class HadoopCLInputBuffer extends HadoopCLBuffer {
         this.doingBulkRead = clContext.getContext().supportsBulkReads();
     }
 
+    public abstract int getNInputs();
     public abstract boolean isFull(TaskInputOutputContext context)
         throws IOException, InterruptedException;
     public abstract void reset();

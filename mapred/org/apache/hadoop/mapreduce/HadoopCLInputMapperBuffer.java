@@ -35,6 +35,11 @@ public abstract class HadoopCLInputMapperBuffer extends HadoopCLInputBuffer {
     }
 
     @Override
+    public int getNInputs() {
+        return this.nPairs;
+    }
+
+    @Override
     public long space() {
         return super.space();
     }

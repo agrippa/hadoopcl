@@ -21,6 +21,7 @@ package org.apache.hadoop.mapred;
 import org.apache.hadoop.mapreduce.HadoopCLKeyValueIterator;
 import org.apache.hadoop.io.KVCollection;
 import org.apache.hadoop.mapreduce.OpenCLDriver;
+import org.apache.hadoop.mapreduce.OpenCLDriver.MutableLongPair;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -188,7 +189,7 @@ abstract public class Task implements Writable, Configurable {
     this.partition = partition;
     this.numSlotsRequired = numSlotsRequired;
     this.taskStatus = TaskStatus.createTaskStatus(isMapTask(), this.taskId, 
-                                                  0L, -1L, -1L,
+                                                  -1L, -1L,
                                                   System.currentTimeMillis(),
                                                   0.0f, numSlotsRequired,
                                                   TaskStatus.State.UNASSIGNED, 
@@ -684,10 +685,9 @@ abstract public class Task implements Writable, Configurable {
           if (sendProgress) {
             // we need to send progress update
             updateCounters();
+            MutableLongPair curr = OpenCLDriver.globalStatus.get();
             taskStatus.statusUpdate(taskProgress.get(),
-                                    OpenCLDriver.inputsRead,
-                                    OpenCLDriver.processingStart,
-                                    OpenCLDriver.processingFinish,
+                                    curr.nInputs, curr.processingTime,
                                     System.currentTimeMillis(),
                                     taskProgress.toString(), 
                                     counters);
@@ -947,10 +947,9 @@ abstract public class Task implements Writable, Configurable {
   throws IOException {
     taskStatus.setOutputSize(calculateOutputSize());
     // send a final status report
+    MutableLongPair curr = OpenCLDriver.globalStatus.get();
     taskStatus.statusUpdate(taskProgress.get(),
-                            OpenCLDriver.inputsRead,
-                            OpenCLDriver.processingStart,
-                            OpenCLDriver.processingFinish,
+                            curr.nInputs, curr.processingTime,
                             System.currentTimeMillis(),
                             taskProgress.toString(), 
                             counters);

@@ -51,6 +51,11 @@ public abstract class HadoopCLInputReducerBuffer extends HadoopCLInputBuffer {
     }
 
     @Override
+    public int getNInputs() {
+        return this.nKeys;
+    }
+
+    @Override
     public void addKeyAndValue(TaskInputOutputContext context)
             throws IOException, InterruptedException {
         addTypedKey(((Context)context).getCurrentKey());

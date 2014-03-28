@@ -198,7 +198,8 @@ public class BufferRunner implements Runnable {
         }
     }
 
-    private final Thread[] constructKernelThreads(final Thread[] kernelThreads, final HadoopCLKernel kernels[]) {
+    private final Thread[] constructKernelThreads(final Thread[] kernelThreads,
+            final HadoopCLKernel kernels[]) {
 
         try {
             for (int i = 0; i < this.clContext.getNKernels(); i++) {
@@ -261,6 +262,8 @@ public class BufferRunner implements Runnable {
                             // }
                             input.clearNWrites();
 
+                            final long nInputs = input.getNInputs();
+                            final long startProcessing = System.currentTimeMillis();
                             if (!startKernel(kernel, input)) {
                                 throw new RuntimeException("Failed to start kernel");
                             }
@@ -280,6 +283,11 @@ public class BufferRunner implements Runnable {
                             kernel.openclProfile.stopKernel();
 
                             copyBackKernel();
+                            final long stopProcessing = System.currentTimeMillis();
+                            if (!clContext.isCombiner()) {
+                                OpenCLDriver.addProgress(nInputs,
+                                    stopProcessing - startProcessing);
+                            }
 
                             while (willRequireRestart != 0) {
                                 // LOG:DIAGNOSTIC

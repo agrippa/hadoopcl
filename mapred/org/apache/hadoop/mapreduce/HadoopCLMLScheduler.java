@@ -37,6 +37,10 @@ public class HadoopCLMLScheduler extends HadoopCLPredictiveScheduler<Integer, do
     public Integer getMappingObject(int device) {
         return device;
     }
+    @Override
+    public boolean recordLaunches() {
+        return true;
+    }
 	
 	@Override
 	public int shouldSwitchPlatform(Task task, JobConf conf, 
@@ -82,8 +86,8 @@ public class HadoopCLMLScheduler extends HadoopCLPredictiveScheduler<Integer, do
             String taskClassName = task.getMainClassName(conf);
 
 
-            if(taskStatus.getInputsRead() > 0) {
-                double processingRate = taskStatus.getInputsRead() / (taskStatus.getProcessingFinish()-taskStatus.getProcessingStart());
+            if(taskStatus.getNInputs() > 0) {
+                double processingRate = (double)taskStatus.getNInputs() / (double)taskStatus.getProcessingTime();
 
                 AHadoopCLTaskCharacterization<Integer, double[]> taskProfile = this.getCharacterizationObject(taskClassName, 
                         this.deviceTypes, task.isMapTask());

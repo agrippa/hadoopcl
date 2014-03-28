@@ -2720,7 +2720,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       this.occupancyHistory = new ArrayList<int[]>();
       localJobConf = null;
       taskStatus = TaskStatus.createTaskStatus(task.isMapTask(), task.getTaskID(), 
-                                               0L, -1L, -1L, 
+                                               -1L, -1L, 
                                                System.currentTimeMillis(),
                                                0.0f, 
                                                task.getNumSlotsRequired(),
@@ -3535,18 +3535,17 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
       if(!tip.isSpeculative() && taskStatus.getProgress() > 0.1 && 
           scheduler instanceof HadoopCLPredictiveScheduler &&
-              tip.getStatus().getProcessingStart() != -1L) {
+              tip.getStatus().getNInputs() != -1L) {
 
           HadoopCLPredictiveScheduler predictiveSched =
               (HadoopCLPredictiveScheduler)scheduler;
 		  //TODO improve these calculations
-          long elapsedTime = tip.getStatus().getTimeStamp() -
-              tip.getStatus().getProcessingStart();
+          long elapsedTime = tip.getStatus().getProcessingTime();
           double processingProgress = tip.getStatus().getProgress();
           long expectedTotalTime = (long)((double)elapsedTime /
                   processingProgress);
           long expectedRemainingTime = expectedTotalTime - elapsedTime;
-          long readSoFar = tip.getStatus().getInputsRead();
+          long readSoFar = tip.getStatus().getNInputs();
           long expectedTotalInputs = (long)((double)readSoFar /
                   processingProgress);
 

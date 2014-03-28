@@ -1,6 +1,7 @@
 package org.apache.hadoop.mapreduce;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -49,13 +50,32 @@ public class OpenCLDriver {
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
 
-  public static long inputsRead = -1L;
-  public static long processingStart = -1L;
-  public static long processingFinish = -1L;
+  // public static long inputsRead = -1L;
+  // public static long processingStart = -1L;
+  // public static long processingFinish = -1L;
   private final TaskInputOutputContext context;
   private final HadoopOpenCLContext clContext;
   private final Configuration conf;
   private final long startTime;
+
+  public static AtomicReference<MutableLongPair> globalStatus =
+      new AtomicReference<MutableLongPair>(new MutableLongPair());
+
+  private static MutableLongPair getNext(MutableLongPair curr, long n, long p) {
+      if (curr.nInputs == -1L) {
+          return new MutableLongPair(n, p);
+      } else {
+          return new MutableLongPair(curr.nInputs + n, curr.processingTime + p);
+      }
+  }
+  public static void addProgress(long n, long p) {
+      MutableLongPair curr, next;
+
+      do {
+          curr = globalStatus.get();
+          next = getNext(curr, n, p);
+      } while (!globalStatus.compareAndSet(curr, next));
+  }
 
   public OpenCLDriver(String type, TaskInputOutputContext context) {
     this.startTime = System.currentTimeMillis();
@@ -228,11 +248,8 @@ public class OpenCLDriver {
   public void run() throws IOException, InterruptedException {
 
     final boolean isCombiner = this.clContext.isCombiner();
-    OpenCLDriver.processingFinish = -1;
-    OpenCLDriver.processingStart = System.currentTimeMillis();
-    if (!isCombiner) {
-        OpenCLDriver.inputsRead = 0;
-    }
+    // OpenCLDriver.processingFinish = -1;
+    // OpenCLDriver.processingStart = System.currentTimeMillis();
 
     final long startupTime = System.currentTimeMillis() - this.startTime;
     // LOG:PROFILE
@@ -242,7 +259,7 @@ public class OpenCLDriver {
         final long start = System.currentTimeMillis();
         IHadoopCLAccumulatedProfile javaProfile = javaRun(!isCombiner);
         final long stop = System.currentTimeMillis();
-        OpenCLDriver.processingFinish = System.currentTimeMillis();
+        // OpenCLDriver.processingFinish = System.currentTimeMillis();
         String profileStr = profilesToString(javaProfile, startupTime, stop - start);
         System.out.println(profileStr);
         // LOG:PROFILE
@@ -290,9 +307,9 @@ public class OpenCLDriver {
             itemCount += buffer.bulkFill(stream);
 
             buffer.getProfile().addItemsProcessed(itemCount);
-            if (!isCombiner) {
-                OpenCLDriver.inputsRead += itemCount;
-            }
+            // if (!isCombiner) {
+            //     OpenCLDriver.inputsRead += itemCount;
+            // }
 
             if (buffer.isFull(this.context)) {
                 buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager, this.context);
@@ -307,9 +324,9 @@ public class OpenCLDriver {
             }
 
             buffer.addKeyAndValue(this.context);
-            if (!isCombiner) {
-                OpenCLDriver.inputsRead++;
-            }
+            // if (!isCombiner) {
+            //     OpenCLDriver.inputsRead++;
+            // }
             itemCount++;
         }
     }
@@ -326,7 +343,7 @@ public class OpenCLDriver {
 
     bufferRunnerThread.join();
 
-    OpenCLDriver.processingFinish = System.currentTimeMillis();
+    // OpenCLDriver.processingFinish = System.currentTimeMillis();
 
     final long stop = System.currentTimeMillis();
     // LOG:PROFILE
@@ -334,5 +351,20 @@ public class OpenCLDriver {
     String profileStr = profilesToString(stop - start, startupTime,
         bufferRunner.profiles());
     System.out.println(profileStr);
+  }
+
+  public static class MutableLongPair {
+      public final long nInputs;
+      public final long processingTime;
+
+      public MutableLongPair() {
+          this.nInputs = -1L;
+          this.processingTime = 0L;
+      }
+
+      public MutableLongPair(long n, long p) {
+          this.nInputs = n;
+          this.processingTime = p;
+      }
   }
 }
