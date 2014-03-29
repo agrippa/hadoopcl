@@ -261,7 +261,7 @@ abstract class TaskRunner extends Thread {
           if (exitCode == 65) {
             tracker.getTaskTrackerInstrumentation().taskFailedPing(t.getTaskID());
           }
-          throw new IOException("Task process exit with nonzero status of " +
+          throw new IOException("Task process w/ workDir="+workDir.exists()+" exit with nonzero status of " +
               exitCode + ".");
         }
       }
@@ -378,6 +378,7 @@ abstract class TaskRunner extends Thread {
       List<String> classPaths, long logSize, int assignedDevice, int deviceSlot)
       throws IOException {
     Vector<String> vargs = new Vector<String>(8);
+
     File jvm =                                  // use same jvm as parent
       new File(new File(System.getProperty("java.home"), "bin"), "java");
 

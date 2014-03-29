@@ -2973,6 +2973,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         taskFinished();
         releaseSlot();
       }
+
       notifyTTAboutTaskCompletion();
     }
 

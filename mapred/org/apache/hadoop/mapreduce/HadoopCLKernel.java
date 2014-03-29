@@ -239,6 +239,25 @@ public abstract class HadoopCLKernel extends Kernel {
     }
     */
 
+    protected boolean isSorted(int[] arr, int len) {
+        boolean sorted = false;
+        for (int i = 1; i < len; i++) {
+            if (arr[i] < arr[i-1]) {
+                sorted = false;
+                break;
+            }
+        }
+        return sorted;
+    }
+
+    protected void hopefulSort(int[] arr, double[] coarr, int len) {
+        if (!isSorted(arr, len)) stupidSort(arr, coarr, len);
+    }
+
+    protected void hopefulSort(int[] arr, int[] coarr, int len) {
+        if (!isSorted(arr, len)) stupidSort(arr, coarr, len);
+    }
+
     protected void stupidSort(int[] arr, double[] coarr, int len) {
         for (int i = 0; i < len; i++) {
             int minIndex = i;

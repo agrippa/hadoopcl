@@ -500,7 +500,6 @@ class JvmManager {
             String taskAttemptIdStr = task.isTaskCleanupTask() ? 
                 (taskAttemptId.toString() + TaskTracker.TASK_CLEANUP_SUFFIX) :
                   taskAttemptId.toString(); 
-            System.err.println("Using TaskController "+tracker.getTaskController().getClass().getName());
                 exitCode = tracker.getTaskController().launchTask(user,
                     jvmId.jobId.toString(), taskAttemptIdStr, env.setup,
                     env.vargs, env.workDir, env.stdout.toString(),
