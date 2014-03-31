@@ -257,7 +257,7 @@ public class HadoopOpenCLContext {
         return strength.randomlySelectedDeviceType(taskId);
     }
 
-    private int getCombinerDeviceId() {
+    public int getCombinerDeviceId() {
         Device.TYPE type = getCombinerDeviceType();
         if (type == jvmDeviceType()) {
             return jvmDeviceId();
@@ -266,7 +266,7 @@ public class HadoopOpenCLContext {
         }
     }
 
-    private int getCombinerDeviceSlot() {
+    public int getCombinerDeviceSlot() {
         Device.TYPE type = getCombinerDeviceType();
         if (type == jvmDeviceType()) {
             return jvmDeviceSlot();

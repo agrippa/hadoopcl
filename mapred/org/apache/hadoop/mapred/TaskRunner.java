@@ -17,6 +17,9 @@
  */
 package org.apache.hadoop.mapred;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.channels.FileChannel;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -261,8 +264,8 @@ abstract class TaskRunner extends Thread {
           if (exitCode == 65) {
             tracker.getTaskTrackerInstrumentation().taskFailedPing(t.getTaskID());
           }
-          throw new IOException("Task process w/ workDir="+workDir.exists()+" exit with nonzero status of " +
-              exitCode + ".");
+          final String msg = "Task process exit with nonzero status of " + exitCode+".";
+          throw new IOException(msg);
         }
       }
     } catch (FSError e) {

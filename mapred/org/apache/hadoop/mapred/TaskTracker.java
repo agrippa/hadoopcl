@@ -2811,7 +2811,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
             task.getTaskID().toString() + " to device " + assignment.device() +
             ", device slot " + assignment.device_slot() + ", " +
             (assignment.speculative() ? "speculative" : "non-speculative") +
-            ", took "+(stop-start)+" ms");
+            ", took "+(stop-start)+" ms using "+this.scheduler.getClass().getName());
 
         this.setAssignedDevice(assignment.device(),
                 this.scheduler.numDevices());

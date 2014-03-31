@@ -147,7 +147,7 @@ public class BufferRunner implements Runnable {
         // LOG:DIAGNOSTIC
         // log("    Reading kernel "+complete.id+" into output buffer "+output.id);
         complete.prepareForRead(output);
-        complete.waitFor();
+        complete.readFromOpenCL();
         output.copyOverFromKernel(complete);
         output.tracker = complete.tracker.clone();
 
@@ -231,7 +231,7 @@ public class BufferRunner implements Runnable {
                     @Override
                     public void run() {
                         kernel.doEntrypointInit(clContext.getDevice(),
-                            clContext.getDeviceSlot(),
+                            clContext.getDeviceId(), clContext.getDeviceSlot(),
                             clContext.getContext().getTaskAttemptID().getTaskID().getId(),
                             clContext.getContext().getTaskAttemptID().getId());
 
@@ -325,7 +325,6 @@ public class BufferRunner implements Runnable {
                             somethingHappenedLocal.set(true);
                             somethingHappenedLocal.notify();
                         }
-                        kernel.dispose();
 
                         synchronized (toCopyFromOpenCL) {
                             toCopyFromOpenCL.add(new KernelThreadDone(clContext, -1));
@@ -416,7 +415,7 @@ public class BufferRunner implements Runnable {
             KernelRunner.doKernelAndArgLinesPrealloc(
                 this.clContext.getCombinerKernel(),
                 Kernel.TaskType.COMBINER, this.clContext.nCombinerKernels(),
-                combinerDevice, this.clContext.getDeviceSlot());
+                combinerDevice, this.clContext.getCombinerDeviceId(), this.clContext.getCombinerDeviceSlot());
         }
 
         // LOG:PROFILE
