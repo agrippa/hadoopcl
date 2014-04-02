@@ -190,7 +190,7 @@ abstract class TaskRunner extends Thread {
   public String getChildEnv(JobConf jobConf) {
     return jobConf.get(JobConf.MAPRED_TASK_ENV);
   }
-  
+
   @Override
   public final void run() {
     String errorInfo = "Child Error";
@@ -265,6 +265,16 @@ abstract class TaskRunner extends Thread {
             tracker.getTaskTrackerInstrumentation().taskFailedPing(t.getTaskID());
           }
           final String msg = "Task process exit with nonzero status of " + exitCode+".";
+          // File folder = workDir;
+          // for (String s : folder.list()) {
+          //     if (s.indexOf("core") == 0) {
+          //         try {
+          //             new File(workDir+"/"+s).renameTo(new File("/tmp/"+s));
+          //         } catch (Exception e) {
+          //             System.err.println("Exception while copying "+s+" : "+e.getClass().getName());
+          //         }
+          //     }
+          // }
           throw new IOException(msg);
         }
       }
