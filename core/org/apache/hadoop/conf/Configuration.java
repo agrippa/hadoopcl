@@ -1570,11 +1570,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           int[] globalOffsets = new int[countGlobals];
           int[] globalsInd = new int[totalGlobals];
           double[] globalsVal = new double[totalGlobals];
-          // float[] globalsFval = new float[totalGlobals];
 
           int[] globalsMapInd = new int[totalGlobals];
           double[] globalsMapVal = new double[totalGlobals];
-          // float[] globalsMapFval = new float[totalGlobals];
           int[] globalsMap = new int[nGlobalBuckets * countGlobals];
 
           final HashMap<Integer, List<IntDoublePair>> buckets =
@@ -1593,7 +1591,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                           new IntDoublePair(currentIndices[i], currentVals[i]));
                   globalsInd[globalIndex] = currentIndices[i];
                   globalsVal[globalIndex] = currentVals[i];
-                  // globalsFval[globalIndex] = (float)currentVals[i];
                   globalIndex++;
               }
 
@@ -1604,7 +1601,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                   for (IntDoublePair element : buckets.get(bucket)) {
                       globalsMapInd[tmpGlobalIndex] = element.i;
                       globalsMapVal[tmpGlobalIndex] = element.d;
-                      // globalsMapFval[tmpGlobalIndex] = (float)element.d;
                       tmpGlobalIndex++;
                   }
               }
