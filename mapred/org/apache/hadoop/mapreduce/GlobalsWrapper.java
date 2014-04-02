@@ -61,8 +61,8 @@ public class GlobalsWrapper {
             int totalGlobals = metadata[1];
 
             final int totalLength = (4 * countGlobals) + (4 * totalGlobals) +
-                (8 * totalGlobals) + (4 * totalGlobals) + (8 * totalGlobals) +
-                (4 * countGlobals * nGlobalBuckets);
+                (8 * totalGlobals) + (4 * countGlobals * nGlobalBuckets); /* + (4 * totalGlobals) + (8 * totalGlobals) +
+                (4 * countGlobals * nGlobalBuckets); */
 
             this.nGlobals = countGlobals;
 
@@ -91,7 +91,7 @@ public class GlobalsWrapper {
             currentOffset += this.globalsVal.length * 8;
             bb.position(currentOffset);
 
-            bb.asIntBuffer.get(this.globalStartingIndexPerBucket);
+            bb.asIntBuffer().get(this.globalStartingIndexPerBucket);
 
             // bb.asIntBuffer().get(this.globalsMapInd);
             // currentOffset += this.globalsMapInd.length * 4;

@@ -105,10 +105,11 @@ public abstract class HadoopCLKernel extends Kernel {
       final int endingIndex = (gid + 1) * this.nGlobalBuckets;
       int index = binarySearchForNextSmallest(this.globalStartingIndexPerBucket,
               sparseIndex, startingIndex, endingIndex);
+      if (index == -1) return -1;
 
       int iter = globalIndices[gid] + ((index - startingIndex) * perBucket);
-      while (globalsInd[iter] < sparseIndex) iter++;
-      if (globalInd[iter] == sparseIndex) return iter;
+      while (this.globalsInd[iter] < sparseIndex) iter++;
+      if (this.globalsInd[iter] == sparseIndex) return iter;
       else return -1;
 
       // int globalBucketId = gid * this.nGlobalBuckets + (sparseIndex % this.nGlobalBuckets);
@@ -120,7 +121,8 @@ public abstract class HadoopCLKernel extends Kernel {
 
     protected double referenceGlobalVal(int gid, int sparseIndex) {
       int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
-      return globalIndex == -1 ? 0.0 : this.globalsMapVal[globalIndex];
+      // return globalIndex == -1 ? 0.0 : this.globalsMapVal[globalIndex];
+      return globalIndex == -1 ? 0.0 : this.globalsVal[globalIndex];
     }
 
     protected int nGlobals() {
@@ -457,18 +459,39 @@ public abstract class HadoopCLKernel extends Kernel {
     public int binarySearchForNextSmallest(int[] vals, int find, int inLow, int inHigh) {
       int low = inLow;
       int high = inHigh-1;
+
+      if (find < vals[low] || find > vals[high]) {
+          System.err.println("Exiting early: find="+find+" low="+low+" high="+high+" vals[low]="+vals[low]+" vals[high]="+vals[high]);
+          return -1;
+      }
+
+      int lastLow = -1;
+      int lastHigh = -1;
  
       while (low <= high) {
         int mid = (high + low) / 2;
         int v = vals[mid];
-        if (v == find || (mid < inHight-1 && v < find && vals[mid+1] > find)) {
+        if (v == find) {
             return mid;
         }
 
+        lastLow = low;
+        lastHigh = high;
         if (v > find) high = mid-1;
         else low = mid+1;
       }
-      return -1;
+
+      System.err.println("Exiting while searching for "+ find);
+      System.err.println("  lastLow="+lastLow+" lastHigh="+lastHigh);
+      StringBuilder sb = new StringBuilder();
+      for (int i = lastLow; i <= lastHigh; i++) {
+          sb.append(vals[i]+" ");
+      }
+      System.err.println("  "+sb.toString());
+
+      int min = lastLow;
+      while (min <= lastHigh && vals[min] < find) min++;
+      return min - 1;
     }
 
     /*

@@ -1585,15 +1585,15 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
               int[] currentIndices = this.globalIndices.get(vector);
               double[] currentVals = this.globalVals.get(vector);
 
-              final int perBucket = (globalIndices.size() + nGlobalBuckets - 1) /
+              final int perBucket = (currentIndices.length + nGlobalBuckets - 1) /
                   nGlobalBuckets;
               int bucket = 0;
 
               // clearBuckets(buckets);
               globalOffsets[globalCount] = globalIndex;
               for (int i = 0; i < currentIndices.length; i++) {
-                  buckets.get(currentIndices[i] % nGlobalBuckets).add(
-                          new IntDoublePair(currentIndices[i], currentVals[i]));
+                  // buckets.get(currentIndices[i] % nGlobalBuckets).add(
+                  //         new IntDoublePair(currentIndices[i], currentVals[i]));
                   globalsInd[globalIndex] = currentIndices[i];
                   globalsVal[globalIndex] = currentVals[i];
 
@@ -1604,6 +1604,12 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
                   globalIndex++;
               }
+
+              System.err.println("bucket="+bucket+" nGlobalBuckets="+nGlobalBuckets);
+              for (int i = 0; i < nGlobalBuckets; i++) {
+                  System.err.print(globalStartingIndexPerBucket[globalCount * nGlobalBuckets + i]+" ");
+              }
+              System.err.println();
 
               // int tmpGlobalIndex = globalOffsets[globalCount];
               // for (int bucket = 0; bucket < nGlobalBuckets; bucket++) {
@@ -1626,7 +1632,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           ReadArrayUtils.dumpIntArrayStatic(output, globalOffsets, 0, globalOffsets.length);
           ReadArrayUtils.dumpIntArrayStatic(output, globalsInd, 0, globalsInd.length);
           ReadArrayUtils.dumpDoubleArrayStatic(output, globalsVal, 0, globalsVal.length);
-          ReadArrayUtils.dumpIntArray(output, globalStartingIndexPerBucket, 0, globalStartingIndexPerBucket.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalStartingIndexPerBucket, 0, globalStartingIndexPerBucket.length);
           // ReadArrayUtils.dumpIntArrayStatic(output, globalsMapInd, 0, globalsMapInd.length);
           // ReadArrayUtils.dumpDoubleArrayStatic(output, globalsMapVal, 0, globalsMapVal.length);
           // ReadArrayUtils.dumpIntArrayStatic(output, globalsMap, 0, globalsMap.length);
