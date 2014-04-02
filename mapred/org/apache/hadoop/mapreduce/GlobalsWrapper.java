@@ -34,13 +34,15 @@ public class GlobalsWrapper {
     public double[] globalsVal;
     public int[] globalIndices;
     public int[] globalStartingIndexPerBucket;
+    public int[] globalBucketOffsets;
     public int nGlobals;
+    public int globalBucketSize;
 
     // public int[] globalsMapInd;
     // public double[] globalsMapVal;
     // public int[] globalsMap;
 
-    public int nGlobalBuckets;
+    // public int nGlobalBuckets;
 
     private boolean initialized = false;
 
@@ -51,17 +53,18 @@ public class GlobalsWrapper {
         if (initialized) return;
 
         initialized = true;
-        this.nGlobalBuckets = conf.getInt("opencl.global.buckets", 4096);
+        this.globalBucketSize = conf.getInt("opencl.global.bucketsize", 50);
         try {
 
             FSDataInputStream input = FileSystem.get(conf).open(
                 new Path(conf.get("opencl.properties.globalsfile")));
-            int[] metadata = ReadArrayUtils.readIntArray(input, 2);
+            int[] metadata = ReadArrayUtils.readIntArray(input, 3);
             int countGlobals = metadata[0];
             int totalGlobals = metadata[1];
+            int totalGlobalBuckets = metadata[2];
 
             final int totalLength = (4 * countGlobals) + (4 * totalGlobals) +
-                (8 * totalGlobals) + (4 * countGlobals * nGlobalBuckets); /* + (4 * totalGlobals) + (8 * totalGlobals) +
+                (8 * totalGlobals) + (4 * totalGlobalBuckets) + (4 * (countGlobals + 1)); /* + (4 * totalGlobals) + (8 * totalGlobals) +
                 (4 * countGlobals * nGlobalBuckets); */
 
             this.nGlobals = countGlobals;
@@ -71,7 +74,8 @@ public class GlobalsWrapper {
             this.globalIndices = new int[countGlobals];
             this.globalsInd = new int[totalGlobals];
             this.globalsVal = new double[totalGlobals];
-            this.globalStartingIndexPerBucket = new int[nGlobalBuckets * countGlobals];
+            this.globalStartingIndexPerBucket = new int[totalGlobalBuckets];
+            this.globalBucketOffsets = new int[countGlobals + 1];
             // this.globalsMapInd = new int[totalGlobals];
             // this.globalsMapVal = new double[totalGlobals];
             // this.globalsMap = new int[nGlobalBuckets * countGlobals];
@@ -92,6 +96,10 @@ public class GlobalsWrapper {
             bb.position(currentOffset);
 
             bb.asIntBuffer().get(this.globalStartingIndexPerBucket);
+            currentOffset += this.globalStartingIndexPerBucket.length * 4;
+            bb.position(currentOffset);
+
+            bb.asIntBuffer.get(this.globalBucketOffsets);
 
             // bb.asIntBuffer().get(this.globalsMapInd);
             // currentOffset += this.globalsMapInd.length * 4;

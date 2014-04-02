@@ -37,12 +37,14 @@ public abstract class HadoopCLKernel extends Kernel {
     public final int[] globalsInd;
     public final int[] globalIndices;
     public final int[] globalStartingIndexPerBucket;
+    public final int[] globalBucketOffsets;
     public final int nGlobals;
+    public final int globalBucketSize;
 
     // public final int[] globalsMapInd;
     // public final double[] globalsMapVal;
     // public final int[] globalsMap;
-    public final int nGlobalBuckets;
+    // public final int nGlobalBuckets;
 
     public int[] outputIterMarkers;
     public int[] memIncr;
@@ -59,10 +61,12 @@ public abstract class HadoopCLKernel extends Kernel {
         GlobalsWrapper globals = clContext.getGlobals();
         this.globalIndices = globals.globalIndices;
         this.nGlobals = globals.nGlobals;
-        this.nGlobalBuckets = globals.nGlobalBuckets;
+        // this.nGlobalBuckets = globals.nGlobalBuckets;
         this.globalsInd = globals.globalsInd;
         this.globalsVal = globals.globalsVal;
         this.globalStartingIndexPerBucket = globals.globalStartingIndexPerBucket;
+        this.globalBucketOffsets = globals.globalBucketOffsets;
+        this.globalBucketSize = globals.globalBucketSize;
         // this.globalsMapInd = globals.globalsMapInd;
         // this.globalsMapVal = globals.globalsMapVal;
         // this.globalsMap = globals.globalsMap;
@@ -100,23 +104,17 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     private int findSparseIndexInGlobals(int gid, int sparseIndex) {
-      final int perBucket = (globalsLength(gid) + nGlobalBuckets - 1) / nGlobalBuckets;
-      final int startingIndex = gid * this.nGlobalBuckets;
-      final int endingIndex = (gid + 1) * this.nGlobalBuckets;
-      int index = binarySearchForNextSmallest(this.globalStartingIndexPerBucket,
-              sparseIndex, startingIndex, endingIndex);
+      int globalBucketStart = globalBucketOffsets[gid];
+      int globalBucketEnd = globalBucketOffsets[gid + 1];
+      int index = binarySearchForNextSmallest(this.globalStartingIndexPerBucket, sparseIndex, globalBucketStart, globalBucketEnd);
       if (index == -1) return -1;
 
-      int iter = globalIndices[gid] + ((index - startingIndex) * perBucket);
-      while (this.globalsInd[iter] < sparseIndex) iter++;
-      if (this.globalsInd[iter] == sparseIndex) return iter;
+      final int globalsStart = globalIndices[gid];
+      int iter = ((index - globalBucketStart) * globalBucketSize);
+      final int globalLength = globalsLength(gid);
+      while (iter < globalLength && this.globalsInd[globalsStart + iter] < sparseIndex) iter++;
+      if (iter < globalLength && this.globalsInd[iter] == sparseIndex) return iter;
       else return -1;
-
-      // int globalBucketId = gid * this.nGlobalBuckets + (sparseIndex % this.nGlobalBuckets);
-      // return binarySearch(this.globalsMapInd, sparseIndex,
-      //     this.globalsMap[globalBucketId], 
-      //     globalBucketId == this.globalsMap.length-1 ?
-      //       this.globalsInd.length : this.globalsMap[globalBucketId+1]);
     }
 
     protected double referenceGlobalVal(int gid, int sparseIndex) {

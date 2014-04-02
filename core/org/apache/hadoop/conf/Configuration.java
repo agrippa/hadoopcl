@@ -1560,56 +1560,47 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
       long start = System.currentTimeMillis();
       try {
-          final int nGlobalBuckets = this.getInt("opencl.global.buckets", 49152);
+          final int globalBucketSize = this.getInt("opencl.global.bucketsize", 50);
           int countGlobals = globalIndices.size();
+          int totalGlobalBuckets = 0;
           int totalGlobals = 0;
           for (int i = 0; i < globalIndices.size(); i++) {
               totalGlobals += globalIndices.get(i).length;
+              totalGlobalBuckets += (globalIndices.get(i).length + globalBucketSize - 1) / globalBucketSize;
           }
 
-          int[] globalStartingIndexPerBucket = new int[nGlobalBuckets * countGlobals];
+          int[] globalBucketOffsets = new int[countGlobals + 1];
+          int[] globalStartingIndexPerBucket = new int[totalGlobalBuckets];
           int[] globalOffsets = new int[countGlobals];
           int[] globalsInd = new int[totalGlobals];
           double[] globalsVal = new double[totalGlobals];
 
-          // int[] globalsMapInd = new int[totalGlobals];
-          // double[] globalsMapVal = new double[totalGlobals];
-          // int[] globalsMap = new int[nGlobalBuckets * countGlobals];
-
-          // final HashMap<Integer, List<IntDoublePair>> buckets =
-          //     constructEmptyBuckets(nGlobalBuckets);
           int globalIndex = 0;
+          int bucketsSoFar = 0;
           int globalCount = 0;
-          // For each global vector
+          // For each global
           for (int vector = 0; vector < globalIndices.size(); vector++) {
               int[] currentIndices = this.globalIndices.get(vector);
               double[] currentVals = this.globalVals.get(vector);
 
-              final int perBucket = (currentIndices.length + nGlobalBuckets - 1) /
-                  nGlobalBuckets;
-              int bucket = 0;
-
-              // clearBuckets(buckets);
               globalOffsets[globalCount] = globalIndex;
+              globalBucketOffsets[globalCount] = bucketsSoFar;
               for (int i = 0; i < currentIndices.length; i++) {
-                  // buckets.get(currentIndices[i] % nGlobalBuckets).add(
-                  //         new IntDoublePair(currentIndices[i], currentVals[i]));
                   globalsInd[globalIndex] = currentIndices[i];
                   globalsVal[globalIndex] = currentVals[i];
 
-                  if (globalIndex % perBucket == 0) {
-                      globalStartingIndexPerBucket[globalCount * nGlobalBuckets + bucket] = globalsInd[globalIndex];
-                      bucket++;
+                  if (i % globalBucketSize == 0) {
+                      globalStartingIndexPerBucket[bucketsSoFar++] = globalsInd[globalIndex];
                   }
 
                   globalIndex++;
               }
 
-              System.err.println("bucket="+bucket+" nGlobalBuckets="+nGlobalBuckets);
-              for (int i = 0; i < nGlobalBuckets; i++) {
-                  System.err.print(globalStartingIndexPerBucket[globalCount * nGlobalBuckets + i]+" ");
-              }
-              System.err.println();
+              // System.err.println("bucket="+bucket+" nGlobalBuckets="+nGlobalBuckets);
+              // for (int i = 0; i < nGlobalBuckets; i++) {
+              //     System.err.print(globalStartingIndexPerBucket[globalCount * nGlobalBuckets + i]+" ");
+              // }
+              // System.err.println();
 
               // int tmpGlobalIndex = globalOffsets[globalCount];
               // for (int bucket = 0; bucket < nGlobalBuckets; bucket++) {
@@ -1623,19 +1614,18 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
               // }
               globalCount++;
           }
+          globalBucketOffsets[globalIndices.size()] = totalGlobalBuckets;
 
           FileSystem fs = FileSystem.get(this);
           FSDataOutputStream output = fs.create(new Path(filename));
 
-          int[] metadata = new int[] { countGlobals, totalGlobals };
+          int[] metadata = new int[] { countGlobals, totalGlobals, totalGlobalBuckets};
           ReadArrayUtils.dumpIntArrayStatic(output, metadata, 0, metadata.length);
           ReadArrayUtils.dumpIntArrayStatic(output, globalOffsets, 0, globalOffsets.length);
           ReadArrayUtils.dumpIntArrayStatic(output, globalsInd, 0, globalsInd.length);
           ReadArrayUtils.dumpDoubleArrayStatic(output, globalsVal, 0, globalsVal.length);
           ReadArrayUtils.dumpIntArrayStatic(output, globalStartingIndexPerBucket, 0, globalStartingIndexPerBucket.length);
-          // ReadArrayUtils.dumpIntArrayStatic(output, globalsMapInd, 0, globalsMapInd.length);
-          // ReadArrayUtils.dumpDoubleArrayStatic(output, globalsMapVal, 0, globalsMapVal.length);
-          // ReadArrayUtils.dumpIntArrayStatic(output, globalsMap, 0, globalsMap.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalBucketOffsets, 0, globalBucketOffsets.length);
 
           output.close();
       } catch(IOException io) {

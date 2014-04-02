@@ -313,11 +313,12 @@ public class HadoopOpenCLContext {
     public int[] getGlobalsStartingIndexPerBucket() {
         return this.globals.globalStartingIndexPerBucket;
     }
-    // public double[] getGlobalsMapVal() { return this.globals.globalsMapVal; }
-    // public int[] getGlobalsMapInd() { return this.globals.globalsMapInd; }
-    // public int[] getGlobalsMap() { return this.globals.globalsMap; }
-    public int nGlobalBuckets() { return this.globals.nGlobalBuckets; }
+    public int[] getGlobalBucketOffsets() {
+        return this.globals.globalBucketOffsets;
+    }
+    // public int nGlobalBuckets() { return this.globals.nGlobalBuckets; }
     public int getNGlobals() { return this.globals.nGlobals; }
+    public int getGlobalBucketSize() { return this.globals.globalBucketSize; }
     
     public boolean isCombiner() {
         return this.isCombiner;
