@@ -36,11 +36,12 @@ public abstract class HadoopCLKernel extends Kernel {
     public final double[] globalsVal;
     public final int[] globalsInd;
     public final int[] globalIndices;
+    public final int[] globalStartingIndexPerBucket;
     public final int nGlobals;
 
-    public final int[] globalsMapInd;
-    public final double[] globalsMapVal;
-    public final int[] globalsMap;
+    // public final int[] globalsMapInd;
+    // public final double[] globalsMapVal;
+    // public final int[] globalsMap;
     public final int nGlobalBuckets;
 
     public int[] outputIterMarkers;
@@ -61,9 +62,10 @@ public abstract class HadoopCLKernel extends Kernel {
         this.nGlobalBuckets = globals.nGlobalBuckets;
         this.globalsInd = globals.globalsInd;
         this.globalsVal = globals.globalsVal;
-        this.globalsMapInd = globals.globalsMapInd;
-        this.globalsMapVal = globals.globalsMapVal;
-        this.globalsMap = globals.globalsMap;
+        this.globalStartingIndexPerBucket = globals.globalStartingIndexPerBucket;
+        // this.globalsMapInd = globals.globalsMapInd;
+        // this.globalsMapVal = globals.globalsMapVal;
+        // this.globalsMap = globals.globalsMap;
     }
 
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
@@ -85,7 +87,8 @@ public abstract class HadoopCLKernel extends Kernel {
     protected int[] getGlobalIndices(int gid) {
         int len = globalsLength(gid);
         copyIndices.ensureCapacity(len);
-        System.arraycopy(this.globalsInd, this.globalIndices[gid], copyIndices.getArray(), 0, len);
+        System.arraycopy(this.globalsInd, this.globalIndices[gid],
+                copyIndices.getArray(), 0, len);
         return (int[])copyIndices.getArray();
     }
 
@@ -96,20 +99,20 @@ public abstract class HadoopCLKernel extends Kernel {
         return (double[])copyVals.getArray();
     }
 
-    // protected float[] getGlobalFVals(int gid) {
-    //     int len = globalsLength(gid);
-    //     copyFvals.ensureCapacity(len);
-    //     System.arraycopy(this.globalsFval, this.globalIndices[gid], copyFvals.getArray(), 0, len);
-    //     return (float[])copyFvals.getArray();
-    // }
-
     private int findSparseIndexInGlobals(int gid, int sparseIndex) {
-      int globalBucketId = gid * this.nGlobalBuckets + (sparseIndex % this.nGlobalBuckets);
-      return binarySearch(this.globalsMapInd, sparseIndex,
-          this.globalsMap[globalBucketId], 
-          globalBucketId == this.globalsMap.length-1 ?
-            this.globalsInd.length : this.globalsMap[globalBucketId+1]);
-      // return HadoopCLUtils.linearSearch(this.globalsMapInd, sparseIndex,
+      final int perBucket = (globalsLength(gid) + nGlobalBuckets - 1) / nGlobalBuckets;
+      final int startingIndex = gid * this.nGlobalBuckets;
+      final int endingIndex = (gid + 1) * this.nGlobalBuckets;
+      int index = binarySearchForNextSmallest(this.globalStartingIndexPerBucket,
+              sparseIndex, startingIndex, endingIndex);
+
+      int iter = globalIndices[gid] + ((index - startingIndex) * perBucket);
+      while (globalsInd[iter] < sparseIndex) iter++;
+      if (globalInd[iter] == sparseIndex) return iter;
+      else return -1;
+
+      // int globalBucketId = gid * this.nGlobalBuckets + (sparseIndex % this.nGlobalBuckets);
+      // return binarySearch(this.globalsMapInd, sparseIndex,
       //     this.globalsMap[globalBucketId], 
       //     globalBucketId == this.globalsMap.length-1 ?
       //       this.globalsInd.length : this.globalsMap[globalBucketId+1]);
@@ -119,11 +122,6 @@ public abstract class HadoopCLKernel extends Kernel {
       int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
       return globalIndex == -1 ? 0.0 : this.globalsMapVal[globalIndex];
     }
-
-    // protected float referenceGlobalFval(int gid, int sparseIndex) {
-    //   int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
-    //   return globalIndex == -1 ? 0.0f : this.globalsMapFval[globalIndex];
-    // }
 
     protected int nGlobals() {
         return this.nGlobals;
@@ -445,6 +443,28 @@ public abstract class HadoopCLKernel extends Kernel {
         int mid = (high + low) / 2;
         int v = vals[mid];
         if (v == find) return mid;
+        if (v > find) high = mid-1;
+        else low = mid+1;
+      }
+      return -1;
+    }
+ 
+    /*
+     * Search a sorted integer array for a given value 'find' within the bounds
+     * of [low,high). Return the index in the array of the element, or -1 if not
+     * found.
+     */
+    public int binarySearchForNextSmallest(int[] vals, int find, int inLow, int inHigh) {
+      int low = inLow;
+      int high = inHigh-1;
+ 
+      while (low <= high) {
+        int mid = (high + low) / 2;
+        int v = vals[mid];
+        if (v == find || (mid < inHight-1 && v < find && vals[mid+1] > find)) {
+            return mid;
+        }
+
         if (v > find) high = mid-1;
         else low = mid+1;
       }

@@ -310,9 +310,12 @@ public class HadoopOpenCLContext {
     public int[] getGlobalIndices() { return this.globals.globalIndices; }
     public double[] getGlobalsVal() { return this.globals.globalsVal; }
     public int[] getGlobalsInd() { return this.globals.globalsInd; }
-    public double[] getGlobalsMapVal() { return this.globals.globalsMapVal; }
-    public int[] getGlobalsMapInd() { return this.globals.globalsMapInd; }
-    public int[] getGlobalsMap() { return this.globals.globalsMap; }
+    public int[] getGlobalsStartingIndexPerBucket() {
+        return this.globals.globalStartingIndexPerBucket;
+    }
+    // public double[] getGlobalsMapVal() { return this.globals.globalsMapVal; }
+    // public int[] getGlobalsMapInd() { return this.globals.globalsMapInd; }
+    // public int[] getGlobalsMap() { return this.globals.globalsMap; }
     public int nGlobalBuckets() { return this.globals.nGlobalBuckets; }
     public int getNGlobals() { return this.globals.nGlobals; }
     
