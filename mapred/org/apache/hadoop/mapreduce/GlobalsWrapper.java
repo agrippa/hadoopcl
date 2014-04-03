@@ -74,10 +74,10 @@ public class GlobalsWrapper {
                     throw new RuntimeException("Invalid type \"" + type + "\"");
                 }
             }
-            int[] metadata = ReadArrayUtils.readIntArray(input, 3);
-            int countGlobals = metadata[0];
-            int totalGlobals = metadata[1];
-            int totalGlobalBuckets = metadata[2];
+            final int[] metadata = ReadArrayUtils.readIntArray(input, 3);
+            final int countGlobals = metadata[0];
+            final int totalGlobals = metadata[1];
+            final int totalGlobalBuckets = metadata[2];
 
             final int totalLength = (4 * countGlobals) + (4 * totalGlobals) +
                 (8 * totalGlobals) + (4 * totalGlobalBuckets) + (4 * (countGlobals + 1));
