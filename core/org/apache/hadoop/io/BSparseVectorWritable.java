@@ -49,6 +49,10 @@ public class BSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
+    public BSparseVectorWritable(int[] indices, Integer indicesOffset, double[] vals, Integer valsOffset, Integer len) {
+        this(indices, indicesOffset.intValue(), vals, valsOffset.intValue(), len.intValue());
+    }
+
     public BSparseVectorWritable(int[] indices, int indicesOffset, double[] vals, int valsOffset, int len) {
         this.indices = indices;
         this.vals = vals;

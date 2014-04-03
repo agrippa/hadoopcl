@@ -464,6 +464,28 @@ public class BufferRunner implements Runnable {
 
             kernels[0].copyBackWritables();
 
+            final TaskInputOutputContext ctx = this.clContext.getContext();
+            final String valueClassName = ctx.getValueClass();
+            final Class valueClass = Class.forName(valueClassName);
+            final Constructor<WritableComparable> constructor =
+                valueClass.getConstructor(new Class[] { Array.class,
+                    Integer.class, Array.class, Integer.class, Integer.class });
+            for (int i = 0; i < kernels[0].nWritables; i++) {
+                final int writableLength;
+                if (i == kernels[0].nWritables - 1) {
+                    writableLength = kernels[0].writableIndices.length -
+                        kernels[0].writableIndices[i];
+                } else {
+                    writableLength = kernels[0].writableIndices[i + 1] -
+                        kernels[0].writableIndices[i];
+                }
+                WritableComparable val = constructor.newInstance(
+                        kernels[0].writableInd, kernels[0].writableIndices[i],
+                        kernels[0].writableVal, kernels[0].writableIndices[i], 
+                        writableLength);
+                ctx.write(new IntWritable(i), val);
+            }
+
             System.err.println("Copied back " + kernels[0].nWritables + " writables");
 
             for (int i = 0; i < this.clContext.getNKernels(); i++) {
