@@ -8,6 +8,8 @@ import static org.apache.hadoop.mapred.Task.Counter.COMBINE_INPUT_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.SPILLED_RECORDS;
 import static org.apache.hadoop.mapred.Task.Counter.COMBINE_OUTPUT_RECORDS;
 
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.mapred.IndexRecord;
 import org.apache.hadoop.mapred.Task.CombineOutputCollector;
@@ -22,6 +24,7 @@ import org.apache.hadoop.mapred.SpillRecord;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskTracker;
 
+import java.lang.reflect.Constructor;
 import java.util.Queue;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -465,28 +468,34 @@ public class BufferRunner implements Runnable {
             kernels[0].copyBackWritables();
 
             final TaskInputOutputContext ctx = this.clContext.getContext();
-            final String valueClassName = ctx.getValueClass();
-            final Class valueClass = Class.forName(valueClassName);
-            final Constructor<WritableComparable> constructor =
-                valueClass.getConstructor(new Class[] { Array.class,
-                    Integer.class, Array.class, Integer.class, Integer.class });
-            for (int i = 0; i < kernels[0].nWritables; i++) {
-                final int writableLength;
-                if (i == kernels[0].nWritables - 1) {
-                    writableLength = kernels[0].writableIndices.length -
-                        kernels[0].writableIndices[i];
-                } else {
-                    writableLength = kernels[0].writableIndices[i + 1] -
-                        kernels[0].writableIndices[i];
-                }
-                WritableComparable val = constructor.newInstance(
-                        kernels[0].writableInd, kernels[0].writableIndices[i],
-                        kernels[0].writableVal, kernels[0].writableIndices[i], 
-                        writableLength);
-                ctx.write(new IntWritable(i), val);
+            final Class valueClass;
+            if (this.clContext.isMapper() || this.clContext.isCombiner()) {
+                valueClass = ctx.getMapOutputValueClass();
+            } else {
+                valueClass = ctx.getOutputValueClass();
             }
-
-            System.err.println("Copied back " + kernels[0].nWritables + " writables");
+            try {
+                final Constructor<WritableComparable> constructor =
+                    valueClass.getConstructor(new Class[] { int[].class,
+                        Integer.class, double[].class, Integer.class, Integer.class });
+                for (int i = 0; i < kernels[0].nWritables; i++) {
+                    final int writableLength;
+                    if (i == kernels[0].nWritables - 1) {
+                        writableLength = kernels[0].writableIndices.length -
+                            kernels[0].writableIndices[i];
+                    } else {
+                        writableLength = kernels[0].writableIndices[i + 1] -
+                            kernels[0].writableIndices[i];
+                    }
+                    WritableComparable val = constructor.newInstance(
+                            kernels[0].writableInd, kernels[0].writableIndices[i],
+                            kernels[0].writableVal, kernels[0].writableIndices[i], 
+                            writableLength);
+                    ctx.write(new IntWritable(i), val);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
             for (int i = 0; i < this.clContext.getNKernels(); i++) {
                 kernels[i].dispose();

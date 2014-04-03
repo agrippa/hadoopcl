@@ -68,12 +68,12 @@ public abstract class HadoopCLKernel extends Kernel {
         this.globalBucketSize = globals.globalBucketSize;
 
         final GlobalsWrapper writables = clContext.getWritables();
-        this.writableIndices = globals.globalIndices;
-        this.nWritables = globals.nGlobals;
-        this.writableInd = globals.globalsInd;
-        this.writableVal = globals.globalsVal;
-        this.writableStartingIndexPerBucket = globals.globalStartingIndexPerBucket;
-        this.writableBucketOffsets = globals.globalBucketOffsets;
+        this.writableIndices = writables.globalIndices;
+        this.nWritables = writables.nGlobals;
+        this.writableInd = writables.globalsInd;
+        this.writableVal = writables.globalsVal;
+        this.writableStartingIndexPerBucket = writables.globalStartingIndexPerBucket;
+        this.writableBucketOffsets = writables.globalBucketOffsets;
     }
 
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
