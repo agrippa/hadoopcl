@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.mapred;
 
+import com.amd.aparapi.Kernel;
+import java.util.EnumSet;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -857,7 +859,10 @@ public class JobClient extends Configured implements MRConstants, Tool  {
             jobCopy);
         JobID jobId = jobSubmitClient.getNewJobId();
 
-        job.sendGlobalsToHDFS(jobId.toString());
+        job.sendGlobalsToHDFS(jobId.toString(), null);
+        for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
+            job.sendGlobalsToHDFS(jobId.toString(), stage);
+        }
 
         Path submitJobDir = new Path(jobStagingArea, jobId.toString());
         jobCopy.set("mapreduce.job.dir", submitJobDir.toString());

@@ -70,7 +70,8 @@ public class HadoopOpenCLContext {
     public final HadoopCLReducerKernel combinerKernel;
     public final HadoopCLKernel thisKernel;
 
-    private GlobalsWrapper globals;
+    private final GlobalsWrapper globals;
+    private final GlobalsWrapper writableGlobals;
     
     private final int nKernels;
     private final int nInputBuffers;
@@ -78,6 +79,7 @@ public class HadoopOpenCLContext {
 
     public HadoopOpenCLContext() {
         globals = new GlobalsWrapper();
+        writableGlobals = new GlobalsWrapper();
         doHighLevelProfiling = false;
         enableBufferRunnerDiagnostics = false;
         enableProfilingPrints = false;
@@ -109,7 +111,8 @@ public class HadoopOpenCLContext {
     }
 
     public HadoopOpenCLContext(String contextType,
-        TaskInputOutputContext setHadoopContext, GlobalsWrapper globals) {
+        TaskInputOutputContext setHadoopContext, GlobalsWrapper globals,
+        GlobalsWrapper writableGlobals) {
 
       this.hadoopContext = setHadoopContext;
 
@@ -141,9 +144,11 @@ public class HadoopOpenCLContext {
       this.outputBufferSize = conf.getInt("opencl."+this.type+".outputBufferSize", 32768);
 
       this.globals = globals;
+      this.writableGlobals = writableGlobals;
       synchronized(this.globals) {
-        this.globals.init(conf);
+        this.globals.init(conf, null);
       }
+      this.writableGlobals.init(conf, this.type);
 
       try {
         final Class mapperClass = hadoopContext.getOCLMapperClass();
@@ -306,6 +311,7 @@ public class HadoopOpenCLContext {
         return dev;
     }
 
+    public GlobalsWrapper getWritables() { return this.writableGlobals; }
     public GlobalsWrapper getGlobals() { return this.globals; }
     public int[] getGlobalIndices() { return this.globals.globalIndices; }
     public double[] getGlobalsVal() { return this.globals.globalsVal; }

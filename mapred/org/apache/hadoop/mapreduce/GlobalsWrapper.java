@@ -49,15 +49,31 @@ public class GlobalsWrapper {
     public GlobalsWrapper() {
     }
 
-    public void init(Configuration conf) {
+    public void init(Configuration conf, String type) {
         if (initialized) return;
 
         initialized = true;
         this.globalBucketSize = conf.getInt("opencl.global.bucketsize", 50);
         try {
 
-            FSDataInputStream input = FileSystem.get(conf).open(
-                new Path(conf.get("opencl.properties.globalsfile")));
+            final FSDataInputStream input;
+            if (type == null) {
+                input = FileSystem.get(conf).open(
+                    new Path(conf.get("opencl.properties.globalsfile")));
+            } else {
+                if (type.equals("mapper")) {
+                    input = FileSystem.get(conf).open(
+                        new Path(conf.get("opencl.properties.globalsfile.MAPPER")));
+                } else if (type.equals("combiner")) {
+                    input = FileSystem.get(conf).open(
+                        new Path(conf.get("opencl.properties.globalsfile.COMBINER")));
+                } else if (type.equals("reducer")) {
+                    input = FileSystem.get(conf).open(
+                        new Path(conf.get("opencl.properties.globalsfile.REDUCER")));
+                } else {
+                    throw new RuntimeException("Invalid type \"" + type + "\"");
+                }
+            }
             int[] metadata = ReadArrayUtils.readIntArray(input, 3);
             int countGlobals = metadata[0];
             int totalGlobals = metadata[1];
@@ -76,9 +92,6 @@ public class GlobalsWrapper {
             this.globalsVal = new double[totalGlobals];
             this.globalStartingIndexPerBucket = new int[totalGlobalBuckets];
             this.globalBucketOffsets = new int[countGlobals + 1];
-            // this.globalsMapInd = new int[totalGlobals];
-            // this.globalsMapVal = new double[totalGlobals];
-            // this.globalsMap = new int[nGlobalBuckets * countGlobals];
 
             int currentOffset = 0;
             final ByteBuffer bb = ByteBuffer.wrap(data);
@@ -100,16 +113,6 @@ public class GlobalsWrapper {
             bb.position(currentOffset);
 
             bb.asIntBuffer().get(this.globalBucketOffsets);
-
-            // bb.asIntBuffer().get(this.globalsMapInd);
-            // currentOffset += this.globalsMapInd.length * 4;
-            // bb.position(currentOffset);
-
-            // bb.asDoubleBuffer().get(this.globalsMapVal);
-            // currentOffset += this.globalsMapVal.length * 8;
-            // bb.position(currentOffset);
-
-            // bb.asIntBuffer().get(this.globalsMap);
 
         } catch(IOException io) {
             throw new RuntimeException(io);

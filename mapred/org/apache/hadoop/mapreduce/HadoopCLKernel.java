@@ -39,6 +39,13 @@ public abstract class HadoopCLKernel extends Kernel {
     public final int nGlobals;
     public final int globalBucketSize;
 
+    public final double[] writableVal;
+    public final int[] writableInd;
+    public final int[] writableIndices;
+    public final int[] writableStartingIndexPerBucket;
+    public final int[] writableBucketOffsets;
+    public final int nWritables;
+
     public int[] outputIterMarkers;
     public int[] memIncr;
     public int[] memWillRequireRestart;
@@ -51,7 +58,7 @@ public abstract class HadoopCLKernel extends Kernel {
         this.clContext = clContext;
         this.id = id.intValue();
 
-        GlobalsWrapper globals = clContext.getGlobals();
+        final GlobalsWrapper globals = clContext.getGlobals();
         this.globalIndices = globals.globalIndices;
         this.nGlobals = globals.nGlobals;
         this.globalsInd = globals.globalsInd;
@@ -59,6 +66,14 @@ public abstract class HadoopCLKernel extends Kernel {
         this.globalStartingIndexPerBucket = globals.globalStartingIndexPerBucket;
         this.globalBucketOffsets = globals.globalBucketOffsets;
         this.globalBucketSize = globals.globalBucketSize;
+
+        final GlobalsWrapper writables = clContext.getWritables();
+        this.writableIndices = globals.globalIndices;
+        this.nWritables = globals.nGlobals;
+        this.writableInd = globals.globalsInd;
+        this.writableVal = globals.globalsVal;
+        this.writableStartingIndexPerBucket = globals.globalStartingIndexPerBucket;
+        this.writableBucketOffsets = globals.globalBucketOffsets;
     }
 
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
@@ -454,7 +469,7 @@ public abstract class HadoopCLKernel extends Kernel {
       int low = inLow;
       int high = inHigh-1;
 
-      int lastLow;
+      int lastLow = -1;
 
       do {
           final int mid = (high + low) / 2;

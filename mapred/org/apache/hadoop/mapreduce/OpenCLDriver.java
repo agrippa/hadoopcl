@@ -49,6 +49,7 @@ public class OpenCLDriver {
   // public static final HadoopCLLogger logger = new HadoopCLLogger(false);
 
   public static final GlobalsWrapper globals = new GlobalsWrapper();
+  private final GlobalsWrapper writableGlobals = new GlobalsWrapper();
 
   // public static long inputsRead = -1L;
   // public static long processingStart = -1L;
@@ -79,7 +80,7 @@ public class OpenCLDriver {
 
   public OpenCLDriver(String type, TaskInputOutputContext context) {
     this.startTime = System.currentTimeMillis();
-    this.clContext = new HadoopOpenCLContext(type, context, globals);
+    this.clContext = new HadoopOpenCLContext(type, context, globals, writableGlobals);
     this.context = context;
     this.conf = context.getConfiguration();
 

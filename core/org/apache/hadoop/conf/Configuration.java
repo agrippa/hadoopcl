@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.conf;
 
+import java.util.EnumSet;
 import org.apache.hadoop.io.ReadArrayUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import java.nio.IntBuffer;
@@ -85,6 +86,8 @@ import org.xml.sax.SAXException;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SparseVectorWritable;
 import org.apache.hadoop.io.SequenceFile;
+
+import com.amd.aparapi.Kernel;
 
 /** 
  * Provides access to configuration parameters.
@@ -236,6 +239,10 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   /** A new configuration. */
   public Configuration() {
     this(true);
+    for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
+        this.writableGlobalIndices.put(stage, new LinkedList<int[]>());
+        this.writableGlobalVals.put(stage, new LinkedList<double[]>());
+    }
   }
 
   /** A new configuration where the behavior of reading from the default 
@@ -246,6 +253,11 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param loadDefaults specifies whether to load from the default files
    */
   public Configuration(boolean loadDefaults) {
+    for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
+        this.writableGlobalIndices.put(stage, new LinkedList<int[]>());
+        this.writableGlobalVals.put(stage, new LinkedList<double[]>());
+    }
+
     this.loadDefaults = loadDefaults;
     if (LOG.isDebugEnabled()) {
       LOG.debug(StringUtils.stringifyException(new IOException("config()")));
@@ -280,6 +292,10 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    */
   @SuppressWarnings("unchecked")
   public Configuration(Configuration other) {
+    for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
+        this.writableGlobalIndices.put(stage, new LinkedList<int[]>());
+        this.writableGlobalVals.put(stage, new LinkedList<double[]>());
+    }
     if (LOG.isDebugEnabled()) {
       LOG.debug(StringUtils.stringifyException
                 (new IOException("config(config)")));
@@ -302,6 +318,11 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
          for (double[] vals : other.globalVals) {
              this.globalVals.add(vals);
          }
+     }
+
+     for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
+         this.writableGlobalIndices.put(stage, other.writableGlobalIndices.get(stage));
+         this.writableGlobalVals.put(stage, other.writableGlobalVals.get(stage));
      }
    }
    
@@ -1554,19 +1575,35 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
   List<int[]> globalIndices = new LinkedList<int[]>();
   List<double[]> globalVals = new LinkedList<double[]>();
+  Map<Kernel.TaskType, List<int[]>> writableGlobalIndices =
+      new HashMap<Kernel.TaskType, List<int[]>>();
+  Map<Kernel.TaskType, List<double[]>> writableGlobalVals =
+      new HashMap<Kernel.TaskType, List<double[]>>();
 
-  public void sendGlobalsToHDFS(String pre) {
-      String filename = pre+".hadoopcl.globals";
+  public void sendGlobalsToHDFS(String pre, Kernel.TaskType stage) {
+      final String filename;
+      final List<int[]> localGlobalIndices;
+      final List<double[]> localGlobalVals;
+
+      if (stage == null) {
+          filename = pre+".hadoopcl.globals";
+          localGlobalIndices = globalIndices;
+          localGlobalVals = globalVals;
+      } else {
+          filename = pre + "." + stage + ".hadoopcl.globals";
+          localGlobalIndices = writableGlobalIndices.get(stage);
+          localGlobalVals = writableGlobalVals.get(stage);
+      }
 
       long start = System.currentTimeMillis();
       try {
           final int globalBucketSize = this.getInt("opencl.global.bucketsize", 50);
-          int countGlobals = globalIndices.size();
+          int countGlobals = localGlobalIndices.size();
           int totalGlobalBuckets = 0;
           int totalGlobals = 0;
-          for (int i = 0; i < globalIndices.size(); i++) {
-              totalGlobals += globalIndices.get(i).length;
-              totalGlobalBuckets += (globalIndices.get(i).length + globalBucketSize - 1) / globalBucketSize;
+          for (int i = 0; i < localGlobalIndices.size(); i++) {
+              totalGlobals += localGlobalIndices.get(i).length;
+              totalGlobalBuckets += (localGlobalIndices.get(i).length + globalBucketSize - 1) / globalBucketSize;
           }
 
           int[] globalBucketOffsets = new int[countGlobals + 1];
@@ -1579,9 +1616,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           int bucketsSoFar = 0;
           int globalCount = 0;
           // For each global
-          for (int vector = 0; vector < globalIndices.size(); vector++) {
-              int[] currentIndices = this.globalIndices.get(vector);
-              double[] currentVals = this.globalVals.get(vector);
+          for (int vector = 0; vector < localGlobalIndices.size(); vector++) {
+              int[] currentIndices = localGlobalIndices.get(vector);
+              double[] currentVals = localGlobalVals.get(vector);
 
               globalOffsets[globalCount] = globalIndex;
               globalBucketOffsets[globalCount] = bucketsSoFar;
@@ -1600,7 +1637,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           if (totalGlobalBuckets != bucketsSoFar) {
               throw new RuntimeException("Value mismatch totalGlobalBuckets="+totalGlobalBuckets+" bucketsSoFar="+bucketsSoFar);
           }
-          globalBucketOffsets[globalIndices.size()] = totalGlobalBuckets;
+          globalBucketOffsets[localGlobalIndices.size()] = totalGlobalBuckets;
 
           FileSystem fs = FileSystem.get(this);
           FSDataOutputStream output = fs.create(new Path(filename));
@@ -1618,9 +1655,15 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           throw new RuntimeException(io);
       }
 
-      this.set("opencl.properties.globalsfile", filename);
+      if (stage == null) {
+          this.set("opencl.properties.globalsfile", filename);
+      } else {
+          this.set("opencl.properties.globalsfile." + stage, filename);
+      }
       long stop = System.currentTimeMillis();
-      System.out.println("Sending "+globalIndices.size()+" to HDFS took "+(stop-start)+" ms");
+      System.out.println("Sending "+localGlobalIndices.size()+" to HDFS " +
+              (stage == null ? "" : "for stage " + stage + " ") +
+              "took "+(stop-start)+" ms");
   }
 
   private int minInt(int[] arr, int start) {
@@ -1655,7 +1698,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           convertedVals[i] = vec.get(i);
       }
 
-      addHadoopCLGlobalHelper(convertedIndices, convertedVals);
+      addHadoopCLGlobalHelper(convertedIndices, convertedVals, this.globalIndices, this.globalVals);
   }
 
   public void addHadoopCLGlobal(int[] ivec, double[] vec) {
@@ -1665,11 +1708,23 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       System.arraycopy(ivec, 0, indices, 0, indices.length);
       System.arraycopy(vec, 0, vals, 0, vals.length);
 
-      addHadoopCLGlobalHelper(indices, vals);
+      addHadoopCLGlobalHelper(indices, vals, this.globalIndices, this.globalVals);
+  }
+
+  public void addWritableHadoopCLGlobal(int[] ivec, double[] vec, Kernel.TaskType stage) {
+      int[] indices = new int[ivec.length];
+      double[] vals = new double[vec.length];
+
+      System.arraycopy(ivec, 0, indices, 0, indices.length);
+      System.arraycopy(vec, 0, vals, 0, vals.length);
+
+      addHadoopCLGlobalHelper(indices, vals, writableGlobalIndices.get(stage),
+              writableGlobalVals.get(stage));
   }
 
   // Don't copy the inputs
-  private void addHadoopCLGlobalHelper(int[] ivec, double[] vec) {
+  private void addHadoopCLGlobalHelper(int[] ivec, double[] vec,
+          List<int[]> localGlobalIndices, List<double[]> localGlobalVals) {
       if(ivec.length != vec.length) {
           throw new RuntimeException("Mismatch between global vector lengths");
       }
@@ -1689,7 +1744,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
         }
       }
 
-      this.globalIndices.add(ivec);
-      this.globalVals.add(vec);
+      localGlobalIndices.add(ivec);
+      localGlobalVals.add(vec);
   }
 }
