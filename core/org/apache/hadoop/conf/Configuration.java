@@ -1614,6 +1614,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
               // }
               globalCount++;
           }
+          if (totalGlobalBuckets != bucketsSoFar) {
+              throw new RuntimeException("Value mismatch totalGlobalBuckets="+totalGlobalBuckets+" bucketsSoFar="+bucketsSoFar);
+          }
           globalBucketOffsets[globalIndices.size()] = totalGlobalBuckets;
 
           FileSystem fs = FileSystem.get(this);

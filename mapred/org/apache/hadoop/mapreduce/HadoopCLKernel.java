@@ -449,32 +449,27 @@ public abstract class HadoopCLKernel extends Kernel {
      * found.
      */
     public int binarySearchForNextSmallest(int[] vals, int find, int inLow, int inHigh) {
+      if (find < vals[inLow]) return -1;
+
       int low = inLow;
       int high = inHigh-1;
 
-      if (find < vals[low]) {
-          return -1;
-      }
+      int lastLow;
 
-      int lastLow = -1;
-      int lastHigh = -1;
- 
-      while (low <= high) {
-        int mid = (high + low) / 2;
-        int v = vals[mid];
-        if (v == find) {
-            return mid;
-        }
+      do {
+          final int mid = (high + low) / 2;
+          final int v = vals[mid];
+          if (v == find) {
+              return mid;
+          }
 
-        lastLow = low;
-        lastHigh = high;
-        if (v > find) high = mid-1;
-        else low = mid+1;
-      }
+          lastLow = low;
+          if (v > find) high = mid-1;
+          else low = mid+1;
+      } while (low <= high);
 
-      int min = lastLow + 1;
-      while (min <= lastHigh && vals[min] < find) min++;
-      return min - 1;
+      while (lastLow < inHigh && vals[lastLow] < find) lastLow++;
+      return lastLow - 1;
     }
 
     /*
