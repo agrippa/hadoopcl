@@ -80,9 +80,7 @@ public class GlobalsWrapper {
             int totalGlobalBuckets = metadata[2];
 
             final int totalLength = (4 * countGlobals) + (4 * totalGlobals) +
-                (8 * totalGlobals) + (4 * totalGlobalBuckets) + (4 * (countGlobals + 1)); /* + (4 * totalGlobals) + (8 * totalGlobals) +
-                (4 * countGlobals * nGlobalBuckets); */
-
+                (8 * totalGlobals) + (4 * totalGlobalBuckets) + (4 * (countGlobals + 1));
             this.nGlobals = countGlobals;
 
             final byte[] data = ReadArrayUtils.readBytesStatic(input, totalLength);
