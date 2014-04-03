@@ -1595,23 +1595,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
                   globalIndex++;
               }
-
-              // System.err.println("bucket="+bucket+" nGlobalBuckets="+nGlobalBuckets);
-              // for (int i = 0; i < nGlobalBuckets; i++) {
-              //     System.err.print(globalStartingIndexPerBucket[globalCount * nGlobalBuckets + i]+" ");
-              // }
-              // System.err.println();
-
-              // int tmpGlobalIndex = globalOffsets[globalCount];
-              // for (int bucket = 0; bucket < nGlobalBuckets; bucket++) {
-              //     globalsMap[globalCount * nGlobalBuckets + bucket] =
-              //         tmpGlobalIndex;
-              //     for (IntDoublePair element : buckets.get(bucket)) {
-              //         globalsMapInd[tmpGlobalIndex] = element.i;
-              //         globalsMapVal[tmpGlobalIndex] = element.d;
-              //         tmpGlobalIndex++;
-              //     }
-              // }
               globalCount++;
           }
           if (totalGlobalBuckets != bucketsSoFar) {
