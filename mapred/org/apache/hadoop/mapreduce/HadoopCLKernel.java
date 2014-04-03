@@ -459,7 +459,6 @@ public abstract class HadoopCLKernel extends Kernel {
       int high = inHigh-1;
 
       if (find < vals[low] || find > vals[high]) {
-          System.err.println("Exiting early: find="+find+" low="+low+" high="+high+" vals[low]="+vals[low]+" vals[high]="+vals[high]);
           return -1;
       }
 
@@ -478,14 +477,6 @@ public abstract class HadoopCLKernel extends Kernel {
         if (v > find) high = mid-1;
         else low = mid+1;
       }
-
-      System.err.println("Exiting while searching for "+ find);
-      System.err.println("  lastLow="+lastLow+" lastHigh="+lastHigh);
-      StringBuilder sb = new StringBuilder();
-      for (int i = lastLow; i <= lastHigh; i++) {
-          sb.append(vals[i]+" ");
-      }
-      System.err.println("  "+sb.toString());
 
       int min = lastLow;
       while (min <= lastHigh && vals[min] < find) min++;

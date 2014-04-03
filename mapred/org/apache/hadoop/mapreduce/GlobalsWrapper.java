@@ -99,7 +99,7 @@ public class GlobalsWrapper {
             currentOffset += this.globalStartingIndexPerBucket.length * 4;
             bb.position(currentOffset);
 
-            bb.asIntBuffer.get(this.globalBucketOffsets);
+            bb.asIntBuffer().get(this.globalBucketOffsets);
 
             // bb.asIntBuffer().get(this.globalsMapInd);
             // currentOffset += this.globalsMapInd.length * 4;

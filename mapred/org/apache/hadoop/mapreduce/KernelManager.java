@@ -23,7 +23,8 @@ public class KernelManager extends AllocManager<HadoopCLKernel> {
             newKernel.doEntrypointInit(this.clContext.getDevice(),
                 this.clContext.getDeviceId(), this.clContext.getDeviceSlot(),
                 this.clContext.getContext().getTaskAttemptID().getTaskID().getId(),
-                this.clContext.getContext().getTaskAttemptID().getId());
+                this.clContext.getContext().getTaskAttemptID().getId(),
+                this.clContext.getNKernels());
             this.free.add(newKernel);
             this.nAllocated++;
         }

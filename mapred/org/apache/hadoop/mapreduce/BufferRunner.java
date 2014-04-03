@@ -233,7 +233,8 @@ public class BufferRunner implements Runnable {
                         kernel.doEntrypointInit(clContext.getDevice(),
                             clContext.getDeviceId(), clContext.getDeviceSlot(),
                             clContext.getContext().getTaskAttemptID().getTaskID().getId(),
-                            clContext.getContext().getTaskAttemptID().getId());
+                            clContext.getContext().getTaskAttemptID().getId(),
+                            clContext.getNKernels());
 
                         final List<HadoopCLProfile> localProfiles = new LinkedList<HadoopCLProfile>();
                         while (true) {
