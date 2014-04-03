@@ -461,6 +461,11 @@ public class BufferRunner implements Runnable {
                 kernelThreads[i].join();
             }
             copyThread.join();
+
+            kernels[0].copyBackWritables();
+
+            System.err.println("Copied back " + kernels[0].nWritables + " writables");
+
             for (int i = 0; i < this.clContext.getNKernels(); i++) {
                 kernels[i].dispose();
             }
