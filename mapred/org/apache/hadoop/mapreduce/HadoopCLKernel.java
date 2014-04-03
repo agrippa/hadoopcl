@@ -15,8 +15,6 @@ import org.apache.hadoop.io.HadoopCLResizableDoubleArray;
 import org.apache.hadoop.io.HadoopCLResizableFloatArray;
 
 public abstract class HadoopCLKernel extends Kernel {
-    // protected final static AtomicInteger idIncr = new AtomicInteger(0);
-    // public final int id = HadoopCLKernel.idIncr.getAndIncrement();
     public final int id;
     public HadoopCLGlobalId tracker;
     private boolean available = true;
@@ -41,11 +39,6 @@ public abstract class HadoopCLKernel extends Kernel {
     public final int nGlobals;
     public final int globalBucketSize;
 
-    // public final int[] globalsMapInd;
-    // public final double[] globalsMapVal;
-    // public final int[] globalsMap;
-    // public final int nGlobalBuckets;
-
     public int[] outputIterMarkers;
     public int[] memIncr;
     public int[] memWillRequireRestart;
@@ -61,15 +54,11 @@ public abstract class HadoopCLKernel extends Kernel {
         GlobalsWrapper globals = clContext.getGlobals();
         this.globalIndices = globals.globalIndices;
         this.nGlobals = globals.nGlobals;
-        // this.nGlobalBuckets = globals.nGlobalBuckets;
         this.globalsInd = globals.globalsInd;
         this.globalsVal = globals.globalsVal;
         this.globalStartingIndexPerBucket = globals.globalStartingIndexPerBucket;
         this.globalBucketOffsets = globals.globalBucketOffsets;
         this.globalBucketSize = globals.globalBucketSize;
-        // this.globalsMapInd = globals.globalsMapInd;
-        // this.globalsMapVal = globals.globalsMapVal;
-        // this.globalsMap = globals.globalsMap;
     }
 
     public abstract Class<? extends HadoopCLInputBuffer> getInputBufferClass();
@@ -104,22 +93,27 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     private int findSparseIndexInGlobals(int gid, int sparseIndex) {
-      int globalBucketStart = globalBucketOffsets[gid];
-      int globalBucketEnd = globalBucketOffsets[gid + 1];
-      int index = binarySearchForNextSmallest(this.globalStartingIndexPerBucket, sparseIndex, globalBucketStart, globalBucketEnd);
+      final int globalLength = globalsLength(gid);
+      final int globalBucketStart = globalBucketOffsets[gid];
+      final int globalBucketEnd = globalBucketOffsets[gid + 1];
+      final int index = binarySearchForNextSmallest(
+              this.globalStartingIndexPerBucket, sparseIndex, globalBucketStart,
+              globalBucketEnd);
       if (index == -1) return -1;
 
-      final int globalsStart = globalIndices[gid];
-      int iter = ((index - globalBucketStart) * globalBucketSize);
-      final int globalLength = globalsLength(gid);
-      while (iter < globalLength && this.globalsInd[globalsStart + iter] < sparseIndex) iter++;
-      if (iter < globalLength && this.globalsInd[iter] == sparseIndex) return iter;
+      final int globalsStart = globalIndices[gid] + ((index - globalBucketStart) * globalBucketSize);
+      int globalsEnd = globalIndices[gid] + ((index - globalBucketStart + 1) * globalBucketSize);
+      if (globalsEnd > globalIndices[gid] + globalLength) {
+          globalsEnd = globalIndices[gid] + globalLength;
+      }
+      int iter = globalsStart;
+      while (iter < globalsEnd && this.globalsInd[iter] < sparseIndex) iter++;
+      if (iter < globalsEnd && this.globalsInd[iter] == sparseIndex) return iter;
       else return -1;
     }
 
     protected double referenceGlobalVal(int gid, int sparseIndex) {
       int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
-      // return globalIndex == -1 ? 0.0 : this.globalsMapVal[globalIndex];
       return globalIndex == -1 ? 0.0 : this.globalsVal[globalIndex];
     }
 
@@ -458,7 +452,7 @@ public abstract class HadoopCLKernel extends Kernel {
       int low = inLow;
       int high = inHigh-1;
 
-      if (find < vals[low] || find > vals[high]) {
+      if (find < vals[low]) {
           return -1;
       }
 
@@ -478,7 +472,7 @@ public abstract class HadoopCLKernel extends Kernel {
         else low = mid+1;
       }
 
-      int min = lastLow;
+      int min = lastLow + 1;
       while (min <= lastHigh && vals[min] < find) min++;
       return min - 1;
     }
