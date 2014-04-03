@@ -57,7 +57,7 @@
 </property>
 
 <property>
-  <name>mapred.task.timeout</name><value>3600000</value>
+  <name>mapred.task.timeout</name><value>600000</value>
   <!--name>mapred.task.timeout</name><value>1200000</value-->
 </property>
 
@@ -76,11 +76,13 @@
 <property>
   <name>mapreduce.map.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value>
   <!--name>mapreduce.map.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLML4Scheduler</value-->
+  <!--name>mapreduce.map.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLStaticScheduler</value-->
 </property>
 
 <property>
-  <!--name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value-->
-  <name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLML4Scheduler</value>
+  <name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLBalanceScheduler</value>
+  <!--name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLML4Scheduler</value-->
+  <!--name>mapreduce.reduce.ocl_scheduler</name><value>org.apache.hadoop.mapreduce.HadoopCLStaticScheduler</value-->
 </property>
 
 <property>

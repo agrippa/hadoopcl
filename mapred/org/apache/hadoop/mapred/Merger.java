@@ -376,17 +376,20 @@ public class Merger {
     }
 
     public HadoopCLDataInput getBulkReader() {
+      final boolean any;
       if (minSegment == null) {
         try {
-            next();
+            any = next();
         } catch (IOException io) {
             throw new RuntimeException(io);
         }
+      } else {
+          any = true;
       }
         return new HadoopCLDataInput() {
             DataInputBuffer current = key;
             boolean dontNext = true;
-            boolean someLeft = true;
+            boolean someLeft = any;
             private final ReadArrayUtils utils = new ReadArrayUtils();
 
             @Override

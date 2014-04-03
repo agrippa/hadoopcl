@@ -1,5 +1,6 @@
 package org.apache.hadoop.mapreduce;
 
+import java.lang.reflect.Constructor;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -111,7 +112,44 @@ public class OpenCLDriver {
     } catch(Exception ex) {
         throw new RuntimeException(ex);
     }
-    return kernel.javaProcess(this.context, shouldIncr);
+    final IHadoopCLAccumulatedProfile profile = kernel.javaProcess(this.context,
+        shouldIncr);
+
+    if (kernel.nWritables > 0) {
+        try {
+            final TaskInputOutputContext ctx = this.clContext.getContext();
+            final Class valueClass;
+            if (this.clContext.isMapper() || this.clContext.isCombiner()) {
+                valueClass = ctx.getMapOutputValueClass();
+            } else {
+                valueClass = ctx.getOutputValueClass();
+            }
+            final Constructor<WritableComparable> constructor =
+                valueClass.getConstructor(new Class[] { int[].class,
+                    Integer.class, float[].class, Integer.class, Integer.class });
+
+            for (int i = 0; i < kernel.nWritables; i++) {
+                final int writableLength;
+                if (i == kernel.nWritables - 1) {
+                    writableLength = kernel.writableInd.length -
+                        kernel.writableIndices[i];
+                } else {
+                    writableLength = kernel.writableIndices[i + 1] -
+                        kernel.writableIndices[i];
+                }
+                final WritableComparable val = constructor.newInstance(
+                        kernel.writableInd, kernel.writableIndices[i],
+                        kernel.writableVal, kernel.writableIndices[i], 
+                        writableLength);
+                System.err.println("Writing writable\n");
+                System.err.println("  writableLength="+writableLength);
+                ctx.write(new IntWritable(i), val);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    return profile;
   }
 
   private String profilesToString(IHadoopCLAccumulatedProfile profile,

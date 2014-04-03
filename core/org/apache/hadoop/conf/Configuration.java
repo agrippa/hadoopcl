@@ -241,7 +241,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     this(true);
     for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
         this.writableGlobalIndices.put(stage, new LinkedList<int[]>());
-        this.writableGlobalVals.put(stage, new LinkedList<double[]>());
+        this.writableGlobalVals.put(stage, new LinkedList<float[]>());
     }
   }
 
@@ -255,7 +255,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   public Configuration(boolean loadDefaults) {
     for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
         this.writableGlobalIndices.put(stage, new LinkedList<int[]>());
-        this.writableGlobalVals.put(stage, new LinkedList<double[]>());
+        this.writableGlobalVals.put(stage, new LinkedList<float[]>());
     }
 
     this.loadDefaults = loadDefaults;
@@ -294,7 +294,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   public Configuration(Configuration other) {
     for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
         this.writableGlobalIndices.put(stage, new LinkedList<int[]>());
-        this.writableGlobalVals.put(stage, new LinkedList<double[]>());
+        this.writableGlobalVals.put(stage, new LinkedList<float[]>());
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug(StringUtils.stringifyException
@@ -1577,23 +1577,92 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   List<double[]> globalVals = new LinkedList<double[]>();
   Map<Kernel.TaskType, List<int[]>> writableGlobalIndices =
       new HashMap<Kernel.TaskType, List<int[]>>();
-  Map<Kernel.TaskType, List<double[]>> writableGlobalVals =
-      new HashMap<Kernel.TaskType, List<double[]>>();
+  Map<Kernel.TaskType, List<float[]>> writableGlobalVals =
+      new HashMap<Kernel.TaskType, List<float[]>>();
 
-  public void sendGlobalsToHDFS(String pre, Kernel.TaskType stage) {
+  public void sendWritableGlobalsToHDFS(String pre, Kernel.TaskType stage) {
+      final String filename;
+      final List<int[]> localGlobalIndices;
+      final List<float[]> localGlobalVals;
+
+      filename = pre + "." + stage + ".hadoopcl.globals";
+      localGlobalIndices = writableGlobalIndices.get(stage);
+      localGlobalVals = writableGlobalVals.get(stage);
+
+      long start = System.currentTimeMillis();
+      try {
+          final int globalBucketSize = this.getInt("opencl.global.bucketsize", 50);
+          int countGlobals = localGlobalIndices.size();
+          int totalGlobalBuckets = 0;
+          int totalGlobals = 0;
+          for (int i = 0; i < localGlobalIndices.size(); i++) {
+              totalGlobals += localGlobalIndices.get(i).length;
+              totalGlobalBuckets += (localGlobalIndices.get(i).length + globalBucketSize - 1) / globalBucketSize;
+          }
+
+          int[] globalBucketOffsets = new int[countGlobals + 1];
+          int[] globalStartingIndexPerBucket = new int[totalGlobalBuckets];
+          int[] globalOffsets = new int[countGlobals];
+          int[] globalsInd = new int[totalGlobals];
+          float[] globalsVal = new float[totalGlobals];
+
+          int globalIndex = 0;
+          int bucketsSoFar = 0;
+          int globalCount = 0;
+          // For each global
+          for (int vector = 0; vector < localGlobalIndices.size(); vector++) {
+              int[] currentIndices = localGlobalIndices.get(vector);
+              float[] currentVals = localGlobalVals.get(vector);
+
+              globalOffsets[globalCount] = globalIndex;
+              globalBucketOffsets[globalCount] = bucketsSoFar;
+              for (int i = 0; i < currentIndices.length; i++) {
+                  globalsInd[globalIndex] = currentIndices[i];
+                  globalsVal[globalIndex] = currentVals[i];
+
+                  if (i % globalBucketSize == 0) {
+                      globalStartingIndexPerBucket[bucketsSoFar++] = globalsInd[globalIndex];
+                  }
+
+                  globalIndex++;
+              }
+              globalCount++;
+          }
+          if (totalGlobalBuckets != bucketsSoFar) {
+              throw new RuntimeException("Value mismatch totalGlobalBuckets="+totalGlobalBuckets+" bucketsSoFar="+bucketsSoFar);
+          }
+          globalBucketOffsets[localGlobalIndices.size()] = totalGlobalBuckets;
+
+          FileSystem fs = FileSystem.get(this);
+          FSDataOutputStream output = fs.create(new Path(filename));
+
+          int[] metadata = new int[] { countGlobals, totalGlobals, totalGlobalBuckets};
+          ReadArrayUtils.dumpIntArrayStatic(output, metadata, 0, metadata.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalOffsets, 0, globalOffsets.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalsInd, 0, globalsInd.length);
+          ReadArrayUtils.dumpFloatArrayStatic(output, globalsVal, 0, globalsVal.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalStartingIndexPerBucket, 0, globalStartingIndexPerBucket.length);
+          ReadArrayUtils.dumpIntArrayStatic(output, globalBucketOffsets, 0, globalBucketOffsets.length);
+
+          output.close();
+      } catch(IOException io) {
+          throw new RuntimeException(io);
+      }
+
+      this.set("opencl.properties.globalsfile." + stage, filename);
+      long stop = System.currentTimeMillis();
+      System.out.println("Sending "+localGlobalIndices.size()+" to HDFS " +
+              "for stage " + stage + " " + "took "+(stop-start)+" ms");
+  }
+
+  public void sendGlobalsToHDFS(String pre) {
       final String filename;
       final List<int[]> localGlobalIndices;
       final List<double[]> localGlobalVals;
 
-      if (stage == null) {
-          filename = pre+".hadoopcl.globals";
-          localGlobalIndices = globalIndices;
-          localGlobalVals = globalVals;
-      } else {
-          filename = pre + "." + stage + ".hadoopcl.globals";
-          localGlobalIndices = writableGlobalIndices.get(stage);
-          localGlobalVals = writableGlobalVals.get(stage);
-      }
+      filename = pre+".hadoopcl.globals";
+      localGlobalIndices = globalIndices;
+      localGlobalVals = globalVals;
 
       long start = System.currentTimeMillis();
       try {
@@ -1655,14 +1724,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           throw new RuntimeException(io);
       }
 
-      if (stage == null) {
-          this.set("opencl.properties.globalsfile", filename);
-      } else {
-          this.set("opencl.properties.globalsfile." + stage, filename);
-      }
+      this.set("opencl.properties.globalsfile", filename);
       long stop = System.currentTimeMillis();
       System.out.println("Sending "+localGlobalIndices.size()+" to HDFS " +
-              (stage == null ? "" : "for stage " + stage + " ") +
               "took "+(stop-start)+" ms");
   }
 
@@ -1711,15 +1775,42 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       addHadoopCLGlobalHelper(indices, vals, this.globalIndices, this.globalVals);
   }
 
-  public void addWritableHadoopCLGlobal(int[] ivec, double[] vec, Kernel.TaskType stage) {
+  public void addWritableHadoopCLGlobal(int[] ivec, float[] vec, Kernel.TaskType stage) {
       int[] indices = new int[ivec.length];
-      double[] vals = new double[vec.length];
+      float[] vals = new float[vec.length];
 
       System.arraycopy(ivec, 0, indices, 0, indices.length);
       System.arraycopy(vec, 0, vals, 0, vals.length);
 
       addHadoopCLGlobalHelper(indices, vals, writableGlobalIndices.get(stage),
               writableGlobalVals.get(stage));
+  }
+
+
+  // Don't copy the inputs
+  private void addHadoopCLGlobalHelper(int[] ivec, float[] vec,
+          List<int[]> localGlobalIndices, List<float[]> localGlobalVals) {
+      if(ivec.length != vec.length) {
+          throw new RuntimeException("Mismatch between global vector lengths");
+      }
+
+      if (!isSorted(ivec)) {
+        for (int i = 0; i < ivec.length; i++) {
+          int minIndex = minInt(ivec, i);
+          if (minIndex != i) {
+            int tmpi = ivec[i];
+            ivec[i] = ivec[minIndex];
+            ivec[minIndex] = tmpi;
+
+            float tmpd = vec[i];
+            vec[i] = vec[minIndex];
+            vec[minIndex] = tmpd;
+          }
+        }
+      }
+
+      localGlobalIndices.add(ivec);
+      localGlobalVals.add(vec);
   }
 
   // Don't copy the inputs

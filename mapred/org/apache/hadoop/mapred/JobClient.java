@@ -859,9 +859,9 @@ public class JobClient extends Configured implements MRConstants, Tool  {
             jobCopy);
         JobID jobId = jobSubmitClient.getNewJobId();
 
-        job.sendGlobalsToHDFS(jobId.toString(), null);
+        job.sendGlobalsToHDFS(jobId.toString());
         for (Kernel.TaskType stage : EnumSet.allOf(Kernel.TaskType.class)) {
-            job.sendGlobalsToHDFS(jobId.toString(), stage);
+            job.sendWritableGlobalsToHDFS(jobId.toString(), stage);
         }
 
         Path submitJobDir = new Path(jobStagingArea, jobId.toString());

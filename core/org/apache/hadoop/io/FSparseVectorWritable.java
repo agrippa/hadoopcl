@@ -41,6 +41,10 @@ public class FSparseVectorWritable implements WritableComparable {
         this.overrideValsOffset = -1;
     }
 
+    public FSparseVectorWritable(int[] indices, Integer offsetIndices, float[] vals, Integer offsetVals, Integer length) {
+        this(indices, offsetIndices.intValue(), vals, offsetVals.intValue(), length.intValue());
+    }
+
     public FSparseVectorWritable(int[] indices, int offsetIndices, float[] vals, int offsetVals, int length) {
         this.indicesRes = null;
         this.valsRes = null;
@@ -111,18 +115,14 @@ public class FSparseVectorWritable implements WritableComparable {
 
     public void readFields(DataInput in) throws IOException {
         int len = in.readInt();
-        this.indices = new int[len];
-        this.vals = new float[len];
         this.indicesRes = null;
         this.valsRes = null;
         this.overrideLength = -1;
         this.overrideIndicesOffset = -1;
         this.overrideValsOffset = -1;
 
-        for (int i = 0; i < len; i++) {
-            this.indices[i] = in.readInt();
-            this.vals[i] = in.readFloat();
-        }
+        this.indices = ReadArrayUtils.readIntArray(in, len);
+        this.vals = ReadArrayUtils.readFloatArray(in, len);
     }
 
     public int indicesOffset() {
@@ -135,22 +135,8 @@ public class FSparseVectorWritable implements WritableComparable {
 
     public void write(DataOutput out) throws IOException {
         out.writeInt(this.size());
-        int indicesOffset = indicesOffset();
-        int valsOffset = valsOffset();
-        if(this.indices != null) {
-            for(int i = 0; i < this.size(); i++) {
-                out.writeInt(this.indices[indicesOffset + i]);
-                out.writeFloat(this.vals[valsOffset + i]);
-            }
-        } else {
-            int[] privateIndices = (int[])this.indicesRes.getArray();
-            float[] privateVals = (float[])this.valsRes.getArray();
-
-            for(int i = 0; i < this.size(); i++) {
-                out.writeInt(privateIndices[indicesOffset + i]);
-                out.writeFloat(privateVals[valsOffset + i]);
-            }
-        }
+        ReadArrayUtils.dumpIntArrayStatic(out, this.indices(), this.indicesOffset(), this.size());
+        ReadArrayUtils.dumpFloatArrayStatic(out, this.vals(), this.valsOffset(), this.size());
     }
 
     private boolean elementEqual(FSparseVectorWritable other, int index) {

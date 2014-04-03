@@ -465,36 +465,38 @@ public class BufferRunner implements Runnable {
             }
             copyThread.join();
 
-            kernels[0].copyBackWritables();
+            if (kernels[0].nWritables > 0) {
+                kernels[0].copyBackWritables();
 
-            final TaskInputOutputContext ctx = this.clContext.getContext();
-            final Class valueClass;
-            if (this.clContext.isMapper() || this.clContext.isCombiner()) {
-                valueClass = ctx.getMapOutputValueClass();
-            } else {
-                valueClass = ctx.getOutputValueClass();
-            }
-            try {
-                final Constructor<WritableComparable> constructor =
-                    valueClass.getConstructor(new Class[] { int[].class,
-                        Integer.class, double[].class, Integer.class, Integer.class });
-                for (int i = 0; i < kernels[0].nWritables; i++) {
-                    final int writableLength;
-                    if (i == kernels[0].nWritables - 1) {
-                        writableLength = kernels[0].writableIndices.length -
-                            kernels[0].writableIndices[i];
-                    } else {
-                        writableLength = kernels[0].writableIndices[i + 1] -
-                            kernels[0].writableIndices[i];
-                    }
-                    WritableComparable val = constructor.newInstance(
-                            kernels[0].writableInd, kernels[0].writableIndices[i],
-                            kernels[0].writableVal, kernels[0].writableIndices[i], 
-                            writableLength);
-                    ctx.write(new IntWritable(i), val);
+                final TaskInputOutputContext ctx = this.clContext.getContext();
+                final Class valueClass;
+                if (this.clContext.isMapper() || this.clContext.isCombiner()) {
+                    valueClass = ctx.getMapOutputValueClass();
+                } else {
+                    valueClass = ctx.getOutputValueClass();
                 }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+                try {
+                    final Constructor<WritableComparable> constructor =
+                        valueClass.getConstructor(new Class[] { int[].class,
+                            Integer.class, float[].class, Integer.class, Integer.class });
+                    for (int i = 0; i < kernels[0].nWritables; i++) {
+                        final int writableLength;
+                        if (i == kernels[0].nWritables - 1) {
+                            writableLength = kernels[0].writableInd.length -
+                                kernels[0].writableIndices[i];
+                        } else {
+                            writableLength = kernels[0].writableIndices[i + 1] -
+                                kernels[0].writableIndices[i];
+                        }
+                        WritableComparable val = constructor.newInstance(
+                                kernels[0].writableInd, kernels[0].writableIndices[i],
+                                kernels[0].writableVal, kernels[0].writableIndices[i], 
+                                writableLength);
+                        ctx.write(new IntWritable(i), val);
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             for (int i = 0; i < this.clContext.getNKernels(); i++) {

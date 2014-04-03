@@ -32,17 +32,12 @@ import java.nio.ByteBuffer;
 public class GlobalsWrapper {
     public int[] globalsInd;
     public double[] globalsVal;
+    public float[] globalsFVal;
     public int[] globalIndices;
     public int[] globalStartingIndexPerBucket;
     public int[] globalBucketOffsets;
     public int nGlobals;
     public int globalBucketSize;
-
-    // public int[] globalsMapInd;
-    // public double[] globalsMapVal;
-    // public int[] globalsMap;
-
-    // public int nGlobalBuckets;
 
     private boolean initialized = false;
 
@@ -55,7 +50,6 @@ public class GlobalsWrapper {
         initialized = true;
         this.globalBucketSize = conf.getInt("opencl.global.bucketsize", 50);
         try {
-
             final FSDataInputStream input;
             if (type == null) {
                 input = FileSystem.get(conf).open(
@@ -79,15 +73,25 @@ public class GlobalsWrapper {
             final int totalGlobals = metadata[1];
             final int totalGlobalBuckets = metadata[2];
 
-            final int totalLength = (4 * countGlobals) + (4 * totalGlobals) +
-                (8 * totalGlobals) + (4 * totalGlobalBuckets) + (4 * (countGlobals + 1));
+            final int totalLength;
+            if (type == null) {
+                totalLength = (4 * countGlobals) + (4 * totalGlobals) +
+                    (8 * totalGlobals) + (4 * totalGlobalBuckets) + (4 * (countGlobals + 1));
+            } else {
+                totalLength = (4 * countGlobals) + (4 * totalGlobals) +
+                    (4 * totalGlobals) + (4 * totalGlobalBuckets) + (4 * (countGlobals + 1));
+            }
             this.nGlobals = countGlobals;
 
             final byte[] data = ReadArrayUtils.readBytesStatic(input, totalLength);
             input.close();
             this.globalIndices = new int[countGlobals];
             this.globalsInd = new int[totalGlobals];
-            this.globalsVal = new double[totalGlobals];
+            if (type == null) {
+                this.globalsVal = new double[totalGlobals];
+            } else {
+                this.globalsFVal = new float[totalGlobals];
+            }
             this.globalStartingIndexPerBucket = new int[totalGlobalBuckets];
             this.globalBucketOffsets = new int[countGlobals + 1];
 
@@ -102,9 +106,15 @@ public class GlobalsWrapper {
             currentOffset += this.globalsInd.length * 4;
             bb.position(currentOffset);
 
-            bb.asDoubleBuffer().get(this.globalsVal);
-            currentOffset += this.globalsVal.length * 8;
-            bb.position(currentOffset);
+            if (type == null) {
+                bb.asDoubleBuffer().get(this.globalsVal);
+                currentOffset += this.globalsVal.length * 8;
+                bb.position(currentOffset);
+            } else {
+                bb.asFloatBuffer().get(this.globalsFVal);
+                currentOffset += this.globalsFVal.length * 4;
+                bb.position(currentOffset);
+            }
 
             bb.asIntBuffer().get(this.globalStartingIndexPerBucket);
             currentOffset += this.globalStartingIndexPerBucket.length * 4;

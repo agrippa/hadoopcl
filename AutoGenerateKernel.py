@@ -1045,7 +1045,6 @@ class SvecVisitor(NativeTypeVisitor):
                 buf.append(basename+'Vals = new double[this.clContext.getPreallocDoubleLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
-        # if isMapper and not isInput and not isKey:
         if not isInput and not isKey:
             buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize()];')
             buf.append('memAuxIntIncr = new int[1];')
@@ -1708,7 +1707,7 @@ class FsvecVisitor(NativeTypeVisitor):
                 buf.append(basename+'Vals = new float[this.clContext.getPreallocFloatLength()];\n')
         if not isKey and isInput:
             buf.append('this.individualInputValsCount = 0;')
-        if isMapper and not isInput and not isKey:
+        if not isInput and not isKey:
             buf.append('outputValLengthBuffer = new int[this.clContext.getOutputBufferSize()];')
             buf.append('memAuxIntIncr = new int[1];')
             buf.append('memAuxFloatIncr = new int[1];')
@@ -1720,7 +1719,7 @@ class FsvecVisitor(NativeTypeVisitor):
         buf.append('this.arrayLengths.put("'+basename+'FloatLookAsideBuffer", '+size+');')
         buf.append('this.arrayLengths.put("'+basename+'Indices", this.clContext.getPreallocIntLength());')
         buf.append('this.arrayLengths.put("'+basename+'Vals", this.clContext.getPreallocFloatLength());')
-        if isMapper and not isKey:
+        if not isKey:
             buf.append('this.arrayLengths.put("outputValLengthBuffer", this.clContext.getOutputBufferSize());')
             buf.append('this.arrayLengths.put("memAuxIntIncr", 1);')
             buf.append('this.arrayLengths.put("memAuxFloatIncr", 1);')

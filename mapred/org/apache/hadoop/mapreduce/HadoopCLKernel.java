@@ -39,7 +39,7 @@ public abstract class HadoopCLKernel extends Kernel {
     public final int nGlobals;
     public final int globalBucketSize;
 
-    public final double[] writableVal;
+    public final float[] writableVal;
     public final int[] writableInd;
     public final int[] writableIndices;
     public final int[] writableStartingIndexPerBucket;
@@ -71,7 +71,7 @@ public abstract class HadoopCLKernel extends Kernel {
         this.writableIndices = writables.globalIndices;
         this.nWritables = writables.nGlobals;
         this.writableInd = writables.globalsInd;
-        this.writableVal = writables.globalsVal;
+        this.writableVal = writables.globalsFVal;
         this.writableStartingIndexPerBucket = writables.globalStartingIndexPerBucket;
         this.writableBucketOffsets = writables.globalBucketOffsets;
     }
@@ -93,7 +93,7 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     protected int[] getGlobalIndices(int gid) {
-        int len = globalsLength(gid);
+        int len = globalVectorLength(gid, this.globalIndices, this.nGlobals, this.globalsInd.length);
         copyIndices.ensureCapacity(len);
         System.arraycopy(this.globalsInd, this.globalIndices[gid],
                 copyIndices.getArray(), 0, len);
@@ -101,35 +101,47 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     protected double[] getGlobalVals(int gid) {
-        int len = globalsLength(gid);
+        int len = globalVectorLength(gid, this.globalIndices, this.nGlobals, this.globalsInd.length);
         copyVals.ensureCapacity(len);
         System.arraycopy(this.globalsVal, this.globalIndices[gid], copyVals.getArray(), 0, len);
         return (double[])copyVals.getArray();
     }
 
-    private int findSparseIndexInGlobals(int gid, int sparseIndex) {
-      final int globalLength = globalsLength(gid);
-      final int globalBucketStart = globalBucketOffsets[gid];
-      final int globalBucketEnd = globalBucketOffsets[gid + 1];
+    private int findSparseIndex(int gid, int sparseIndex, int[] bucketOffsets,
+            int[] startingIndexPerBucket, int[] indices, int[] ind, int indlength, int nVectors) {
+      final int length = globalVectorLength(gid, indices, nVectors, indlength);
+      final int bucketStart = bucketOffsets[gid];
+      final int bucketEnd = bucketOffsets[gid + 1];
       final int index = binarySearchForNextSmallest(
-              this.globalStartingIndexPerBucket, sparseIndex, globalBucketStart,
-              globalBucketEnd);
+              startingIndexPerBucket, sparseIndex, bucketStart,
+              bucketEnd);
       if (index == -1) return -1;
 
-      final int globalsStart = globalIndices[gid] + ((index - globalBucketStart) * globalBucketSize);
-      int globalsEnd = globalIndices[gid] + ((index - globalBucketStart + 1) * globalBucketSize);
-      if (globalsEnd > globalIndices[gid] + globalLength) {
-          globalsEnd = globalIndices[gid] + globalLength;
+      final int start = indices[gid] + ((index - bucketStart) * globalBucketSize);
+      int end = indices[gid] + ((index - bucketStart + 1) * globalBucketSize);
+      if (end > indices[gid] + length) {
+          end = indices[gid] + length;
       }
-      int iter = globalsStart;
-      while (iter < globalsEnd && this.globalsInd[iter] < sparseIndex) iter++;
-      if (iter < globalsEnd && this.globalsInd[iter] == sparseIndex) return iter;
+      int iter = start;
+      while (iter < end && ind[iter] < sparseIndex) iter++;
+      if (iter < end && ind[iter] == sparseIndex) return iter;
       else return -1;
     }
 
     protected double referenceGlobalVal(int gid, int sparseIndex) {
-      int globalIndex = findSparseIndexInGlobals(gid, sparseIndex);
+      int globalIndex = findSparseIndex(gid, sparseIndex, this.globalBucketOffsets,
+              this.globalStartingIndexPerBucket, this.globalIndices,
+              this.globalsInd, this.globalsInd.length, this.nGlobals);
       return globalIndex == -1 ? 0.0 : this.globalsVal[globalIndex];
+    }
+
+    protected void incrementWritable(int gid, int sparseIndex, float val) {
+        int index = findSparseIndex(gid, sparseIndex, this.writableBucketOffsets,
+                this.writableStartingIndexPerBucket, this.writableIndices, this.writableInd,
+                this.writableInd.length, this.nWritables);
+        if (index != -1) {
+            this.writableVal[index] += val;
+        }
     }
 
     protected int nGlobals() {
@@ -137,9 +149,13 @@ public abstract class HadoopCLKernel extends Kernel {
     }
 
     protected int globalsLength(int gid) {
-        int base = this.globalIndices[gid];
-        int top = gid == nGlobals-1 ?
-                this.globalsInd.length : this.globalIndices[gid + 1];
+        return this.globalVectorLength(gid, this.globalIndices, this.nGlobals,
+                this.globalsInd.length);
+    }
+
+    private int globalVectorLength(int gid, int[] indices, int N, int indlength) {
+        final int base = indices[gid];
+        final int top = gid == N - 1 ? indlength : indices[gid + 1];
         return top - base;
     }
 
