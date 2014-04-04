@@ -43,3 +43,4 @@ mapper int int int bsvec
 reducer int bsvec int double
 reducer int fsvec int double
 mapper int int int fsvec
+mapper int bsvec int fsvec

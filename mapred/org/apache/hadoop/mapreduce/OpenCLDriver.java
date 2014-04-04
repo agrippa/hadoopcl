@@ -141,8 +141,6 @@ public class OpenCLDriver {
                         kernel.writableInd, kernel.writableIndices[i],
                         kernel.writableVal, kernel.writableIndices[i], 
                         writableLength);
-                System.err.println("Writing writable\n");
-                System.err.println("  writableLength="+writableLength);
                 ctx.write(new IntWritable(i), val);
             }
         } catch (Exception e) {
