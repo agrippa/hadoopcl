@@ -155,10 +155,13 @@ public class HadoopOpenCLContext {
         final Class reducerClass = hadoopContext.getOCLReducerClass();
         final Class combinerClass = hadoopContext.getOCLCombinerClass();
 
-        this.mapperKernelConstructor = mapperClass.getConstructor(new Class[] {
-          HadoopOpenCLContext.class, Integer.class });
-        this.reducerKernelConstructor = reducerClass.getConstructor(new Class[] {
-          HadoopOpenCLContext.class, Integer.class });
+        if (mapperClass != null) {
+            this.mapperKernelConstructor = mapperClass.getConstructor(new Class[] {
+              HadoopOpenCLContext.class, Integer.class });
+        } else {
+            this.mapperKernelConstructor = null;
+        }
+
         if (combinerClass != null) {
           this.jobHasCombiner = true;
           this.combinerKernelConstructor = combinerClass.getConstructor(new Class[] {
@@ -168,13 +171,28 @@ public class HadoopOpenCLContext {
           this.combinerKernelConstructor = null;
         }
 
-        this.mapperKernel = this.mapperKernelConstructor.newInstance(this, -1);
-        this.reducerKernel = this.reducerKernelConstructor.newInstance(this, -1);
+        if (reducerClass != null) {
+            this.reducerKernelConstructor = reducerClass.getConstructor(new Class[] {
+              HadoopOpenCLContext.class, Integer.class });
+        } else {
+            this.reducerKernelConstructor = null;
+        }
+
+        if (mapperKernelConstructor != null) {
+            this.mapperKernel = this.mapperKernelConstructor.newInstance(this, -1);
+        } else {
+            this.mapperKernel = null;
+        }
         if (this.combinerKernelConstructor != null) {
           this.combinerKernel = this.combinerKernelConstructor.newInstance(
               this, -1);
         } else {
           this.combinerKernel = null;
+        }
+        if (reducerKernelConstructor != null) {
+            this.reducerKernel = this.reducerKernelConstructor.newInstance(this, -1);
+        } else {
+            this.reducerKernel = null;
         }
 
         final HadoopCLKernel kernel;

@@ -711,8 +711,12 @@ public class MapTask extends Task {
     }
 
     @Override
-    public int writeCollection(KVCollection<K,V> coll) {
-        throw new UnsupportedOperationException();
+    public int writeCollection(KVCollection<K,V> coll) throws IOException, InterruptedException {
+        if (out != null) {
+            return out.writeCollection(coll);
+        } else {
+            return -1;
+        }
     }
 
     @Override
