@@ -460,8 +460,8 @@ public class Merger {
                 throw new UnsupportedOperationException();
             }
             @Override
-            public double readDouble() {
-                throw new UnsupportedOperationException();
+            public double readDouble() throws IOException {
+                return current.readDouble();
             }
             @Override
             public float readFloat() {

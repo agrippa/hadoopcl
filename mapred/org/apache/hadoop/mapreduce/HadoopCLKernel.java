@@ -455,6 +455,101 @@ public abstract class HadoopCLKernel extends Kernel {
         return nOutput;
     }
 
+    public int merge(HadoopCLPsvecValueIterator valsIter,
+            int[] outputIndices, double[] outputVals, int totalNElements,
+            double[] preallocDouble, int[] preallocInt) {
+
+        int[] indicesIntoVectors = preallocInt;
+        int[] queueOfSparseIndices = new int[valsIter.nValues()];
+        int[] queueOfVectors = new int[valsIter.nValues()];
+        int[] queueOfSparseIndicesLinks = new int[valsIter.nValues()];
+
+        for (int i = 0; i < valsIter.nValues(); i++) {
+            valsIter.seekTo(i);
+            indicesIntoVectors[i] = 0;
+            queueOfSparseIndices[i] = valsIter.getValIndices()[0];
+            queueOfVectors[i] = i;
+            queueOfSparseIndicesLinks[i] = i+1;
+        }
+
+        queueOfSparseIndicesLinks[valsIter.nValues()-1] = -1;
+        // The number of individual output elements we've written so far.
+        // This may be less than nProcessed if there are duplicated sparse
+        // indices in different input vectors.
+        int nOutput = 0;
+
+        // Sort queueOfSparseIndices so that the vectors with the smallest
+        // minimum index is at the front of the queue (i.e. index 0).
+        stupidSort(queueOfSparseIndices, queueOfVectors, valsIter.nValues());
+
+        // Current queue head, incremented as we pass through the queue
+        int queueHead = 0;
+
+        // The number of individual input elements we've passed over so far.
+        int nProcessed = 0;
+        // Current length of the queue
+        int todoNext = 0;
+
+        // While we haven't processed all input elements.
+        while (nProcessed < totalNElements) {
+
+            // Retrieve the vector ID in the input vals which has the
+            // smallest minimum index that hasn't been processed so far.
+            int minVector = queueOfVectors[queueHead];
+
+            valsIter.seekTo(minVector);
+            int newIndex = indicesIntoVectors[minVector]+1;
+            int minIndex = valsIter.getValIndices()[newIndex-1];
+            double minValue = valsIter.getValVals()[newIndex-1];
+            double minProb = valsIter.getProb();
+            indicesIntoVectors[minVector] = newIndex;
+            todoNext = queueOfSparseIndicesLinks[queueHead];
+
+            if (newIndex < valsIter.currentVectorLength()) {
+                // If there are still elements to be processed in the current
+                // vector, start by grabbing the value of the next smallest
+                // index.
+                int nextIndexInVector = valsIter.getValIndices()[newIndex];
+
+                int indexToInsertAfter = findNextSmallest(nextIndexInVector,
+                        queueHead,
+                        queueOfSparseIndices, queueOfSparseIndicesLinks);
+                int next = queueOfSparseIndicesLinks[indexToInsertAfter];
+
+                // Don't need to update queueOfVectors, stays the same value
+                queueOfSparseIndices[queueHead] = nextIndexInVector;
+                if (indexToInsertAfter != queueHead) {
+                    queueOfSparseIndicesLinks[queueHead] = next;
+                    queueOfSparseIndicesLinks[indexToInsertAfter] = queueHead;
+                } else {
+                    todoNext = queueHead;
+                }
+            } else {
+                // This slot is no longer valid, if we arrive at it we want to
+                // crash
+                queueOfSparseIndicesLinks[queueHead] = -1;
+                // queueOfSparseIndices[queueHead] = Integer.MAX_VALUE;
+            }
+            nProcessed++;
+
+            // Write the values we just extracted to the output combined
+            // values.
+            if (nOutput > 0 && outputIndices[nOutput-1] == minIndex) {
+                outputVals[nOutput-1] += (minValue * minProb);
+            } else {
+                outputIndices[nOutput] = minIndex;
+                outputVals[nOutput] = (minValue * minProb);
+                nOutput++;
+            }
+
+            // If we didn't find the next smallest index in the same vector,
+            // need to iterate the queueHead to the next location.
+            queueHead = todoNext;
+        }
+
+        return nOutput;
+    }
+
     // This is a copy-past of the above... Yuck.
     public int merge(HadoopCLFsvecValueIterator valsIter,
             int[] outputIndices, float[] outputVals, int totalNElements,

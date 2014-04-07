@@ -140,10 +140,9 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     }
     @Override
     public double readDouble() {
-        throw new UnsupportedOperationException();
-        // repositionBuffer();
-        // this.currentOffset += 8;
-        // return bb.getDouble();
+        repositionBuffer();
+        this.currentOffset += 8;
+        return bb.getDouble();
     }
     @Override
     public float readFloat() {

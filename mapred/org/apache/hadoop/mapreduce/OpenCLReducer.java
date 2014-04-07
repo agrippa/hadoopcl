@@ -44,6 +44,7 @@ public class OpenCLReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Reducer<KEY
         supportedValues.add("org.apache.hadoop.io.SparseVectorWritable");
         supportedValues.add("org.apache.hadoop.io.BSparseVectorWritable");
         supportedValues.add("org.apache.hadoop.io.FSparseVectorWritable");
+        supportedValues.add("org.apache.hadoop.io.PSparseVectorWritable");
     }
 
     @Override

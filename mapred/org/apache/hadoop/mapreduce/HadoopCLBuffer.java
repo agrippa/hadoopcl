@@ -217,6 +217,11 @@ public abstract class HadoopCLBuffer {
         return this.id;
     }
 
+    protected String probVecComponentsToString(double prob, int[] indices, int indicesOffset, double[] vals, int valsOffset, int len) {
+        String s = sparseVecComponentsToString(indices, indicesOffset, vals, valsOffset, len);
+        return "prob="+prob+" - "+s;
+    }
+
     protected String sparseVecComponentsToString(int[] vals, int offset, int len) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < len; i++) {
