@@ -294,8 +294,6 @@ public class OpenCLDriver {
   public void run() throws IOException, InterruptedException {
 
     final boolean isCombiner = this.clContext.isCombiner();
-    // OpenCLDriver.processingFinish = -1;
-    // OpenCLDriver.processingStart = System.currentTimeMillis();
 
     final long startupTime = System.currentTimeMillis() - this.startTime;
     // LOG:PROFILE
@@ -353,9 +351,6 @@ public class OpenCLDriver {
             itemCount += buffer.bulkFill(stream);
 
             buffer.getProfile().addItemsProcessed(itemCount);
-            // if (!isCombiner) {
-            //     OpenCLDriver.inputsRead += itemCount;
-            // }
 
             if (buffer.isFull(this.context)) {
                 buffer = handleFullBuffer(buffer, itemCount, bufferRunner, inputManager, this.context);
@@ -370,14 +365,11 @@ public class OpenCLDriver {
             }
 
             buffer.addKeyAndValue(this.context);
-            // if (!isCombiner) {
-            //     OpenCLDriver.inputsRead++;
-            // }
             itemCount++;
         }
+        buffer.getProfile().addItemsProcessed(itemCount);
     }
     buffer.getProfile().stopRead(buffer);
-    buffer.getProfile().addItemsProcessed(itemCount);
 
     this.context.signalDoneReading();
 
@@ -388,8 +380,6 @@ public class OpenCLDriver {
     bufferRunner.addWork(new MainDoneMarker(this.clContext));
 
     bufferRunnerThread.join();
-
-    // OpenCLDriver.processingFinish = System.currentTimeMillis();
 
     final long stop = System.currentTimeMillis();
     // LOG:PROFILE
