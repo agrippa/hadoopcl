@@ -178,7 +178,7 @@
 
 <property>
   <name>opencl.highlevel</name>
-  <value>true</value>
+  <value>false</value>
 </property>
 
 <property>

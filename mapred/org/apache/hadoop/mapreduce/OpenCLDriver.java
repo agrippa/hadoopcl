@@ -137,15 +137,6 @@ public class OpenCLDriver {
                     writableEnd = kernel.writableIndices[i + 1];
                 }
                 final int writableLength = writableEnd - writableStart;
-                System.err.println("Outputting writable with length "+writableLength);
-                StringBuilder sb = new StringBuilder();
-                float sum = 0.0f;
-                for (int j = writableStart; j < writableEnd; j++) {
-                    sb.append(kernel.writableInd[j]+":"+kernel.writableVal[j]+" ");
-                    sum += kernel.writableVal[j];
-                }
-                System.err.println("  "+sb.toString());
-                System.err.println("  Total incremented "+sum);
                 final WritableComparable val = constructor.newInstance(
                         kernel.writableInd, kernel.writableIndices[i],
                         kernel.writableVal, kernel.writableIndices[i], 

@@ -6,6 +6,7 @@ import org.apache.hadoop.mapred.MapTask.MapOutputBuffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
 
 public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     private final int start;
@@ -22,8 +23,10 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
     private final ByteBuffer bb;
     private IntBuffer intBuffer;
     private DoubleBuffer doubleBuffer;
+    private FloatBuffer floatBuffer;
     private final IntBuffer absoluteIntBuffer;
     private final DoubleBuffer absoluteDoubleBuffer;
+    private final FloatBuffer absoluteFloatBuffer;
 
     public HadoopCLBulkCombinerReader(int start, int end, int[] kvoffsets,
         int[] kvindices, byte[] kvbuffer, int bufvoid) {
@@ -37,8 +40,10 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
       this.bb = ByteBuffer.wrap(kvbuffer);
       this.intBuffer = this.bb.asIntBuffer();
       this.doubleBuffer = this.bb.asDoubleBuffer();
+      this.floatBuffer = this.bb.asFloatBuffer();
       this.absoluteIntBuffer = this.bb.asIntBuffer();
       this.absoluteDoubleBuffer = this.bb.asDoubleBuffer();
+      this.absoluteFloatBuffer = this.bb.asFloatBuffer();
       this.currentBase = -1;
       this.currentOffset = -1;
       this.bufvoid = bufvoid;
@@ -109,6 +114,19 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
             intBuffer = bb.asIntBuffer();
             return intBuffer;
         }
+    }
+
+    private FloatBuffer repositionFloatBuffer() {
+        final int pos = currentAbsolutePosition();
+        if (pos % 4 == 0) {
+            absoluteFloatBuffer.position(pos / 4); 
+            return absoluteFloatBuffer;
+        } else {
+            repositionBuffer();
+            floatBuffer = bb.asFloatBuffer();
+            return floatBuffer;
+        }
+
     }
 
     private DoubleBuffer repositionDoubleBuffer() {
@@ -234,17 +252,6 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
             }
             repositionDoubleBuffer().get(b, off + doublesBeforeSplit, remaining);
             this.currentOffset += (remaining * 8);
-
-
-            // byte[] aggregate = new byte[lenInBytes];
-            // System.arraycopy(kvbuffer, currentAbsolutePosition(),
-            //     aggregate, 0, distToEnd);
-            // this.currentOffset += distToEnd;
-            // System.arraycopy(kvbuffer, currentAbsolutePosition(),
-            //     aggregate, distToEnd, lenInBytes - distToEnd);
-            // this.currentOffset += (lenInBytes - distToEnd);
-
-            // ByteBuffer.wrap(aggregate).asDoubleBuffer().get(b, off, len);
         } else {
             repositionDoubleBuffer().get(b, off, len);
             this.currentOffset += lenInBytes;
@@ -253,7 +260,31 @@ public class HadoopCLBulkCombinerReader implements HadoopCLDataInput {
 
     @Override
     public void readFully(float[] b, int off, int len) {
-        throw new UnsupportedOperationException();
+        final int lenInBytes = len * 4;
+        final int distToEnd = bufvoid - currentAbsolutePosition();
+
+        if (distToEnd < lenInBytes) {
+
+            int floatsBeforeSplit = distToEnd / 4;
+            repositionFloatBuffer().get(b, off, floatsBeforeSplit);
+            this.currentOffset += (floatsBeforeSplit * 4);
+            int remaining = len - floatsBeforeSplit;
+            final int diff = distToEnd - (floatsBeforeSplit * 4);
+            if (diff > 0) {
+                System.arraycopy(kvbuffer, currentAbsolutePosition(),
+                    this.aggregate, 0, diff);
+                System.arraycopy(kvbuffer, 0, this.aggregate, diff, 4 - diff);
+                b[off + floatsBeforeSplit] = ByteBuffer.wrap(this.aggregate).getFloat();
+                remaining--;
+                this.currentOffset += 4;
+                floatsBeforeSplit++;
+            }
+            repositionFloatBuffer().get(b, off + floatsBeforeSplit, remaining);
+            this.currentOffset += (remaining * 4);
+        } else {
+            repositionFloatBuffer().get(b, off, len);
+            this.currentOffset += lenInBytes;
+        }
     }
 
     @Override
