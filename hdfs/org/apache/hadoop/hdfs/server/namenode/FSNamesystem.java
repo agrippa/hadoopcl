@@ -476,7 +476,8 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
     LOG.info("fsOwner=" + fsOwner);
 
     this.supergroup = conf.get("dfs.permissions.supergroup", "supergroup");
-    this.isPermissionEnabled = conf.getBoolean("dfs.permissions", true);
+    // this.isPermissionEnabled = conf.getBoolean("dfs.permissions", true);
+    this.isPermissionEnabled = false;
     LOG.info("supergroup=" + supergroup);
     LOG.info("isPermissionEnabled=" + isPermissionEnabled);
     short filePermission = (short)conf.getInt("dfs.upgrade.permission", 0777);

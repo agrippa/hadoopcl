@@ -1475,9 +1475,10 @@ public abstract class Server {
     this.maxConnectionsToNuke = conf.getInt("ipc.client.kill.max", 10);
     this.thresholdIdleConnections = conf.getInt("ipc.client.idlethreshold", 4000);
     this.secretManager = (SecretManager<TokenIdentifier>) secretManager;
-    this.authorize = 
-      conf.getBoolean(HADOOP_SECURITY_AUTHORIZATION, false);
-    this.isSecurityEnabled = UserGroupInformation.isSecurityEnabled();
+    this.authorize = false;
+    // this.authorize = 
+    //   conf.getBoolean(HADOOP_SECURITY_AUTHORIZATION, false);
+    this.isSecurityEnabled = false; //UserGroupInformation.isSecurityEnabled();
     
     // Start the listener here and let it bind to the port
     listener = new Listener();

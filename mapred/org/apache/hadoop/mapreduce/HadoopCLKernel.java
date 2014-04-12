@@ -459,6 +459,8 @@ public abstract class HadoopCLKernel extends Kernel {
             int[] outputIndices, double[] outputVals, int totalNElements,
             double[] preallocDouble, int[] preallocInt) {
 
+        // System.err.println("Getting input iter with "+valsIter.nValues()+" vectors, total = "+totalNElements);
+
         int[] indicesIntoVectors = preallocInt;
         int[] queueOfSparseIndices = new int[valsIter.nValues()];
         int[] queueOfVectors = new int[valsIter.nValues()];
@@ -466,6 +468,11 @@ public abstract class HadoopCLKernel extends Kernel {
 
         for (int i = 0; i < valsIter.nValues(); i++) {
             valsIter.seekTo(i);
+            // System.err.println("  Vector len="+valsIter.currentVectorLength());
+            // for (int j = 0; j < (valsIter.currentVectorLength() < 30 ? valsIter.currentVectorLength() : 30); j++) {
+            //     System.err.print("    "+valsIter.getValIndices()[j]+" ");
+            // }
+            // System.err.println();
             indicesIntoVectors[i] = 0;
             queueOfSparseIndices[i] = valsIter.getValIndices()[0];
             queueOfVectors[i] = i;

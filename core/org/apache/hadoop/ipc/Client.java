@@ -429,7 +429,7 @@ public class Client {
               }
             }
           }
-          
+         
           // connection time out is 20s
           NetUtils.connect(this.socket, server, 20000);
           if (rpcTimeout > 0) {
@@ -662,9 +662,9 @@ public class Client {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException ignored) {}
-      
+     
       LOG.info("Retrying connect to server: " + server + 
-          ". Already tried " + curRetries + " time(s).");
+          ". Already tried " + curRetries + " time(s). "+ioe.getMessage());
     }
 
     /* Write the RPC header */

@@ -1550,6 +1550,7 @@ abstract public class Task implements Writable, Configurable {
 
       @Override
       public int writeCollection(KVCollection coll) throws IOException {
+          System.err.println("output = "+output.getClass().getName());
           return output.collectCollection(coll);
       }
 

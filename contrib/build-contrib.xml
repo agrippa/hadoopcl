@@ -176,7 +176,7 @@
   <!-- ====================================================== -->
   <target name="compile" depends="init, ivy-retrieve-common" unless="skip.contrib">
     <echo message="contrib: ${name}"/>
-    <javac
+    <!--javac
      encoding="${build.encoding}"
      srcdir="${src.dir}"
      includes="**/*.java"
@@ -184,7 +184,7 @@
      debug="${javac.debug}"
      deprecation="${javac.deprecation}">
      <classpath refid="contrib-classpath"/>
-    </javac>
+    </javac-->
   </target>
 
 
@@ -411,14 +411,14 @@
     <ivy:configure settingsid="${ant.project.name}.ivy.settings" file="${ivysettings.xml}"/>
   </target>
 
-  <target name="ivy-resolve-common" depends="ivy-init">
-    <ivy:resolve settingsRef="${ant.project.name}.ivy.settings" conf="common" />
+  <target name="ivy-resolve-common">
+    <!--ivy:resolve settingsRef="${ant.project.name}.ivy.settings" conf="common" /-->
   </target>
 
   <target name="ivy-retrieve-common" depends="ivy-resolve-common"
     description="Retrieve Ivy-managed artifacts for the compile/test configurations">
-    <ivy:retrieve settingsRef="${ant.project.name}.ivy.settings" 
+    <!--ivy:retrieve settingsRef="${ant.project.name}.ivy.settings" 
       pattern="${build.ivy.lib.dir}/${ivy.artifact.retrieve.pattern}" sync="true" />
-    <ivy:cachepath pathid="${ant.project.name}.common-classpath" conf="common" />
+    <ivy:cachepath pathid="${ant.project.name}.common-classpath" conf="common" /-->
   </target>
 </project>
