@@ -405,7 +405,7 @@ class PrimitiveVisitor(NativeTypeVisitor):
             return [ 'this.inputVals[this.nVals] = tmpVal;',
                      'this.nVals++;' ]
     def getSameAsLastKeyMethod(self):
-        return [ 'return (('+self.typ.capitalize()+'Writable)obj).get() == this.inputKeys[this.nKeys-1];' ]
+        return [ 'return obj != null && (('+self.typ.capitalize()+'Writable)obj).get() == this.inputKeys[this.nKeys-1];' ]
     def getTransferKeyMethod(self):
         return [ 'this.inputKeys[0] = other.inputKeys[other.lastNKeys - 1];' ]
     def getTransferValueMethod(self):
@@ -636,7 +636,7 @@ class PairVisitor(NativeTypeVisitor):
                      'this.nVals++;' ]
     def getSameAsLastKeyMethod(self):
         return [ 'PairWritable writable = (PairWritable)obj;',
-                 'return writable.getVal1() == this.inputKeys1[this.nKeys-1] && writable.getVal2() == this.inputKeys2[this.nKeys-1];' ]
+                 'return obj != null && writable.getVal1() == this.inputKeys1[this.nKeys-1] && writable.getVal2() == this.inputKeys2[this.nKeys-1];' ]
     def getTransferKeyMethod(self):
         return [ 'this.inputKeys1[0] = other.inputKeys1[other.lastNKeys - 1];',
                  'this.inputKeys2[0] = other.inputKeys2[other.lastNKeys - 1];' ]
@@ -854,7 +854,7 @@ class PPairVisitor(NativeTypeVisitor):
                      'this.nVals++;' ]
     def getSameAsLastKeyMethod(self):
         return [ 'PPairWritable writable = (PPairWritable)obj;',
-                 'return writable.getId() == this.inputKeys1[this.nKeys-1];' ]
+                 'return obj != null && writable.getId() == this.inputKeys1[this.nKeys-1];' ]
     def getTransferKeyMethod(self):
         return [ 'this.inputKeys1[0] = other.inputKeys1[other.lastNKeys - 1];',
                  'this.inputKeys2[0] = other.inputKeys2[other.lastNKeys - 1];' ]
@@ -1110,7 +1110,7 @@ class IpairVisitor(NativeTypeVisitor):
                      'this.nVals++;' ]
     def getSameAsLastKeyMethod(self):
         return [ 'UniquePairWritable writable = (UniquePairWritable)obj;',
-                 'return writable.getVal1() == this.inputKeys1[this.nKeys-1] && writable.getVal2() == this.inputKeys2[this.nKeys-1] && writable.getIVal() == this.inputKeyIds[this.nKeys-1];' ]
+                 'return obj != null && writable.getVal1() == this.inputKeys1[this.nKeys-1] && writable.getVal2() == this.inputKeys2[this.nKeys-1] && writable.getIVal() == this.inputKeyIds[this.nKeys-1];' ]
     def getTransferKeyMethod(self):
         return [ 'this.inputKeyIds[0] = other.inputKeyIds[other.lastNKeys - 1];',
                  'this.inputKeys1[0] = other.inputKeys1[other.lastNKeys - 1];',
