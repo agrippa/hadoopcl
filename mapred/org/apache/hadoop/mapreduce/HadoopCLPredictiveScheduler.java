@@ -54,6 +54,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
 
     private void loadLaunchesFromFile(String filename) {
         long start = System.currentTimeMillis();
+        int nlaunches = 0;
         try {
             File file = new File(filename);
             if (file.exists() && file.isFile()) {
@@ -81,6 +82,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
                     taskPerfProfile.get(taskName).unsafeAddLaunch(
                             this.getMappingObject(device), 
                         this.getRecordingObject(device, 0.0, tmpOccupancy));
+                    nlaunches++;
                 }
                 reader.close();
             }
@@ -88,12 +90,13 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
             throw new RuntimeException(e);
         }
         long stop = System.currentTimeMillis();
-        System.out.println("DIAGNOSTICS: Loading launches from file took "+(stop-start)+" ms");
+        System.out.println("DIAGNOSTICS: Loading " + nlaunches + " launches from file took "+(stop-start)+" ms");
 
     }
 
     private void loadRecordingsFromFile(String filename) {
         long start = System.currentTimeMillis();
+        int nrecordings = 0;
         String line = "";
         try {
             File file = new File(filename);
@@ -122,6 +125,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
                     HadoopCLRecording<RecordingType> recording = this.getRecordingObject(device, Double.parseDouble(rateStr), tmpOccupancy);
                     MappingType map = this.getMappingObject(device);
                     this.taskPerfProfile.get(taskName).unsafeAddRecording(map, recording);
+                    nrecordings++;
                 }
                 reader.close();
             }
@@ -132,7 +136,7 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
             this.taskPerfProfile.get(key).characterizationInitialization();
         }
         long stop = System.currentTimeMillis();
-        System.out.println("DIAGNOSTICS: Loading recordings from file took "+(stop-start)+" ms");
+        System.out.println("DIAGNOSTICS: Loading " + nrecordings + " recordings from file took "+(stop-start)+" ms");
     }
 
     protected void writeLaunch(String taskName, int device, int[] occupancy, boolean isMapper) {
