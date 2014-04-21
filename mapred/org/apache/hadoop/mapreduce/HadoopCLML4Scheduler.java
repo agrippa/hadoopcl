@@ -29,11 +29,6 @@ public class HadoopCLML4Scheduler extends HadoopCLPredictiveScheduler<Device.TYP
     public HadoopCLML4Scheduler(JobConf conf) {
       super(conf);
       loadFromDirectory(conf.get("opencl.recordings_folder"));
-
-      //for(String taskName : taskPerfProfile.keySet()) {
-      //    AHadoopCLTaskCharacterization profile = taskPerfProfile.get(taskName);
-      //    profile.removeOutliers();
-      //}
     }
 
     public AHadoopCLTaskCharacterization<Device.TYPE, Double> getCharacterizationObject(String taskName, 
@@ -57,10 +52,9 @@ public class HadoopCLML4Scheduler extends HadoopCLPredictiveScheduler<Device.TYP
         int currentDevice = this.currentlyAssignedDevice(task);
 
         String taskClassName = task.getMainClassName(conf);
-        AHadoopCLTaskCharacterization<Device.TYPE, Double> taskProfile = this.getCharacterizationObject(taskClassName, 
-                this.deviceTypes, task.isMapTask());
-        taskProfile = taskPerfProfile.putIfAbsent(taskClassName, taskProfile);
-        if(taskProfile == null) taskProfile = taskPerfProfile.get(taskClassName);
+        checkTaskType(taskClassName, task.isMapTask(), false);
+        AHadoopCLTaskCharacterization<Device.TYPE, Double> taskProfile =
+            taskPerfProfile.get(taskClassName);
 
 		long best = (long)((double)expectedRemainingTime * 0.9);
 		int bestDevice = -1;
@@ -110,10 +104,9 @@ public class HadoopCLML4Scheduler extends HadoopCLPredictiveScheduler<Device.TYP
             if(taskStatus.getNInputs() > 0) {
                 double processingRate = (double)taskStatus.getNInputs() / (double)taskStatus.getProcessingTime();
 
-                AHadoopCLTaskCharacterization<Device.TYPE, Double> taskProfile = this.getCharacterizationObject(taskClassName, 
-                        this.deviceTypes, task.isMapTask());
-                taskProfile = taskPerfProfile.putIfAbsent(taskClassName, taskProfile);
-                if(taskProfile == null) taskProfile = taskPerfProfile.get(taskClassName);
+                checkTaskType(taskClassName, task.isMapTask(), false);
+                AHadoopCLTaskCharacterization<Device.TYPE, Double> taskProfile =
+                    taskPerfProfile.get(taskClassName);
 
                 int device = load.getDevice();
                 taskProfile.addRecording(this.getMappingObject(load.getDevice()), 

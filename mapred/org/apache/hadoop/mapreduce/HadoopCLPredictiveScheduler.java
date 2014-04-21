@@ -75,12 +75,9 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
                         occIndex++;
                     }
 
-                    if(!taskPerfProfile.containsKey(taskName)) {
-                        taskPerfProfile.put(taskName, 
-                                this.getCharacterizationObject(taskName, this.deviceTypes, isMapper));
-                    }
+                    checkTaskType(taskName, isMapper, true);
                     taskPerfProfile.get(taskName).unsafeAddLaunch(
-                            this.getMappingObject(device), 
+                        this.getMappingObject(device), 
                         this.getRecordingObject(device, 0.0, tmpOccupancy));
                     nlaunches++;
                 }
@@ -92,6 +89,35 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
         long stop = System.currentTimeMillis();
         System.out.println("DIAGNOSTICS: Loading " + nlaunches + " launches from file took "+(stop-start)+" ms");
 
+    }
+
+    protected void checkTaskType(String taskName, boolean isMapper,
+            boolean threadSafe) {
+        double[] emptyOccupancy = new double[deviceOccupancy.length];
+        for (int i = 0; i < emptyOccupancy.length; i++) {
+            emptyOccupancy[i] = 0;
+        }
+        if (threadSafe) {
+            if(!taskPerfProfile.containsKey(taskName)) {
+                taskPerfProfile.put(taskName, 
+                    this.getCharacterizationObject(taskName,
+                        this.deviceTypes, isMapper));
+                for (int i = 0; i < this.deviceOccupancy.length; i++) {
+                    taskPerfProfile.get(taskName).unsafeAddRecording(
+                            this.getMappingObject(i),
+                            this.getRecordingObject(i, 0.0, emptyOccupancy));
+                }
+            }
+        } else {
+            AHadoopCLTaskCharacterization<MappingType, RecordingType> taskProfile =
+                this.getCharacterizationObject(taskName, this.deviceTypes,
+                        isMapper);
+            for (int i = 0; i < this.deviceOccupancy.length; i++) {
+                taskProfile.unsafeAddRecording(this.getMappingObject(i),
+                        this.getRecordingObject(i, 0.0, emptyOccupancy));
+            }
+            taskPerfProfile.putIfAbsent(taskName, taskProfile);
+        }
     }
 
     private void loadRecordingsFromFile(String filename) {
@@ -118,11 +144,10 @@ public abstract class HadoopCLPredictiveScheduler<MappingType, RecordingType> ex
                         occIndex++;
                     }
 
-                    if(!taskPerfProfile.containsKey(taskName)) {
-                        taskPerfProfile.put(taskName, 
-                                this.getCharacterizationObject(taskName, this.deviceTypes, isMapper));
-                    }
-                    HadoopCLRecording<RecordingType> recording = this.getRecordingObject(device, Double.parseDouble(rateStr), tmpOccupancy);
+                    checkTaskType(taskName, isMapper, true);
+                    HadoopCLRecording<RecordingType> recording =
+                        this.getRecordingObject(device,
+                                Double.parseDouble(rateStr), tmpOccupancy);
                     MappingType map = this.getMappingObject(device);
                     this.taskPerfProfile.get(taskName).unsafeAddRecording(map, recording);
                     nrecordings++;

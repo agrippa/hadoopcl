@@ -33,7 +33,7 @@
 
 <!-- Maximum number of total map tasks to run for a job -->
 <property>
-  <name>mapred.map.tasks</name><value>8</value>
+  <name>mapred.map.tasks</name><value>48</value>
 </property>
 
 <!-- Maximum number of total reduce tasks to run for a job -->
@@ -166,7 +166,7 @@
 
 <property>
   <name>opencl.buffer.diagnostics</name>
-  <value>true</value>
+  <value>false</value>
 </property>
 
 <property>
@@ -176,7 +176,7 @@
 
 <property>
   <name>opencl.highlevel</name>
-  <value>true</value>
+  <value>false</value>
 </property>
 
 <property>
