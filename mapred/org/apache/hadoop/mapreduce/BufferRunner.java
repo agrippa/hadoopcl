@@ -126,6 +126,8 @@ public class BufferRunner implements Runnable {
         try {
             final HadoopCLProfile prof = buffer.getProfile();
             prof.startWrite(buffer);
+            // LOG:DIAGNOSTIC
+            // log("    Starting write of output buffer " + buffer.id + " with soFar=" + soFar);
             final int newProgress = buffer.putOutputsIntoHadoop(
                     this.clContext.getContext(), soFar);
             prof.stopWrite(buffer);
@@ -136,6 +138,9 @@ public class BufferRunner implements Runnable {
                     this.freeOutputBuffers.add(buffer);
                     freeOutputBuffers.notify();
                 }
+            } else {
+                // LOG:DIAGNOSTIC
+                // log("    Could not complete writing " + buffer.id + ", newProgress=" + newProgress);
             }
             return newProgress;
         } catch(Exception ex) {
@@ -180,7 +185,7 @@ public class BufferRunner implements Runnable {
             return;
         } else {
             // LOG:DIAGNOSTIC
-            // log("Waiting for more work");
+            // log("Writing thread waiting for more work");
             synchronized (this.somethingHappenedLocal) {
                 // LOG:PROFILE
                 // OpenCLDriver.logger.log("      Blocking on spillDone", this.clContext);
@@ -197,7 +202,7 @@ public class BufferRunner implements Runnable {
                 this.somethingHappenedLocal.set(false);
             }
             // LOG:DIAGNOSTIC
-            // log("Done waiting for more work");
+            // log("Writing thread done waiting for more work");
         }
     }
 
@@ -331,7 +336,8 @@ public class BufferRunner implements Runnable {
                         }
 
                         synchronized (toCopyFromOpenCL) {
-                            toCopyFromOpenCL.add(new KernelThreadDone(clContext, -1));
+                            toCopyFromOpenCL.add(new KernelThreadDone(clContext,
+                                        -1));
                             toCopyFromOpenCL.notify();
                         }
                     }
@@ -363,6 +369,8 @@ public class BufferRunner implements Runnable {
                         if (kernel instanceof KernelThreadDone) {
                             kernelDoneSignals++;
                         } else {
+                            // LOG:DIAGNOSTIC
+                            // log("Copy thread waiting for output buffer to copy " + kernel.id +" back to");
                             HadoopCLOutputBuffer output = null;
                             synchronized (freeOutputBuffers) {
                                 while (freeOutputBuffers.isEmpty()) {
@@ -370,7 +378,11 @@ public class BufferRunner implements Runnable {
                                 }
                                 output = freeOutputBuffers.remove(0);
                             }
+                            // LOG:DIAGNOSTIC
+                            // log("Copy thread got output buffer " + output.id +" to copy " + kernel.id +" back to");
                             handleOpenCLCopy(kernel, output);
+                            // LOG:DIAGNOSTIC
+                            // log("Copy thread finished copying kernel " + kernel.id + " to output buffer " + output.id);
                         }
                     } catch (InterruptedException ie) {
                         throw new RuntimeException(ie);
