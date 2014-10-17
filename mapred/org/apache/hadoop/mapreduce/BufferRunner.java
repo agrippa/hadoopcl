@@ -109,7 +109,10 @@ public class BufferRunner implements Runnable {
             // OpenCLDriver.logger.log("launching kernel "+kernel.tracker.toString(), this.clContext);
             // LOG:PROFILE
             // OpenCLDriver.logger.log("starting kernel", this.clContext);
+            long start = System.currentTimeMillis();
             success = kernel.launchKernel();
+            long stop = System.currentTimeMillis();
+            System.err.println("From java's perspective, launch took " + (stop - start) + " ms");
             // LOG:PROFILE
             // OpenCLDriver.logger.log("returning from kernel start", this.clContext);
         } catch(Exception io) {
