@@ -121,7 +121,7 @@ public class GlobalsWrapper {
             bb.position(currentOffset);
 
             bb.asIntBuffer().get(this.globalBucketOffsets);
-
+        
         } catch(IOException io) {
             throw new RuntimeException(io);
         }

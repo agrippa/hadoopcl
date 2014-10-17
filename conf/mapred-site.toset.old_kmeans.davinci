@@ -38,17 +38,17 @@
 
 <!-- Maximum number of total reduce tasks to run for a job -->
 <property>
-  <name>mapred.reduce.tasks</name><value>2</value>
+  <name>mapred.reduce.tasks</name><value>3</value>
 </property>
 
 <!-- Maximum number of map tasks to run at a time per tasktracker/node -->
 <property>
-  <name>mapred.tasktracker.map.tasks.maximum</name><value>12</value>
+  <name>mapred.tasktracker.map.tasks.maximum</name><value>10</value>
 </property>
 
 <!-- Maximum number of reduce tasks to run at a time per tasktracker/node -->
 <property>
-  <name>mapred.tasktracker.reduce.tasks.maximum</name><value>2</value>
+  <name>mapred.tasktracker.reduce.tasks.maximum</name><value>3</value>
 </property>
 
 <property>
@@ -126,7 +126,7 @@
 
 <property>
   <name>opencl.global.buckets</name>
-  <value>65536</value>
+  <value>32768</value>
 </property>
 
 <property>
@@ -134,14 +134,14 @@
   <value>2</value>
 </property>
 
-<property><name>opencl.mapper.nkernels</name><value>3</value></property>
+<property><name>opencl.mapper.nkernels</name><value>2</value></property>
 <property><name>opencl.mapper.ninputbuffers</name><value>3</value></property>
-<property><name>opencl.mapper.noutputbuffers</name><value>4</value></property>
+<property><name>opencl.mapper.noutputbuffers</name><value>5</value></property>
 <property><name>opencl.mapper.prealloc.length.int</name><value>0</value></property>
 <property><name>opencl.mapper.prealloc.length.float</name><value>0</value></property>
 <property><name>opencl.mapper.prealloc.length.double</name><value>0</value></property>
-<property><name>opencl.mapper.inputBufferSize</name><value>524288</value></property>
-<property><name>opencl.mapper.outputBufferSize</name><value>524288</value></property>
+<property><name>opencl.mapper.inputBufferSize</name><value>1048576</value></property>
+<property><name>opencl.mapper.outputBufferSize</name><value>1048576</value></property>
 <property><name>opencl.mapper.val_ele_multiplier</name><value>15</value></property>
 <!--property><name>opencl.mapper.compare</name><value>true</value></property-->
 

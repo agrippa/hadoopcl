@@ -140,7 +140,7 @@
 <property><name>opencl.mapper.prealloc.length.int</name><value>0</value></property>
 <property><name>opencl.mapper.prealloc.length.float</name><value>0</value></property>
 <property><name>opencl.mapper.prealloc.length.double</name><value>0</value></property>
-<property><name>opencl.mapper.inputBufferSize</name><value>262144</value></property>
+<property><name>opencl.mapper.inputBufferSize</name><value>524288</value></property>
 <property><name>opencl.mapper.outputBufferSize</name><value>524288</value></property>
 <property><name>opencl.mapper.val_ele_multiplier</name><value>15</value></property>
 <!--property><name>opencl.mapper.compare</name><value>true</value></property-->
