@@ -1156,16 +1156,12 @@ public class MapTask extends Task {
             if (isOpenCLSpiller()) {
                 return coll.start();
             }
-            // if (kvstart != kvend && isOpenCLSpiller()) {
-            //   return coll.start();
-            // }
             try {
               if (OpenCLDriver.logger != null) {
                   // LOG:PROFILE
                   // OpenCLDriver.logger.log("Blocking in collect", "mapper");
               }
               while (kvnext == kvstart) {
-              // while (kvstart != kvend) {
                 reporter.progress();
                 spillDone.await();
               }
@@ -1189,6 +1185,7 @@ public class MapTask extends Task {
       int oldBufStart = bufstart;
       int oldBufEnd = bufend;
       int index = coll.start();
+
       for ( ; index < coll.end() &&
               ((kvindex + 1) % kvoffsets.length) != kvstart; index++) {
         if (!coll.isValid(index)) continue;
@@ -1227,6 +1224,20 @@ public class MapTask extends Task {
           return index;
         }
       }
+
+      spillLock.lock();
+      try {
+          final boolean kvsoftlimit = ((kvnext > kvend)
+              ? kvnext - kvend > softRecordLimit
+              : kvend - kvnext <= kvoffsets.length - softRecordLimit);
+          if (kvsoftlimit && !spillRunning /* kvstart == kvend */ ) {
+            LOG.info("Spilling map output: record full = " + kvsoftlimit);
+            startSpill();
+          }
+      } finally {
+          spillLock.unlock();
+      }
+
       if (index == coll.end()) return -1;
       else return index;
     }
@@ -1470,7 +1481,6 @@ public class MapTask extends Task {
 
             if (!spillRunning) {
             // if (kvstart == kvend) {
-              // spill thread not running
               if (kvend != kvindex) {
                 // we have records we can spill
                 final boolean bufsoftlimit = (bufindex > bufend)
