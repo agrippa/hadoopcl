@@ -50,4 +50,5 @@ reducer ppair bsvec int bsvec
 reducer int psvec int bsvec
 mapper int bsvec int psvec
 reducer int psvec int psvec
-mapper int ipair double double
+reducer int ipair double double
+mapper double double int ipair
