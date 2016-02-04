@@ -1,3 +1,16 @@
+NOTE: This repository is maintained purely for reference (and sentimental
+value). It is a very old fork of a very old Hadoop version and likely is no
+longer usable. If you are interested in running data analytics applications
+on GPUs, I recommend checking out my other work at:
+
+https://github.com/agrippa/spark-swat.
+
+===========================================================================
+===========================================================================
+============ Old notes below, not guaranteed to be up-to-date =============
+===========================================================================
+===========================================================================
+
 HadoopCL: Automatic native execution of Hadoop computation on OpenCL devices
 
 author: Max Grossman, jmaxg3@gmail.com
